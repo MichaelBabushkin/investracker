@@ -212,4 +212,36 @@ export const analyticsAPI = {
   },
 }
 
+// Reports API
+export const reportsAPI = {
+  uploadReport: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const response = await api.post('/reports/upload-report', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  },
+  
+  testExtraction: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const response = await api.post('/reports/test-extraction', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  },
+  
+  getSupportedBrokers: async () => {
+    const response = await api.get('/reports/supported-brokers')
+    return response.data
+  },
+}
+
 export default api

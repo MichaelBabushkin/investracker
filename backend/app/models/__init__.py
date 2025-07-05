@@ -7,6 +7,7 @@ from .asset import Asset
 from .transaction import Transaction
 from .holding import Holding
 from .market_data import PriceHistory, CurrencyRate
+from .report import ReportUpload, ExtractedHolding, ExtractedTransaction
 
 __all__ = [
     "User",

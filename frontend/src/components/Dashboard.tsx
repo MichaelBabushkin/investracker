@@ -32,6 +32,7 @@ import {
   BarChart,
   Bar
 } from 'recharts'
+import ReportUploader from './ReportUploader'
 
 export default function Dashboard() {
   const { user } = useSelector((state: RootState) => state.auth)
@@ -88,6 +89,7 @@ export default function Dashboard() {
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTimeframe, setSelectedTimeframe] = useState('30d')
+  const [showUploader, setShowUploader] = useState(false)
 
   const handleLogout = () => {
     dispatch(logout())
@@ -499,6 +501,13 @@ export default function Dashboard() {
                   <PlusIcon className="h-5 w-5" />
                   <span>Add Transaction</span>
                 </button>
+                <button 
+                  onClick={() => setShowUploader(true)}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                >
+                  <span>📄</span>
+                  <span>Upload Report</span>
+                </button>
                 <button className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 py-3 px-4 rounded-lg font-medium transition-colors">
                   Create Portfolio
                 </button>
@@ -513,6 +522,41 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Report Upload Modal */}
+      {showUploader && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">Upload Investment Reports</h2>
+                <button
+                  onClick={() => setShowUploader(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-gray-600 mt-2">
+                Upload your PDF investment reports to automatically extract and analyze your portfolio data.
+              </p>
+            </div>
+            
+            <div className="p-6">
+              <ReportUploader 
+                onUploadComplete={(results) => {
+                  console.log('Upload results:', results)
+                  // Here you could update the dashboard data with real extracted data
+                  setShowUploader(false)
+                }}
+                maxFiles={3}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
