@@ -106,6 +106,31 @@ class PDFProcessor:
         
         return data
     
+    def _safe_float_convert(self, value: str) -> float:
+        """Safely convert string to float, handling empty values and errors"""
+        if not value or not value.strip():
+            return 0.0
+        
+        # Remove common non-numeric characters
+        cleaned = value.strip().replace(',', '').replace('$', '').replace('%', '').replace('(', '').replace(')', '')
+        
+        # Handle negative values in parentheses (accounting format)
+        if value.strip().startswith('(') and value.strip().endswith(')'):
+            cleaned = '-' + cleaned
+        
+        # Remove any remaining non-numeric characters except decimal point and minus sign
+        import re
+        cleaned = re.sub(r'[^\d\.-]', '', cleaned)
+        
+        if not cleaned or cleaned == '' or cleaned == '-':
+            return 0.0
+            
+        try:
+            return float(cleaned)
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Could not convert '{value}' (cleaned: '{cleaned}') to float: {e}, returning 0.0")
+            return 0.0
+    
     def _extract_fidelity_account_summary(self, text: str) -> Dict:
         """Extract account summary from Fidelity report"""
         summary = {}
@@ -120,7 +145,7 @@ class PDFProcessor:
         for pattern in value_patterns:
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
-                summary['total_value'] = float(match.group(1).replace(',', ''))
+                summary['total_value'] = self._safe_float_convert(match.group(1))
                 break
         
         # Look for cash balance
@@ -133,7 +158,7 @@ class PDFProcessor:
         for pattern in cash_patterns:
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
-                summary['cash_balance'] = float(match.group(1).replace(',', ''))
+                summary['cash_balance'] = self._safe_float_convert(match.group(1))
                 break
         
         return summary
@@ -169,19 +194,33 @@ class PDFProcessor:
     
     def _parse_holding_line(self, line: str) -> Optional[Dict]:
         """Parse a single holding line"""
-        # Pattern for stock holdings: Symbol Name Shares Price Value
-        # This is a simplified regex - you'd need to refine based on actual format
-        pattern = r'([A-Z]{1,5})\s+(.+?)\s+([\d,]+\.?\d*)\s+\$?([\d,]+\.?\d*)\s+\$?([\d,]+\.?\d*)'
+        # Multiple patterns for different holding line formats
+        patterns = [
+            # Pattern 1: Symbol Name Shares Price Value
+            r'([A-Z]{1,5})\s+(.+?)\s+([\d,]+\.?\d*)\s+\$?([\d,]+\.?\d*)\s+\$?([\d,]+\.?\d*)',
+            # Pattern 2: Symbol Name Shares @ Price = Value
+            r'([A-Z]{1,5})\s+(.+?)\s+([\d,]+\.?\d*)\s+@\s+\$?([\d,]+\.?\d*)\s+=\s+\$?([\d,]+\.?\d*)',
+            # Pattern 3: More flexible pattern with optional currency symbols
+            r'([A-Z]{1,5})\s+([^0-9]+?)\s+([\d,]+\.?\d*)\s+.*?\$?([\d,]+\.?\d*)\s+.*?\$?([\d,]+\.?\d*)',
+        ]
         
-        match = re.search(pattern, line)
-        if match:
-            return {
-                'symbol': match.group(1),
-                'name': match.group(2).strip(),
-                'shares': float(match.group(3).replace(',', '')),
-                'price': float(match.group(4).replace(',', '')),
-                'value': float(match.group(5).replace(',', ''))
-            }
+        for pattern in patterns:
+            match = re.search(pattern, line)
+            if match and len(match.groups()) >= 5:
+                # Validate that we have meaningful data
+                shares = self._safe_float_convert(match.group(3))
+                price = self._safe_float_convert(match.group(4))
+                value = self._safe_float_convert(match.group(5))
+                
+                # Only return if we have some valid numeric data
+                if shares > 0 or price > 0 or value > 0:
+                    return {
+                        'symbol': match.group(1),
+                        'name': match.group(2).strip(),
+                        'shares': shares,
+                        'price': price,
+                        'value': value
+                    }
         
         return None
     
@@ -202,8 +241,8 @@ class PDFProcessor:
                     'date': match.group(1),
                     'type': match.group(2).lower(),
                     'symbol': match.group(3),
-                    'quantity': float(match.group(4).replace(',', '')),
-                    'price': float(match.group(5).replace(',', ''))
+                    'quantity': self._safe_float_convert(match.group(4)),
+                    'price': self._safe_float_convert(match.group(5))
                 })
         
         return transactions
@@ -240,7 +279,12 @@ class PDFProcessor:
         # Try to find dollar amounts
         dollar_amounts = re.findall(r'\$?([\d,]+\.?\d*)', text)
         if dollar_amounts:
-            data['account_summary']['found_amounts'] = [float(amt.replace(',', '')) for amt in dollar_amounts[:10]]
+            safe_amounts = []
+            for amt in dollar_amounts[:10]:
+                converted = self._safe_float_convert(amt)
+                if converted > 0:  # Only include non-zero amounts
+                    safe_amounts.append(converted)
+            data['account_summary']['found_amounts'] = safe_amounts
         
         # Try to find stock symbols
         stock_symbols = re.findall(r'\b[A-Z]{1,5}\b', text)
