@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDispatch } from 'react-redux'
 import { AppDispatch } from '@/store'
-import { login } from '@/store/slices/authSlice'
+import { login, getCurrentUser } from '@/store/slices/authSlice'
 import { parseBackendError } from '@/utils/errorHandling'
 import { ErrorDisplay } from '@/components/ErrorDisplay'
 
@@ -30,8 +30,18 @@ export default function LoginPage() {
       
       if (login.fulfilled.match(result)) {
         console.log('Login successful:', result.payload)
-        // Redirect to dashboard
-        router.push('/')
+        
+        // Fetch current user data after successful login
+        const userResult = await dispatch(getCurrentUser())
+        
+        if (getCurrentUser.fulfilled.match(userResult)) {
+          console.log('User data fetched:', userResult.payload)
+          // Redirect to dashboard
+          router.push('/')
+        } else {
+          console.error('Failed to fetch user data:', userResult.payload)
+          setError('Login successful but failed to load user data')
+        }
       } else {
         console.error('Login failed:', result.payload)
         const errorMessage = parseBackendError(result.payload)
