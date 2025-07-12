@@ -22,6 +22,8 @@ try:
     from app.models.transaction import Transaction
     from app.models.holding import Holding
     from app.models.market_data import PriceHistory, CurrencyRate
+    from app.models.report import ReportUpload, ExtractedHolding, ExtractedTransaction
+    from app.models.israeli_stock import IsraeliStock
     
     def create_tables():
         """Create all tables"""

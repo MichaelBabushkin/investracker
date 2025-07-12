@@ -8,6 +8,7 @@ from .transaction import Transaction
 from .holding import Holding
 from .market_data import PriceHistory, CurrencyRate
 from .report import ReportUpload, ExtractedHolding, ExtractedTransaction
+from .ta125_stock import TA125Stock
 
 __all__ = [
     "User",
@@ -16,5 +17,9 @@ __all__ = [
     "Transaction",
     "Holding",
     "PriceHistory",
-    "CurrencyRate"
+    "CurrencyRate",
+    "ReportUpload",
+    "ExtractedHolding", 
+    "ExtractedTransaction",
+    "TA125Stock"
 ]
