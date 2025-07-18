@@ -10,6 +10,15 @@ from .market_data import PriceHistory, CurrencyRate
 from .report import ReportUpload, ExtractedHolding, ExtractedTransaction
 from .ta125_stock import TA125Stock
 
+# Israeli Stock Analysis Models
+from .israeli_stock_models import (
+    IsraeliStock,
+    IsraeliStockHolding,
+    IsraeliStockTransaction,
+    IsraeliDividend,
+    IsraeliStockSummary
+)
+
 __all__ = [
     "User",
     "Portfolio", 
@@ -21,5 +30,11 @@ __all__ = [
     "ReportUpload",
     "ExtractedHolding", 
     "ExtractedTransaction",
-    "TA125Stock"
+    "TA125Stock",
+    # Israeli Stock Models
+    "IsraeliStock",
+    "IsraeliStockHolding",
+    "IsraeliStockTransaction", 
+    "IsraeliDividend",
+    "IsraeliStockSummary"
 ]
