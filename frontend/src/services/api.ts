@@ -244,4 +244,76 @@ export const reportsAPI = {
   },
 }
 
+// Israeli Stocks API
+export const israeliStocksAPI = {
+  uploadPDF: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const response = await api.post('/israeli-stocks/upload-pdf', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  },
+  
+  uploadCSV: async (files: File[]) => {
+    const formData = new FormData()
+    files.forEach(file => {
+      formData.append('files', file)
+    })
+    
+    const response = await api.post('/israeli-stocks/analyze-csv', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  },
+  
+  getHoldings: async (limit?: number) => {
+    const params = limit ? `?limit=${limit}` : ''
+    const response = await api.get(`/israeli-stocks/holdings${params}`)
+    return response.data
+  },
+  
+  getTransactions: async (limit?: number) => {
+    const params = limit ? `?limit=${limit}` : ''
+    const response = await api.get(`/israeli-stocks/transactions${params}`)
+    return response.data
+  },
+  
+  getDividends: async (limit?: number) => {
+    const params = limit ? `?limit=${limit}` : ''
+    const response = await api.get(`/israeli-stocks/dividends${params}`)
+    return response.data
+  },
+  
+  getStocks: async (indexName?: string, limit?: number) => {
+    const params = new URLSearchParams()
+    if (indexName) params.append('index_name', indexName)
+    if (limit) params.append('limit', limit.toString())
+    
+    const paramString = params.toString()
+    const response = await api.get(`/israeli-stocks/stocks${paramString ? `?${paramString}` : ''}`)
+    return response.data
+  },
+  
+  deleteHolding: async (holdingId: number) => {
+    const response = await api.delete(`/israeli-stocks/holdings/${holdingId}`)
+    return response.data
+  },
+  
+  deleteTransaction: async (transactionId: number) => {
+    const response = await api.delete(`/israeli-stocks/transactions/${transactionId}`)
+    return response.data
+  },
+  
+  getSummary: async () => {
+    const response = await api.get('/israeli-stocks/summary')
+    return response.data
+  }
+}
+
 export default api

@@ -2,21 +2,15 @@
 SQLAlchemy models for Israeli Stock Analysis System
 Includes models for stocks, holdings, transactions, and dividends
 """
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Decimal, Date, Time, Text, UniqueConstraint, Index
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Date, Time, Text, UniqueConstraint, Index, DECIMAL
+from app.core.database import Base
 from datetime import datetime
+from decimal import Decimal
 import os
 import sys
 
 # Add the app directory to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
-try:
-    from app.core.database import Base
-except ImportError:
-    # Fallback for direct execution
-    from sqlalchemy.ext.declarative import declarative_base
-    Base = declarative_base()
 
 
 class IsraeliStock(Base):
@@ -52,11 +46,11 @@ class IsraeliStockHolding(Base):
     security_no = Column(String(20), nullable=False)
     symbol = Column(String(10), nullable=False)
     company_name = Column(String(100), nullable=False)
-    quantity = Column(Decimal(15, 4), nullable=False)
-    last_price = Column(Decimal(15, 4))
-    purchase_cost = Column(Decimal(15, 4))  # Total amount paid for purchase
-    current_value = Column(Decimal(15, 4))  # Current position worth (market value)
-    portfolio_percentage = Column(Decimal(5, 2))  # Percentage of whole portfolio
+    quantity = Column(DECIMAL(15, 4), nullable=False)
+    last_price = Column(DECIMAL(15, 4))
+    purchase_cost = Column(DECIMAL(15, 4))  # Total amount paid for purchase
+    current_value = Column(DECIMAL(15, 4))  # Current position worth (market value)
+    portfolio_percentage = Column(DECIMAL(5, 2))  # Percentage of whole portfolio
     currency = Column(String(3), default='ILS')
     holding_date = Column(Date)  # Date from PDF header
     source_pdf = Column(String(255), nullable=False)  # Original PDF filename
@@ -86,11 +80,11 @@ class IsraeliStockTransaction(Base):
     transaction_type = Column(String(20), nullable=False)  # BUY, SELL, DIVIDEND, FEE, etc.
     transaction_date = Column(Date)
     transaction_time = Column(Time)
-    quantity = Column(Decimal(15, 4), nullable=False)
-    price = Column(Decimal(15, 4))  # Price per share
-    total_value = Column(Decimal(15, 4))  # Total transaction value
-    commission = Column(Decimal(15, 4))  # Broker commission
-    tax = Column(Decimal(15, 4))  # Tax amount
+    quantity = Column(DECIMAL(15, 4), nullable=False)
+    price = Column(DECIMAL(15, 4))  # Price per share
+    total_value = Column(DECIMAL(15, 4))  # Total transaction value
+    commission = Column(DECIMAL(15, 4))  # Broker commission
+    tax = Column(DECIMAL(15, 4))  # Tax amount
     currency = Column(String(3), default='ILS')
     source_pdf = Column(String(255), nullable=False)  # Original PDF filename
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -120,8 +114,8 @@ class IsraeliDividend(Base):
     symbol = Column(String(10), nullable=False)
     company_name = Column(String(100), nullable=False)
     payment_date = Column(Date, nullable=False)
-    amount = Column(Decimal(15, 4), nullable=False)  # Dividend amount received
-    tax = Column(Decimal(15, 4))  # Tax withheld
+    amount = Column(DECIMAL(15, 4), nullable=False)  # Dividend amount received
+    tax = Column(DECIMAL(15, 4))  # Tax withheld
     currency = Column(String(3), default='ILS')
     source_pdf = Column(String(255), nullable=False)  # Original PDF filename
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -153,26 +147,26 @@ class IsraeliStockSummary(Base):
     company_name = Column(String(100), nullable=False)
     
     # Holdings summary
-    total_quantity = Column(Decimal(15, 4), default=0)
-    average_purchase_price = Column(Decimal(15, 4))
-    total_purchase_cost = Column(Decimal(15, 4), default=0)
-    current_market_value = Column(Decimal(15, 4), default=0)
-    unrealized_gain_loss = Column(Decimal(15, 4), default=0)
-    unrealized_gain_loss_percent = Column(Decimal(8, 4), default=0)
+    total_quantity = Column(DECIMAL(15, 4), default=0)
+    average_purchase_price = Column(DECIMAL(15, 4))
+    total_purchase_cost = Column(DECIMAL(15, 4), default=0)
+    current_market_value = Column(DECIMAL(15, 4), default=0)
+    unrealized_gain_loss = Column(DECIMAL(15, 4), default=0)
+    unrealized_gain_loss_percent = Column(DECIMAL(8, 4), default=0)
     
     # Transaction summary
-    total_buy_quantity = Column(Decimal(15, 4), default=0)
-    total_sell_quantity = Column(Decimal(15, 4), default=0)
-    total_buy_value = Column(Decimal(15, 4), default=0)
-    total_sell_value = Column(Decimal(15, 4), default=0)
-    total_commission = Column(Decimal(15, 4), default=0)
-    total_tax = Column(Decimal(15, 4), default=0)
-    realized_gain_loss = Column(Decimal(15, 4), default=0)
+    total_buy_quantity = Column(DECIMAL(15, 4), default=0)
+    total_sell_quantity = Column(DECIMAL(15, 4), default=0)
+    total_buy_value = Column(DECIMAL(15, 4), default=0)
+    total_sell_value = Column(DECIMAL(15, 4), default=0)
+    total_commission = Column(DECIMAL(15, 4), default=0)
+    total_tax = Column(DECIMAL(15, 4), default=0)
+    realized_gain_loss = Column(DECIMAL(15, 4), default=0)
     
     # Dividend summary
-    total_dividends_received = Column(Decimal(15, 4), default=0)
-    dividend_tax_withheld = Column(Decimal(15, 4), default=0)
-    net_dividends = Column(Decimal(15, 4), default=0)
+    total_dividends_received = Column(DECIMAL(15, 4), default=0)
+    dividend_tax_withheld = Column(DECIMAL(15, 4), default=0)
+    net_dividends = Column(DECIMAL(15, 4), default=0)
     
     # Metadata
     first_transaction_date = Column(Date)

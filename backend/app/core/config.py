@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     API_VERSION: str = os.getenv("API_VERSION", "v1")
     
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://username:password@localhost:5432/investracker_db")
-    DATABASE_URL_TEST: str = os.getenv("DATABASE_URL_TEST", "postgresql://username:password@localhost:5432/investracker_test_db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5433/investracker_db")
+    DATABASE_URL_TEST: str = os.getenv("DATABASE_URL_TEST", "postgresql://postgres:postgres@localhost:5433/investracker_test_db")
     
     # JWT
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-super-secret-key-change-this-in-production")

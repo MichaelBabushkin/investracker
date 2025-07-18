@@ -187,7 +187,7 @@ export default function LandingPage() {
               <span className="text-primary-400">Invest</span>racker
             </h3>
             <p className="text-gray-400">
-              © 2024 Investracker. All rights reserved.
+              © 2025 Investracker. All rights reserved.
             </p>
           </div>
         </div>
