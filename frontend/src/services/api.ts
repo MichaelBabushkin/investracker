@@ -275,19 +275,19 @@ export const israeliStocksAPI = {
   getHoldings: async (limit?: number) => {
     const params = limit ? `?limit=${limit}` : ''
     const response = await api.get(`/israeli-stocks/holdings${params}`)
-    return response.data
+    return response.data.holdings || []
   },
   
   getTransactions: async (limit?: number) => {
     const params = limit ? `?limit=${limit}` : ''
     const response = await api.get(`/israeli-stocks/transactions${params}`)
-    return response.data
+    return response.data.transactions || []
   },
   
   getDividends: async (limit?: number) => {
     const params = limit ? `?limit=${limit}` : ''
     const response = await api.get(`/israeli-stocks/dividends${params}`)
-    return response.data
+    return response.data.dividends || []
   },
   
   getStocks: async (indexName?: string, limit?: number) => {

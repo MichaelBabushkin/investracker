@@ -8,7 +8,8 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
   CalendarIcon,
-  ClockIcon
+  ClockIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 import { israeliStocksAPI } from '@/services/api'
 import { IsraeliStockHolding } from '@/types/israeli-stocks'
@@ -69,7 +70,7 @@ export default function IsraeliStockHoldings({ refreshTrigger }: IsraeliStockHol
     return new Date(dateStr).toLocaleDateString('he-IL')
   }
 
-  const totalValue = holdings.reduce((sum, holding) => sum + (holding.current_value || 0), 0)
+  const totalValue = Array.isArray(holdings) ? holdings.reduce((sum, holding) => sum + (holding.current_value || 0), 0) : 0
 
   if (loading) {
     return (
@@ -89,6 +90,47 @@ export default function IsraeliStockHoldings({ refreshTrigger }: IsraeliStockHol
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900">Israeli Stock Holdings</h2>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-400 mb-4" />
+          <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Holdings</h3>
+          <p className="text-red-600">{error}</p>
+          <button
+            onClick={fetchHoldings}
+            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!holdings || holdings.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900">Israeli Stock Holdings</h2>
+        </div>
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
+          <BuildingOfficeIcon className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Holdings Found</h3>
+          <p className="text-gray-600 mb-4">
+            Upload an Israeli investment PDF to see your stock holdings here.
+          </p>
+          <p className="text-sm text-gray-500">
+            We support TA-125 and SME-60 stocks from Israeli brokers.
+          </p>
         </div>
       </div>
     )
@@ -127,14 +169,14 @@ export default function IsraeliStockHoldings({ refreshTrigger }: IsraeliStockHol
       </div>
 
       {/* Summary */}
-      {holdings.length > 0 && (
+      {Array.isArray(holdings) && holdings.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="metric-card">
             <div className="flex items-center">
               <BuildingOfficeIcon className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Total Holdings</p>
-                <p className="text-2xl font-bold">{holdings.length}</p>
+                <p className="text-2xl font-bold">{Array.isArray(holdings) ? holdings.length : 0}</p>
               </div>
             </div>
           </div>
@@ -155,7 +197,10 @@ export default function IsraeliStockHoldings({ refreshTrigger }: IsraeliStockHol
               <div className="ml-3">
                 <p className="text-sm opacity-80">Avg. Portfolio %</p>
                 <p className="text-2xl font-bold">
-                  {(holdings.reduce((sum, h) => sum + (h.portfolio_percentage || 0), 0) / holdings.length).toFixed(1)}%
+                  {Array.isArray(holdings) && holdings.length > 0 
+                    ? (holdings.reduce((sum, h) => sum + (h.portfolio_percentage || 0), 0) / holdings.length).toFixed(1)
+                    : '0'
+                  }%
                 </p>
               </div>
             </div>
@@ -164,7 +209,7 @@ export default function IsraeliStockHoldings({ refreshTrigger }: IsraeliStockHol
       )}
 
       {/* Holdings List */}
-      {holdings.length === 0 ? (
+      {!Array.isArray(holdings) || holdings.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <BuildingOfficeIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Holdings Found</h3>

@@ -629,7 +629,7 @@ class IsraeliStockService:
                 EXECUTE FUNCTION create_dividend_record();
         """.format(user_id_type, user_id_type))
         
-    def get_user_holdings(self, user_id: int, limit: Optional[int] = None) -> List[Dict]:
+    def get_user_holdings(self, user_id: str, limit: Optional[int] = None) -> List[Dict]:
         """Get user's Israeli stock holdings"""
         try:
             conn = self.create_database_connection()
@@ -673,7 +673,7 @@ class IsraeliStockService:
             print(f"Error retrieving holdings: {e}")
             return []
     
-    def get_user_transactions(self, user_id: int, limit: Optional[int] = None) -> List[Dict]:
+    def get_user_transactions(self, user_id: str, limit: Optional[int] = None) -> List[Dict]:
         """Get user's Israeli stock transactions"""
         try:
             conn = self.create_database_connection()
@@ -720,7 +720,7 @@ class IsraeliStockService:
             print(f"Error retrieving transactions: {e}")
             return []
     
-    def get_user_dividends(self, user_id: int, limit: Optional[int] = None) -> List[Dict]:
+    def get_user_dividends(self, user_id: str, limit: Optional[int] = None) -> List[Dict]:
         """Get user's Israeli stock dividends"""
         try:
             conn = self.create_database_connection()
@@ -800,7 +800,7 @@ class IsraeliStockService:
             print(f"Error retrieving stocks: {e}")
             return []
     
-    def delete_holding(self, holding_id: int, user_id: int) -> bool:
+    def delete_holding(self, holding_id: int, user_id: str) -> bool:
         """Delete a specific holding"""
         try:
             conn = self.create_database_connection()
@@ -822,7 +822,7 @@ class IsraeliStockService:
             print(f"Error deleting holding: {e}")
             return False
     
-    def delete_transaction(self, transaction_id: int, user_id: int) -> bool:
+    def delete_transaction(self, transaction_id: int, user_id: str) -> bool:
         """Delete a specific transaction"""
         try:
             conn = self.create_database_connection()
@@ -844,7 +844,7 @@ class IsraeliStockService:
             print(f"Error deleting transaction: {e}")
             return False
     
-    def analyze_csv_for_israeli_stocks(self, csv_files: List[str], user_id: int) -> Dict:
+    def analyze_csv_for_israeli_stocks(self, csv_files: List[str], user_id: str) -> Dict:
         """Analyze CSV files for Israeli stocks and save to database"""
         try:
             israeli_stocks = self.load_israeli_stocks()
@@ -871,8 +871,8 @@ class IsraeliStockService:
                     continue
             
             # Save to database
-            holdings_saved = self.save_holdings_to_database(holdings, str(user_id)) if holdings else 0
-            transactions_saved = self.save_transactions_to_database(transactions, str(user_id)) if transactions else 0
+            holdings_saved = self.save_holdings_to_database(holdings, user_id) if holdings else 0
+            transactions_saved = self.save_transactions_to_database(transactions, user_id) if transactions else 0
             
             return {
                 'success': True,
@@ -888,6 +888,6 @@ class IsraeliStockService:
         except Exception as e:
             return {'error': str(e)}
         
-    def analyze_pdf_for_israeli_stocks(self, pdf_path: str, user_id: int) -> Dict:
+    def analyze_pdf_for_israeli_stocks(self, pdf_path: str, user_id: str) -> Dict:
         """Analyze PDF for Israeli stocks and save to database"""
-        return self.process_pdf_report(pdf_path, str(user_id))
+        return self.process_pdf_report(pdf_path, user_id)

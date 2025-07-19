@@ -19,7 +19,6 @@ router = APIRouter()
 
 @router.post("/upload-pdf")
 async def upload_and_analyze_pdf(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     user_id: Optional[int] = None,
     current_user: User = Depends(get_current_user)
@@ -42,27 +41,29 @@ async def upload_and_analyze_pdf(
         # Initialize service
         service = IsraeliStockService()
         
-        # Process PDF in background
-        background_tasks.add_task(
-            process_pdf_background,
-            temp_path,
-            temp_dir,
-            user_id or current_user.id
-        )
+        # Process PDF immediately (not in background)
+        target_user_id = str(user_id or current_user.id)
+        result = service.analyze_pdf_for_israeli_stocks(temp_path, target_user_id)
         
         return {
-            "message": "PDF uploaded successfully and processing started",
+            "message": "PDF processed successfully",
             "filename": file.filename,
-            "status": "processing"
+            "status": "completed",
+            "holdings_found": len(result.get('holdings', [])),
+            "holdings_saved": result.get('holdings_saved', 0),
+            "transactions_found": len(result.get('transactions', [])),
+            "transactions_saved": result.get('transactions_saved', 0),
+            "holding_date": result.get('holding_date')
         }
         
     except Exception as e:
-        # Clean up temp files on error
+        raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
+    finally:
+        # Clean up temp files
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
-        raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
 
-async def process_pdf_background(pdf_path: str, temp_dir: str, user_id: int):
+async def process_pdf_background(pdf_path: str, temp_dir: str, user_id: str):
     """Background task to process PDF and save results to database"""
     try:
         service = IsraeliStockService()
@@ -91,7 +92,7 @@ async def get_israeli_holdings(
     """Get Israeli stock holdings for a user"""
     try:
         service = IsraeliStockService()
-        target_user_id = user_id or current_user.id
+        target_user_id = str(user_id or current_user.id)
         
         holdings = service.get_user_holdings(target_user_id, limit)
         
@@ -113,7 +114,7 @@ async def get_israeli_transactions(
     """Get Israeli stock transactions for a user"""
     try:
         service = IsraeliStockService()
-        target_user_id = user_id or current_user.id
+        target_user_id = str(user_id or current_user.id)
         
         transactions = service.get_user_transactions(target_user_id, limit)
         
@@ -135,7 +136,7 @@ async def get_israeli_dividends(
     """Get Israeli stock dividends for a user"""
     try:
         service = IsraeliStockService()
-        target_user_id = user_id or current_user.id
+        target_user_id = str(user_id or current_user.id)
         
         dividends = service.get_user_dividends(target_user_id, limit)
         
@@ -175,7 +176,7 @@ async def get_user_summary(
     """Get summary of user's Israeli stock investments"""
     try:
         service = IsraeliStockService()
-        target_user_id = user_id or current_user.id
+        target_user_id = str(user_id or current_user.id)
         
         # Get counts and basic stats
         holdings = service.get_user_holdings(target_user_id, limit=1000)
@@ -244,7 +245,7 @@ async def upload_and_analyze_csv(
             process_csv_background,
             csv_files,
             temp_dir,
-            user_id or current_user.id
+            str(user_id or current_user.id)
         )
         
         return {
@@ -259,7 +260,7 @@ async def upload_and_analyze_csv(
             shutil.rmtree(temp_dir)
         raise HTTPException(status_code=500, detail=f"Error processing CSV files: {str(e)}")
 
-async def process_csv_background(csv_files: List[str], temp_dir: str, user_id: int):
+async def process_csv_background(csv_files: List[str], temp_dir: str, user_id: str):
     """Background task to process CSV files and save results to database"""
     try:
         service = IsraeliStockService()
@@ -287,7 +288,7 @@ async def delete_holding(
     """Delete a specific holding"""
     try:
         service = IsraeliStockService()
-        success = service.delete_holding(holding_id, current_user.id)
+        success = service.delete_holding(holding_id, str(current_user.id))
         
         if not success:
             raise HTTPException(status_code=404, detail="Holding not found or access denied")
@@ -305,7 +306,7 @@ async def delete_transaction(
     """Delete a specific transaction"""
     try:
         service = IsraeliStockService()
-        success = service.delete_transaction(transaction_id, current_user.id)
+        success = service.delete_transaction(transaction_id, str(current_user.id))
         
         if not success:
             raise HTTPException(status_code=404, detail="Transaction not found or access denied")

@@ -50,12 +50,12 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
     return new Date(dateStr).toLocaleDateString('he-IL')
   }
 
-  const totalDividends = dividends.reduce((sum, dividend) => sum + dividend.amount, 0)
-  const totalTax = dividends.reduce((sum, dividend) => sum + (dividend.tax || 0), 0)
+  const totalDividends = (dividends || []).reduce((sum, dividend) => sum + dividend.amount, 0)
+  const totalTax = (dividends || []).reduce((sum, dividend) => sum + (dividend.tax || 0), 0)
   const netDividends = totalDividends - totalTax
 
   // Group dividends by company
-  const dividendsByCompany = dividends.reduce((acc, dividend) => {
+  const dividendsByCompany = (dividends || []).reduce((acc, dividend) => {
     const key = dividend.symbol
     if (!acc[key]) {
       acc[key] = {
@@ -111,6 +111,26 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
         </div>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-800">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!dividends || dividends.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900">Israeli Stock Dividends</h2>
+        </div>
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
+          <BanknotesIcon className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Dividends Found</h3>
+          <p className="text-gray-600 mb-4">
+            Upload an Israeli investment PDF with dividend transactions to see them here.
+          </p>
+          <p className="text-sm text-gray-500">
+            Dividends are automatically extracted from transaction data.
+          </p>
         </div>
       </div>
     )
