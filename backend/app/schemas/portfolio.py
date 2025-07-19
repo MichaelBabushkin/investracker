@@ -18,7 +18,7 @@ class PortfolioUpdate(BaseModel):
 # Portfolio Response
 class PortfolioResponse(BaseModel):
     id: int
-    user_id: int
+    user_id: str
     name: str
     description: Optional[str] = None
     base_currency: str

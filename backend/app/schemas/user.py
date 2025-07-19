@@ -18,7 +18,7 @@ class UserLogin(BaseModel):
 
 # User Response
 class UserResponse(BaseModel):
-    id: int
+    id: str
     email: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
