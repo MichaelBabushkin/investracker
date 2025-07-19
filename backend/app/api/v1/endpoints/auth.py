@@ -11,7 +11,7 @@ from app.core.auth import (
     create_refresh_token,
     get_current_active_user
 )
-from app.models.user import User
+from app.models.user import User, generate_user_id
 from app.schemas.user import (
     UserCreate, 
     UserLogin, 
@@ -40,7 +40,9 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     
     # Create new user
     hashed_password = get_password_hash(user_data.password)
+    user_id = generate_user_id()
     db_user = User(
+        id=user_id,
         email=user_data.email,
         hashed_password=hashed_password,
         first_name=user_data.first_name,

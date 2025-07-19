@@ -7,19 +7,23 @@ Successfully migrated all legacy PDF/CSV analysis scripts into a production-read
 ## What Was Moved
 
 ### Legacy Scripts (now in `/scripts/` directory):
+
 - `legacy_analyze_investment_pdf.py` - Original PDF analysis script
-- `legacy_pdf_to_csv_analyzer.py` - PDF to CSV extraction script  
+- `legacy_pdf_to_csv_analyzer.py` - PDF to CSV extraction script
 - `legacy_analyze_csv_israeli_stocks.py` - CSV analysis for Israeli stocks
 
 ### New Production API Structure:
 
 #### Core Service:
+
 - `app/services/israeli_stock_service.py` - Main service class containing all business logic
 
 #### API Endpoints:
+
 - `app/api/v1/endpoints/israeli_stocks.py` - RESTful endpoints for PDF upload and data retrieval
 
 #### Key Features Implemented:
+
 1. **PDF Upload & Processing**: Upload investment PDFs via API
 2. **Israeli Stock Detection**: Supports both TA-125 and SME-60 indexes
 3. **Automatic Data Extraction**: Holdings, transactions, and dividends
@@ -33,7 +37,7 @@ Successfully migrated all legacy PDF/CSV analysis scripts into a production-read
 ```
 POST /api/v1/israeli-stocks/upload-pdf     - Upload and process PDF
 GET  /api/v1/israeli-stocks/holdings       - Get user holdings
-GET  /api/v1/israeli-stocks/transactions   - Get user transactions  
+GET  /api/v1/israeli-stocks/transactions   - Get user transactions
 GET  /api/v1/israeli-stocks/dividends      - Get user dividends
 GET  /api/v1/israeli-stocks/stocks         - Get available Israeli stocks
 POST /api/v1/israeli-stocks/analyze-csv    - Analyze CSV files
@@ -44,16 +48,42 @@ DELETE /api/v1/israeli-stocks/transactions/{id} - Delete specific transaction
 ## Database Schema:
 
 ### Tables Created:
+
 - `IsraeliStocks` - Master list of Israeli stocks (TA-125 & SME-60)
 - `IsraeliStockHolding` - User stock holdings with unique constraints
 - `IsraeliStockTransaction` - User transactions with automatic dividend detection
 - `IsraeliDividend` - Automatically populated dividend records
 
 ### Key Features:
+
 - Bulk insert operations for performance
 - Unique constraints prevent duplicates
 - Automatic trigger for dividend extraction
 - Support for both string and integer user IDs
+
+## SQLAlchemy Models Created:
+
+### Core Models:
+
+- `IsraeliStock` - Master table for Israeli stocks (TA-125 & SME-60)
+- `IsraeliStockHolding` - User stock holdings with unique constraints
+- `IsraeliStockTransaction` - User transactions with automatic dividend detection
+- `IsraeliDividend` - Auto-populated dividend records via triggers
+- `IsraeliStockSummary` - Portfolio summary calculations
+
+### Pydantic Schemas:
+
+- Request/Response validation schemas in `app/schemas/israeli_stock_schemas.py`
+- Type-safe API endpoints with proper validation
+- Enum support for transaction types and indexes
+
+### Database Features:
+
+- Automatic table creation with proper indexes
+- Unique constraints to prevent duplicates
+- Database triggers for dividend extraction
+- Summary update triggers for portfolio calculations
+- Migration script: `migrate_israeli_stock_models.py`
 
 ## Migration Benefits:
 
@@ -70,13 +100,13 @@ Instead of running legacy scripts manually, use the API:
 
 ```python
 # Upload PDF
-response = requests.post('/api/v1/israeli-stocks/upload-pdf', 
+response = requests.post('/api/v1/israeli-stocks/upload-pdf',
                         files={'file': pdf_file})
 
 # Get holdings
 holdings = requests.get('/api/v1/israeli-stocks/holdings')
 
-# Get transactions  
+# Get transactions
 transactions = requests.get('/api/v1/israeli-stocks/transactions')
 ```
 

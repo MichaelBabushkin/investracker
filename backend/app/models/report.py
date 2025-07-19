@@ -7,7 +7,7 @@ class ReportUpload(Base):
     __tablename__ = "report_uploads"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String(25), ForeignKey("users.id"), nullable=False)
     filename = Column(String(255), nullable=False)
     file_size = Column(Integer)
     broker = Column(String(50))

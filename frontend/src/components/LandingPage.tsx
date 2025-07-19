@@ -1,13 +1,13 @@
-import React from 'react'
-import Link from 'next/link'
-import { 
-  ChartBarIcon, 
-  CurrencyDollarIcon, 
+import React from "react";
+import Link from "next/link";
+import {
+  ChartBarIcon,
+  CurrencyDollarIcon,
   ArrowTrendingUpIcon,
   ShieldCheckIcon,
   UserGroupIcon,
-  SparklesIcon
-} from '@heroicons/react/24/outline'
+  SparklesIcon,
+} from "@heroicons/react/24/outline";
 
 export default function LandingPage() {
   return (
@@ -25,15 +25,18 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center space-x-4">
               <Link
+                href="/israeli-stocks"
+                className="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Israeli Stocks Demo
+              </Link>
+              <Link
                 href="/auth/login"
                 className="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
               >
                 Sign In
               </Link>
-              <Link
-                href="/auth/register"
-                className="btn-primary"
-              >
+              <Link href="/auth/register" className="btn-primary">
                 Get Started
               </Link>
             </div>
@@ -50,19 +53,15 @@ export default function LandingPage() {
             Like a Pro
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Monitor your portfolio performance, analyze market trends, and make informed investment decisions with our comprehensive tracking platform.
+            Monitor your portfolio performance, analyze market trends, and make
+            informed investment decisions with our comprehensive tracking
+            platform.
           </p>
           <div className="space-x-4">
-            <Link
-              href="/auth/register"
-              className="btn-primary btn-lg"
-            >
+            <Link href="/auth/register" className="btn-primary btn-lg">
               Start Tracking Free
             </Link>
-            <Link
-              href="/auth/login"
-              className="btn-secondary btn-lg"
-            >
+            <Link href="/auth/login" className="btn-secondary btn-lg">
               Sign In
             </Link>
           </div>
@@ -76,7 +75,8 @@ export default function LandingPage() {
             Everything you need to track your investments
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            From portfolio tracking to advanced analytics, we provide all the tools you need to stay on top of your investments.
+            From portfolio tracking to advanced analytics, we provide all the
+            tools you need to stay on top of your investments.
           </p>
         </div>
 
@@ -90,7 +90,8 @@ export default function LandingPage() {
               </h3>
             </div>
             <p className="text-gray-600">
-              Get detailed insights into your portfolio performance with advanced charts and analytics.
+              Get detailed insights into your portfolio performance with
+              advanced charts and analytics.
             </p>
           </div>
 
@@ -103,7 +104,8 @@ export default function LandingPage() {
               </h3>
             </div>
             <p className="text-gray-600">
-              Monitor your investments in real-time with live market data and instant updates.
+              Monitor your investments in real-time with live market data and
+              instant updates.
             </p>
           </div>
 
@@ -116,7 +118,8 @@ export default function LandingPage() {
               </h3>
             </div>
             <p className="text-gray-600">
-              Track ROI, gains/losses, and other key performance indicators across all your holdings.
+              Track ROI, gains/losses, and other key performance indicators
+              across all your holdings.
             </p>
           </div>
 
@@ -129,7 +132,8 @@ export default function LandingPage() {
               </h3>
             </div>
             <p className="text-gray-600">
-              Your financial data is protected with bank-level security and encryption.
+              Your financial data is protected with bank-level security and
+              encryption.
             </p>
           </div>
 
@@ -142,7 +146,8 @@ export default function LandingPage() {
               </h3>
             </div>
             <p className="text-gray-600">
-              Manage multiple portfolios and investment accounts from a single dashboard.
+              Manage multiple portfolios and investment accounts from a single
+              dashboard.
             </p>
           </div>
 
@@ -155,7 +160,8 @@ export default function LandingPage() {
               </h3>
             </div>
             <p className="text-gray-600">
-              Get AI-powered insights and recommendations to optimize your investment strategy.
+              Get AI-powered insights and recommendations to optimize your
+              investment strategy.
             </p>
           </div>
         </div>
@@ -168,7 +174,8 @@ export default function LandingPage() {
             Ready to take control of your investments?
           </h2>
           <p className="text-xl text-primary-100 mb-8">
-            Join thousands of investors who trust Investracker to manage their portfolios.
+            Join thousands of investors who trust Investracker to manage their
+            portfolios.
           </p>
           <Link
             href="/auth/register"
@@ -193,5 +200,5 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

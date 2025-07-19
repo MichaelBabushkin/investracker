@@ -2,11 +2,20 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
+import uuid
+import hashlib
+
+def generate_user_id():
+    """Generate a secure hashed user ID"""
+    # Generate a UUID and hash it for additional security
+    unique_id = str(uuid.uuid4())
+    hashed_id = hashlib.sha256(unique_id.encode()).hexdigest()[:16]  # Use first 16 chars for readability
+    return f"user_{hashed_id}"
 
 class User(Base):
     __tablename__ = "users"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String(25), primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     first_name = Column(String(100), nullable=True)

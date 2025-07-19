@@ -20,7 +20,7 @@ router = APIRouter()
 @router.post("/upload-pdf")
 async def upload_and_analyze_pdf(
     file: UploadFile = File(...),
-    user_id: Optional[int] = None,
+    user_id: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -42,7 +42,7 @@ async def upload_and_analyze_pdf(
         service = IsraeliStockService()
         
         # Process PDF immediately (not in background)
-        target_user_id = str(user_id or current_user.id)
+        target_user_id = user_id or current_user.id
         result = service.analyze_pdf_for_israeli_stocks(temp_path, target_user_id)
         
         return {
@@ -85,14 +85,14 @@ async def process_pdf_background(pdf_path: str, temp_dir: str, user_id: str):
 
 @router.get("/holdings")
 async def get_israeli_holdings(
-    user_id: Optional[int] = None,
+    user_id: Optional[str] = None,
     limit: Optional[int] = 100,
     current_user: User = Depends(get_current_user)
 ):
     """Get Israeli stock holdings for a user"""
     try:
         service = IsraeliStockService()
-        target_user_id = str(user_id or current_user.id)
+        target_user_id = user_id or current_user.id
         
         holdings = service.get_user_holdings(target_user_id, limit)
         
@@ -107,14 +107,14 @@ async def get_israeli_holdings(
 
 @router.get("/transactions")
 async def get_israeli_transactions(
-    user_id: Optional[int] = None,
+    user_id: Optional[str] = None,
     limit: Optional[int] = 100,
     current_user: User = Depends(get_current_user)
 ):
     """Get Israeli stock transactions for a user"""
     try:
         service = IsraeliStockService()
-        target_user_id = str(user_id or current_user.id)
+        target_user_id = user_id or current_user.id
         
         transactions = service.get_user_transactions(target_user_id, limit)
         
@@ -129,14 +129,14 @@ async def get_israeli_transactions(
 
 @router.get("/dividends")
 async def get_israeli_dividends(
-    user_id: Optional[int] = None,
+    user_id: Optional[str] = None,
     limit: Optional[int] = 100,
     current_user: User = Depends(get_current_user)
 ):
     """Get Israeli stock dividends for a user"""
     try:
         service = IsraeliStockService()
-        target_user_id = str(user_id or current_user.id)
+        target_user_id = user_id or current_user.id
         
         dividends = service.get_user_dividends(target_user_id, limit)
         
@@ -170,13 +170,13 @@ async def get_israeli_stocks(
 
 @router.get("/summary")
 async def get_user_summary(
-    user_id: Optional[int] = None,
+    user_id: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
     """Get summary of user's Israeli stock investments"""
     try:
         service = IsraeliStockService()
-        target_user_id = str(user_id or current_user.id)
+        target_user_id = user_id or current_user.id
         
         # Get counts and basic stats
         holdings = service.get_user_holdings(target_user_id, limit=1000)
@@ -217,7 +217,7 @@ async def get_user_summary(
 async def upload_and_analyze_csv(
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
-    user_id: Optional[int] = None,
+    user_id: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -245,7 +245,7 @@ async def upload_and_analyze_csv(
             process_csv_background,
             csv_files,
             temp_dir,
-            str(user_id or current_user.id)
+            user_id or current_user.id
         )
         
         return {
