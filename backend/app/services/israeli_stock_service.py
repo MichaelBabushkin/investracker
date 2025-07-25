@@ -572,9 +572,9 @@ class IsraeliStockService:
                 
                 # Get holdings from the latest PDF
                 query = '''
-                    SELECT security_no, symbol, company_name, quantity, 
+                    SELECT id, security_no, symbol, company_name, quantity, 
                            last_price, current_value, holding_date, 
-                           currency, source_pdf, created_at
+                           currency
                     FROM "IsraeliStockHolding" 
                     WHERE user_id = %s AND source_pdf = %s
                     ORDER BY symbol
@@ -583,9 +583,9 @@ class IsraeliStockService:
             else:
                 # Get holdings from the latest holding date
                 query = '''
-                    SELECT security_no, symbol, company_name, quantity, 
+                    SELECT id, security_no, symbol, company_name, quantity, 
                            last_price, current_value, holding_date, 
-                           currency, source_pdf, created_at
+                           currency
                     FROM "IsraeliStockHolding" 
                     WHERE user_id = %s AND holding_date = %s
                     ORDER BY symbol
@@ -599,18 +599,29 @@ class IsraeliStockService:
             rows = cursor.fetchall()
             
             holdings = []
+            total_portfolio_value = 0
+            
+            # First pass: calculate total portfolio value
             for row in rows:
+                current_value = float(row[6]) if row[6] else 0  # current_value is at index 6
+                total_portfolio_value += current_value
+            
+            # Second pass: create holdings with calculated percentages
+            for row in rows:
+                current_value = float(row[6]) if row[6] else 0  # current_value is now at index 6
+                portfolio_percentage = (current_value / total_portfolio_value * 100) if total_portfolio_value > 0 else 0
+                
                 holdings.append({
-                    'security_no': row[0],
-                    'symbol': row[1],
-                    'company_name': row[2],
-                    'quantity': float(row[3]) if row[3] else 0,
-                    'last_price': float(row[4]) if row[4] else 0,
-                    'current_value': float(row[5]) if row[5] else 0,
-                    'holding_date': row[6].isoformat() if row[6] else None,
-                    'currency': row[7],
-                    'source_pdf': row[8],
-                    'created_at': row[9].isoformat() if row[9] else None
+                    'id': row[0],  # ID for editing
+                    'security_no': row[1],
+                    'symbol': row[2],
+                    'company_name': row[3],
+                    'quantity': float(row[4]) if row[4] else 0,
+                    'last_price': float(row[5]) if row[5] else 0,
+                    'current_value': current_value,
+                    'portfolio_percentage': round(portfolio_percentage, 2),
+                    'currency': row[8],
+                    'holding_date': row[7].isoformat() if row[7] else None
                 })
             
             cursor.close()
@@ -628,9 +639,9 @@ class IsraeliStockService:
             cursor = conn.cursor()
             
             query = '''
-                SELECT security_no, symbol, company_name, transaction_type,
+                SELECT id, security_no, symbol, company_name, transaction_type,
                        transaction_date, quantity, price, total_value,
-                       commission, tax, currency, source_pdf, created_at
+                       commission, tax, currency, created_at
                 FROM "IsraeliStockTransaction" 
                 WHERE user_id = %s 
                 ORDER BY transaction_date DESC, created_at DESC
@@ -645,18 +656,18 @@ class IsraeliStockService:
             transactions = []
             for row in rows:
                 transactions.append({
-                    'security_no': row[0],
-                    'symbol': row[1],
-                    'company_name': row[2],
-                    'transaction_type': row[3],
-                    'transaction_date': row[4].isoformat() if row[4] else None,
-                    'quantity': float(row[5]) if row[5] else 0,
-                    'price': float(row[6]) if row[6] else 0,
-                    'total_value': float(row[7]) if row[7] else 0,
-                    'commission': float(row[8]) if row[8] else 0,
-                    'tax': float(row[9]) if row[9] else 0,
-                    'currency': row[10],
-                    'source_pdf': row[11],
+                    'id': row[0],  # ID for editing
+                    'security_no': row[1],
+                    'symbol': row[2],
+                    'company_name': row[3],
+                    'transaction_type': row[4],
+                    'transaction_date': row[5].isoformat() if row[5] else None,
+                    'quantity': float(row[6]) if row[6] else 0,
+                    'price': float(row[7]) if row[7] else 0,
+                    'total_value': float(row[8]) if row[8] else 0,
+                    'commission': float(row[9]) if row[9] else 0,
+                    'tax': float(row[10]) if row[10] else 0,
+                    'currency': row[11],
                     'created_at': row[12].isoformat() if row[12] else None
                 })
             
@@ -770,6 +781,91 @@ class IsraeliStockService:
             print(f"Error deleting holding: {e}")
             return False
     
+    def create_transaction(self, transaction_data: dict) -> int:
+        """Create a new transaction manually"""
+        try:
+            conn = self.create_database_connection()
+            cursor = conn.cursor()
+            
+            insert_sql = """
+            INSERT INTO "IsraeliStockTransaction" (
+                user_id, security_no, symbol, company_name, transaction_type,
+                transaction_date, transaction_time, quantity, price, total_value,
+                commission, tax, currency, source_pdf
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """
+            
+            cursor.execute(insert_sql, (
+                transaction_data['user_id'],
+                transaction_data.get('security_no', ''),
+                transaction_data.get('symbol', ''),
+                transaction_data.get('company_name', ''),
+                transaction_data.get('transaction_type', 'BUY'),
+                transaction_data.get('transaction_date'),
+                transaction_data.get('transaction_time'),
+                transaction_data.get('quantity', 0),
+                transaction_data.get('price', 0),
+                transaction_data.get('total_value', 0),
+                transaction_data.get('commission', 0),
+                transaction_data.get('tax', 0),
+                transaction_data.get('currency', 'ILS'),
+                'Manual Entry'
+            ))
+            
+            transaction_id = cursor.fetchone()[0]
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return transaction_id
+            
+        except Exception as e:
+            print(f"Error creating transaction: {e}")
+            raise e
+
+    def update_transaction(self, transaction_id: int, transaction_data: dict, user_id: str) -> bool:
+        """Update an existing transaction"""
+        try:
+            conn = self.create_database_connection()
+            cursor = conn.cursor()
+            
+            update_sql = """
+            UPDATE "IsraeliStockTransaction" 
+            SET security_no = %s, symbol = %s, company_name = %s, transaction_type = %s,
+                transaction_date = %s, transaction_time = %s, quantity = %s, price = %s, 
+                total_value = %s, commission = %s, tax = %s, currency = %s
+            WHERE id = %s AND user_id = %s
+            """
+            
+            cursor.execute(update_sql, (
+                transaction_data.get('security_no', ''),
+                transaction_data.get('symbol', ''),
+                transaction_data.get('company_name', ''),
+                transaction_data.get('transaction_type', 'BUY'),
+                transaction_data.get('transaction_date'),
+                transaction_data.get('transaction_time'),
+                transaction_data.get('quantity', 0),
+                transaction_data.get('price', 0),
+                transaction_data.get('total_value', 0),
+                transaction_data.get('commission', 0),
+                transaction_data.get('tax', 0),
+                transaction_data.get('currency', 'ILS'),
+                transaction_id,
+                user_id
+            ))
+            
+            success = cursor.rowcount > 0
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return success
+            
+        except Exception as e:
+            print(f"Error updating transaction: {e}")
+            return False
+
     def delete_transaction(self, transaction_id: int, user_id: str) -> bool:
         """Delete a specific transaction"""
         try:

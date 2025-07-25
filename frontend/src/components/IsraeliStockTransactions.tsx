@@ -8,7 +8,10 @@ import {
   BanknotesIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  PlusIcon,
+  PencilIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline'
 import { israeliStocksAPI } from '@/services/api'
 import { IsraeliStockTransaction } from '@/types/israeli-stocks'
@@ -21,6 +24,8 @@ export default function IsraeliStockTransactions({ refreshTrigger }: IsraeliStoc
   const [transactions, setTransactions] = useState<IsraeliStockTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [editingTransaction, setEditingTransaction] = useState<IsraeliStockTransaction | null>(null)
+  const [showAddForm, setShowAddForm] = useState(false)
 
   const fetchTransactions = async () => {
     try {
@@ -47,6 +52,26 @@ export default function IsraeliStockTransactions({ refreshTrigger }: IsraeliStoc
       setTransactions(prev => prev.filter(t => t.id !== transactionId))
     } catch (err: any) {
       alert('Failed to delete transaction: ' + (err.response?.data?.detail || err.message))
+    }
+  }
+
+  const handleCreateTransaction = async (transactionData: any) => {
+    try {
+      await israeliStocksAPI.createTransaction(transactionData)
+      fetchTransactions() // Refresh the list
+      setShowAddForm(false)
+    } catch (err: any) {
+      alert('Failed to create transaction: ' + (err.response?.data?.detail || err.message))
+    }
+  }
+
+  const handleUpdateTransaction = async (transactionId: number, transactionData: any) => {
+    try {
+      await israeliStocksAPI.updateTransaction(transactionId, transactionData)
+      fetchTransactions() // Refresh the list
+      setEditingTransaction(null)
+    } catch (err: any) {
+      alert('Failed to update transaction: ' + (err.response?.data?.detail || err.message))
     }
   }
 
@@ -175,12 +200,21 @@ export default function IsraeliStockTransactions({ refreshTrigger }: IsraeliStoc
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">Israeli Stock Transactions</h2>
-        <button
-          onClick={fetchTransactions}
-          className="btn-secondary text-sm"
-        >
-          Refresh
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="btn-primary text-sm flex items-center space-x-1"
+          >
+            <PlusIcon className="h-4 w-4" />
+            <span>Add</span>
+          </button>
+          <button
+            onClick={fetchTransactions}
+            className="btn-secondary text-sm"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Summary */}
@@ -288,17 +322,24 @@ export default function IsraeliStockTransactions({ refreshTrigger }: IsraeliStoc
                   </div>
 
                   <div className="mt-3 flex items-center space-x-4 text-xs text-gray-500">
-                    <span>Source: {transaction.source_pdf}</span>
                     <span>Added: {formatDate(transaction.created_at)}</span>
                   </div>
                 </div>
 
-                <div className="flex-shrink-0 ml-4">
+                <div className="flex-shrink-0 ml-4 flex space-x-2">
+                  <button
+                    onClick={() => setEditingTransaction(transaction)}
+                    className="text-blue-600 hover:text-blue-800 p-1 rounded"
+                    title="Edit transaction"
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={() => handleDeleteTransaction(transaction.id)}
-                    className="text-red-600 hover:text-red-800 text-sm"
+                    className="text-red-600 hover:text-red-800 p-1 rounded"
+                    title="Delete transaction"
                   >
-                    Delete
+                    <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
               </div>

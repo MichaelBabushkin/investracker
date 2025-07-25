@@ -149,6 +149,76 @@ async def get_israeli_dividends(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving dividends: {str(e)}")
 
+@router.post("/transactions")
+async def create_transaction(
+    transaction_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new transaction manually"""
+    try:
+        service = IsraeliStockService()
+        
+        # Add user_id to transaction data
+        transaction_data['user_id'] = current_user.id
+        
+        # Create transaction
+        transaction_id = service.create_transaction(transaction_data)
+        
+        return {
+            "success": True,
+            "transaction_id": transaction_id,
+            "message": "Transaction created successfully"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating transaction: {str(e)}")
+
+@router.put("/transactions/{transaction_id}")
+async def update_transaction(
+    transaction_id: int,
+    transaction_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Update an existing transaction"""
+    try:
+        service = IsraeliStockService()
+        
+        # Update transaction
+        success = service.update_transaction(transaction_id, transaction_data, current_user.id)
+        
+        if success:
+            return {
+                "success": True,
+                "message": "Transaction updated successfully"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Transaction not found or access denied")
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating transaction: {str(e)}")
+
+@router.delete("/transactions/{transaction_id}")
+async def delete_transaction(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a transaction"""
+    try:
+        service = IsraeliStockService()
+        
+        success = service.delete_transaction(transaction_id, current_user.id)
+        
+        if success:
+            return {
+                "success": True,
+                "message": "Transaction deleted successfully"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Transaction not found or access denied")
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting transaction: {str(e)}")
+
 @router.get("/stocks")
 async def get_israeli_stocks(
     index_name: Optional[str] = None,

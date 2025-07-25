@@ -161,17 +161,6 @@ export default function IsraeliStocksDashboard() {
             <p className="text-xs text-gray-500">Track dividend payments and taxes</p>
           </div>
         </div>
-
-        {/* Help Section */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-medium text-blue-900 mb-2">How to Use</h3>
-          <div className="text-blue-800 text-sm space-y-2">
-            <p>1. <strong>Upload PDFs:</strong> Drag and drop investment report PDFs from your Israeli broker</p>
-            <p>2. <strong>Automatic Processing:</strong> The system will extract stock data, transactions, and dividends</p>
-            <p>3. <strong>View Data:</strong> Use the tabs above to view your holdings, transactions, and dividend history</p>
-            <p>4. <strong>Supported Stocks:</strong> Both TA-125 and SME-60 index stocks are automatically detected</p>
-          </div>
-        </div>
       </div>
     </div>
   )

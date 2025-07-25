@@ -267,13 +267,9 @@ export default function IsraeliStockHoldings({ refreshTrigger }: IsraeliStockHol
                     {holding.holding_date && (
                       <div className="flex items-center space-x-1">
                         <CalendarIcon className="h-3 w-3" />
-                        <span>Holding Date: {formatDate(holding.holding_date)}</span>
+                        <span>Last Updated: {formatDate(holding.holding_date)}</span>
                       </div>
                     )}
-                    
-                    <div className="flex items-center space-x-1">
-                      <span>Source: {holding.source_pdf}</span>
-                    </div>
                   </div>
                 </div>
 
