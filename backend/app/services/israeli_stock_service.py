@@ -537,24 +537,65 @@ class IsraeliStockService:
     # Tables are now managed by SQLAlchemy models only
     
     def get_user_holdings(self, user_id: str, limit: Optional[int] = None) -> List[Dict]:
-        """Get user's Israeli stock holdings"""
+        """Get user's Israeli stock holdings from the latest report only"""
         try:
             conn = self.create_database_connection()
             cursor = conn.cursor()
             
-            query = '''
-                SELECT security_no, symbol, company_name, quantity, 
-                       last_price, current_value, holding_date, 
-                       currency, source_pdf, created_at
+            # First, get the latest report date for this user
+            cursor.execute('''
+                SELECT MAX(holding_date) 
                 FROM "IsraeliStockHolding" 
-                WHERE user_id = %s 
-                ORDER BY created_at DESC
-            '''
+                WHERE user_id = %s AND holding_date IS NOT NULL
+            ''', (user_id,))
+            
+            latest_date_result = cursor.fetchone()
+            latest_date = latest_date_result[0] if latest_date_result and latest_date_result[0] else None
+            
+            if not latest_date:
+                # If no holding_date, fall back to latest source_pdf
+                cursor.execute('''
+                    SELECT source_pdf 
+                    FROM "IsraeliStockHolding" 
+                    WHERE user_id = %s 
+                    ORDER BY created_at DESC 
+                    LIMIT 1
+                ''', (user_id,))
+                
+                latest_pdf_result = cursor.fetchone()
+                if not latest_pdf_result:
+                    cursor.close()
+                    conn.close()
+                    return []
+                
+                latest_pdf = latest_pdf_result[0]
+                
+                # Get holdings from the latest PDF
+                query = '''
+                    SELECT security_no, symbol, company_name, quantity, 
+                           last_price, current_value, holding_date, 
+                           currency, source_pdf, created_at
+                    FROM "IsraeliStockHolding" 
+                    WHERE user_id = %s AND source_pdf = %s
+                    ORDER BY symbol
+                '''
+                params = (user_id, latest_pdf)
+            else:
+                # Get holdings from the latest holding date
+                query = '''
+                    SELECT security_no, symbol, company_name, quantity, 
+                           last_price, current_value, holding_date, 
+                           currency, source_pdf, created_at
+                    FROM "IsraeliStockHolding" 
+                    WHERE user_id = %s AND holding_date = %s
+                    ORDER BY symbol
+                '''
+                params = (user_id, latest_date)
             
             if limit:
                 query += f' LIMIT {limit}'
                 
-            cursor.execute(query, (user_id,))
+            cursor.execute(query, params)
             rows = cursor.fetchall()
             
             holdings = []

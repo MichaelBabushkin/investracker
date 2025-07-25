@@ -37,9 +37,27 @@
 
 ### Data Status
 - ✅ Users: 4 registered users with string IDs
-- ❌ Holdings: 0 records (empty responses expected)
-- ❌ Transactions: 0 records (empty responses expected)  
-- ❌ Dividends: 0 records (empty responses expected)
+- ✅ Holdings: Shows only latest report (no duplicates)
+- ✅ Transactions: All historical transactions
+- ✅ Dividends: All historical dividends
+
+## 🎯 RECENT UPDATE - Holdings Display Logic
+
+### Problem Identified:
+**Issue**: Holdings from multiple monthly reports created duplicates and confusion
+**Root Cause**: Each monthly report shows current holdings at that point in time
+
+### Solution Implemented:
+**Updated `get_user_holdings()` to show only holdings from the latest report:**
+1. **Primary Logic**: Find the latest `holding_date` and return holdings from that date
+2. **Fallback Logic**: If no `holding_date`, use the most recent `source_pdf` by `created_at`
+3. **Result**: Users see only their current portfolio state, not historical duplicates
+
+### Benefits:
+- ✅ **No Duplicates**: Each stock appears only once
+- ✅ **Current State**: Shows most recent portfolio composition  
+- ✅ **Clean UI**: Frontend displays clean, up-to-date holdings
+- ✅ **Logical Behavior**: Matches user expectations
 
 ## 🎯 NEXT STEPS
 
