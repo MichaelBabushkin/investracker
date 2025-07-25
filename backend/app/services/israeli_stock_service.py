@@ -416,8 +416,7 @@ class IsraeliStockService:
             conn = self.create_database_connection()
             cursor = conn.cursor()
             
-            # Ensure table exists
-            self.ensure_holdings_table_exists(cursor, user_id)
+            # No need to ensure table exists - tables are created by SQLAlchemy models
             
             # Prepare bulk data
             bulk_data = []
@@ -477,8 +476,7 @@ class IsraeliStockService:
             conn = self.create_database_connection()
             cursor = conn.cursor()
             
-            # Ensure table exists
-            self.ensure_transaction_table_exists(cursor, user_id)
+            # No need to ensure table exists - tables are created by SQLAlchemy models
             
             # Prepare bulk data
             bulk_data = []
@@ -535,100 +533,9 @@ class IsraeliStockService:
             print(f"Error saving transactions: {e}")
             return 0
     
-    def ensure_holdings_table_exists(self, cursor, user_id):
-        """Ensure holdings table exists with correct schema"""
-        user_id_type = "VARCHAR(50)" if isinstance(user_id, str) else "INTEGER"
-        
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS "IsraeliStockHolding" (
-                id SERIAL PRIMARY KEY,
-                user_id {} NOT NULL,
-                security_no VARCHAR(20) NOT NULL,
-                symbol VARCHAR(10) NOT NULL,
-                company_name VARCHAR(100) NOT NULL,
-                quantity DECIMAL(15,4) NOT NULL,
-                last_price DECIMAL(15,4),
-                purchase_cost DECIMAL(15,4),
-                current_value DECIMAL(15,4),
-                portfolio_percentage DECIMAL(5,2),
-                currency VARCHAR(3) DEFAULT 'ILS',
-                holding_date DATE,
-                source_pdf VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, security_no, source_pdf)
-            );
-            
-            CREATE INDEX IF NOT EXISTS idx_israeli_stock_holding_user_id 
-            ON "IsraeliStockHolding"(user_id);
-        """.format(user_id_type))
+    # REMOVED: Dynamic table creation methods to prevent duplicate tables
+    # Tables are now managed by SQLAlchemy models only
     
-    def ensure_transaction_table_exists(self, cursor, user_id):
-        """Ensure transaction table exists with correct schema"""
-        user_id_type = "VARCHAR(50)" if isinstance(user_id, str) else "INTEGER"
-        
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS "IsraeliStockTransaction" (
-                id SERIAL PRIMARY KEY,
-                user_id {} NOT NULL,
-                security_no VARCHAR(20) NOT NULL,
-                symbol VARCHAR(10) NOT NULL,
-                company_name VARCHAR(100) NOT NULL,
-                transaction_type VARCHAR(20) NOT NULL,
-                transaction_date DATE,
-                transaction_time TIME,
-                quantity DECIMAL(15,4) NOT NULL,
-                price DECIMAL(15,4),
-                total_value DECIMAL(15,4),
-                commission DECIMAL(15,4),
-                tax DECIMAL(15,4),
-                currency VARCHAR(3) DEFAULT 'ILS',
-                source_pdf VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, security_no, transaction_date, transaction_type, source_pdf)
-            );
-            
-            CREATE INDEX IF NOT EXISTS idx_israeli_stock_transaction_user_id 
-            ON "IsraeliStockTransaction"(user_id);
-            
-            CREATE TABLE IF NOT EXISTS "IsraeliDividend" (
-                id SERIAL PRIMARY KEY,
-                user_id {} NOT NULL,
-                security_no VARCHAR(20) NOT NULL,
-                symbol VARCHAR(10) NOT NULL,
-                company_name VARCHAR(100) NOT NULL,
-                payment_date DATE NOT NULL,
-                amount DECIMAL(15,4) NOT NULL,
-                tax DECIMAL(15,4),
-                currency VARCHAR(3) DEFAULT 'ILS',
-                source_pdf VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, security_no, payment_date, source_pdf)
-            );
-            
-            CREATE OR REPLACE FUNCTION create_dividend_record()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                IF NEW.transaction_type = 'DIVIDEND' THEN
-                    INSERT INTO "IsraeliDividend" (
-                        user_id, security_no, symbol, company_name, 
-                        payment_date, amount, tax, currency, source_pdf
-                    ) VALUES (
-                        NEW.user_id, NEW.security_no, NEW.symbol, NEW.company_name,
-                        NEW.transaction_date, NEW.total_value, NEW.tax, NEW.currency, NEW.source_pdf
-                    )
-                    ON CONFLICT (user_id, security_no, payment_date, source_pdf) DO NOTHING;
-                END IF;
-                RETURN NEW;
-            END;
-            $$ LANGUAGE plpgsql;
-            
-            DROP TRIGGER IF EXISTS trigger_create_dividend ON "IsraeliStockTransaction";
-            CREATE TRIGGER trigger_create_dividend
-                AFTER INSERT ON "IsraeliStockTransaction"
-                FOR EACH ROW
-                EXECUTE FUNCTION create_dividend_record();
-        """.format(user_id_type, user_id_type))
-        
     def get_user_holdings(self, user_id: str, limit: Optional[int] = None) -> List[Dict]:
         """Get user's Israeli stock holdings"""
         try:
@@ -637,7 +544,7 @@ class IsraeliStockService:
             
             query = '''
                 SELECT security_no, symbol, company_name, quantity, 
-                       current_value, market_value, holding_date, 
+                       last_price, current_value, holding_date, 
                        currency, source_pdf, created_at
                 FROM "IsraeliStockHolding" 
                 WHERE user_id = %s 
@@ -657,8 +564,8 @@ class IsraeliStockService:
                     'symbol': row[1],
                     'company_name': row[2],
                     'quantity': float(row[3]) if row[3] else 0,
-                    'current_value': float(row[4]) if row[4] else 0,
-                    'market_value': float(row[5]) if row[5] else 0,
+                    'last_price': float(row[4]) if row[4] else 0,
+                    'current_value': float(row[5]) if row[5] else 0,
                     'holding_date': row[6].isoformat() if row[6] else None,
                     'currency': row[7],
                     'source_pdf': row[8],
@@ -681,8 +588,8 @@ class IsraeliStockService:
             
             query = '''
                 SELECT security_no, symbol, company_name, transaction_type,
-                       transaction_date, quantity, price_per_share, total_value,
-                       fee, tax, currency, source_pdf, created_at
+                       transaction_date, quantity, price, total_value,
+                       commission, tax, currency, source_pdf, created_at
                 FROM "IsraeliStockTransaction" 
                 WHERE user_id = %s 
                 ORDER BY transaction_date DESC, created_at DESC
@@ -703,9 +610,9 @@ class IsraeliStockService:
                     'transaction_type': row[3],
                     'transaction_date': row[4].isoformat() if row[4] else None,
                     'quantity': float(row[5]) if row[5] else 0,
-                    'price_per_share': float(row[6]) if row[6] else 0,
+                    'price': float(row[6]) if row[6] else 0,
                     'total_value': float(row[7]) if row[7] else 0,
-                    'fee': float(row[8]) if row[8] else 0,
+                    'commission': float(row[8]) if row[8] else 0,
                     'tax': float(row[9]) if row[9] else 0,
                     'currency': row[10],
                     'source_pdf': row[11],
