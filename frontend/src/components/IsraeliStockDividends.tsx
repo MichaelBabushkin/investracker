@@ -157,7 +157,7 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
             <div className="flex items-center">
               <CurrencyDollarIcon className="h-8 w-8 opacity-80" />
               <div className="ml-3">
-                <p className="text-sm opacity-80">Total Dividends</p>
+                <p className="text-sm opacity-80">Gross Dividends</p>
                 <p className="text-2xl font-bold">{formatCurrency(totalDividends)}</p>
               </div>
             </div>
@@ -224,7 +224,7 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
                   
                   <div className="mt-3 space-y-1">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Total Amount:</span>
+                      <span className="text-gray-500">Gross Amount:</span>
                       <span className="font-medium">{formatCurrency(company.total_amount)}</span>
                     </div>
                     <div className="flex justify-between text-sm">

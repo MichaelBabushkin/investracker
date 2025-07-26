@@ -601,19 +601,30 @@ class IsraeliStockService:
                 if transaction_type == 'DIVIDEND':
                     # For dividends in transaction tables, the structure is:
                     # [remaining_qty, date, cash_balance, tax, commission, net_amount, price, quantity, type, name, security_no, hour, value_date]
-                    # Column 5 = net_amount (38.03), Column 3 = tax (12.68)
+                    # Column 5 = net_amount (25.35), Column 3 = tax (12.68)
+                    # We need to calculate gross_amount = net_amount + tax
                     
                     # Try to extract from specific columns first
                     try:
+                        net_amount = 0
+                        tax_amount = 0
+                        
                         # Column 5: Net dividend amount
                         if len(row_values) >= 6 and row_values[5]:
                             net_amount = float(str(row_values[5]).replace(',', ''))
-                            transaction['total_value'] = abs(net_amount)
                         
                         # Column 3: Tax withheld
                         if len(row_values) >= 4 and row_values[3]:
                             tax_amount = float(str(row_values[3]).replace(',', ''))
                             transaction['tax'] = abs(tax_amount)
+                        
+                        # Calculate gross amount (total before tax)
+                        if net_amount > 0 and tax_amount > 0:
+                            gross_amount = abs(net_amount) + abs(tax_amount)
+                            transaction['total_value'] = gross_amount
+                            print(f"DEBUG: Dividend calculation - Net: {abs(net_amount)}, Tax: {abs(tax_amount)}, Gross: {gross_amount}")
+                        elif net_amount > 0:
+                            transaction['total_value'] = abs(net_amount)
                         
                         # Column 0: Remaining quantity (might be relevant)
                         if len(row_values) >= 1 and row_values[0]:
