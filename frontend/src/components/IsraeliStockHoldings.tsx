@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { israeliStocksAPI } from '@/services/api'
 import { IsraeliStockHolding } from '@/types/israeli-stocks'
+import StockLogo from './StockLogo'
 
 interface IsraeliStockHoldingsProps {
   refreshTrigger?: number
@@ -222,13 +223,12 @@ export default function IsraeliStockHoldings({ refreshTrigger }: IsraeliStockHol
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-blue-600 font-semibold text-sm">
-                          {holding.symbol.substring(0, 2)}
-                        </span>
-                      </div>
-                    </div>
+                    <StockLogo 
+                      symbol={holding.symbol}
+                      logoSvg={holding.logo_svg}
+                      size="md"
+                      className="flex-shrink-0"
+                    />
                     
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-900">

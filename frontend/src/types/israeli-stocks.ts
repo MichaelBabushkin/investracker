@@ -3,6 +3,7 @@ export interface IsraeliStock {
   symbol: string
   name: string
   index_name: string
+  logo_svg?: string | null
 }
 
 export interface IsraeliStockHolding {
@@ -19,6 +20,7 @@ export interface IsraeliStockHolding {
   holding_date?: string
   source_pdf: string
   created_at: string
+  logo_svg?: string | null
 }
 
 export interface IsraeliStockTransaction {
@@ -37,6 +39,7 @@ export interface IsraeliStockTransaction {
   currency: string
   source_pdf: string
   created_at: string
+  logo_svg?: string | null
 }
 
 export interface IsraeliDividend {
@@ -50,6 +53,7 @@ export interface IsraeliDividend {
   currency: string
   source_pdf: string
   created_at: string
+  logo_svg?: string | null
 }
 
 export interface IsraeliStockSummary {

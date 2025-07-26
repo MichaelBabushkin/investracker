@@ -572,23 +572,25 @@ class IsraeliStockService:
                 
                 # Get holdings from the latest PDF
                 query = '''
-                    SELECT id, security_no, symbol, company_name, quantity, 
-                           last_price, current_value, holding_date, 
-                           currency
-                    FROM "IsraeliStockHolding" 
-                    WHERE user_id = %s AND source_pdf = %s
-                    ORDER BY symbol
+                    SELECT h.id, h.security_no, h.symbol, h.company_name, h.quantity, 
+                           h.last_price, h.current_value, h.holding_date, 
+                           h.currency, s.logo_svg
+                    FROM "IsraeliStockHolding" h
+                    LEFT JOIN "IsraeliStocks" s ON h.security_no = s.security_no
+                    WHERE h.user_id = %s AND h.source_pdf = %s
+                    ORDER BY h.symbol
                 '''
                 params = (user_id, latest_pdf)
             else:
                 # Get holdings from the latest holding date
                 query = '''
-                    SELECT id, security_no, symbol, company_name, quantity, 
-                           last_price, current_value, holding_date, 
-                           currency
-                    FROM "IsraeliStockHolding" 
-                    WHERE user_id = %s AND holding_date = %s
-                    ORDER BY symbol
+                    SELECT h.id, h.security_no, h.symbol, h.company_name, h.quantity, 
+                           h.last_price, h.current_value, h.holding_date, 
+                           h.currency, s.logo_svg
+                    FROM "IsraeliStockHolding" h
+                    LEFT JOIN "IsraeliStocks" s ON h.security_no = s.security_no
+                    WHERE h.user_id = %s AND h.holding_date = %s
+                    ORDER BY h.symbol
                 '''
                 params = (user_id, latest_date)
             
@@ -621,7 +623,8 @@ class IsraeliStockService:
                     'current_value': current_value,
                     'portfolio_percentage': round(portfolio_percentage, 2),
                     'currency': row[8],
-                    'holding_date': row[7].isoformat() if row[7] else None
+                    'holding_date': row[7].isoformat() if row[7] else None,
+                    'logo_svg': row[9] if len(row) > 9 else None
                 })
             
             cursor.close()
@@ -639,12 +642,13 @@ class IsraeliStockService:
             cursor = conn.cursor()
             
             query = '''
-                SELECT id, security_no, symbol, company_name, transaction_type,
-                       transaction_date, quantity, price, total_value,
-                       commission, tax, currency, created_at
-                FROM "IsraeliStockTransaction" 
-                WHERE user_id = %s 
-                ORDER BY transaction_date DESC, created_at DESC
+                SELECT t.id, t.security_no, t.symbol, t.company_name, t.transaction_type,
+                       t.transaction_date, t.quantity, t.price, t.total_value,
+                       t.commission, t.tax, t.currency, t.created_at, s.logo_svg
+                FROM "IsraeliStockTransaction" t
+                LEFT JOIN "IsraeliStocks" s ON t.security_no = s.security_no
+                WHERE t.user_id = %s 
+                ORDER BY t.transaction_date DESC, t.created_at DESC
             '''
             
             if limit:
@@ -668,7 +672,8 @@ class IsraeliStockService:
                     'commission': float(row[9]) if row[9] else 0,
                     'tax': float(row[10]) if row[10] else 0,
                     'currency': row[11],
-                    'created_at': row[12].isoformat() if row[12] else None
+                    'created_at': row[12].isoformat() if row[12] else None,
+                    'logo_svg': row[13] if len(row) > 13 else None
                 })
             
             cursor.close()
@@ -686,11 +691,12 @@ class IsraeliStockService:
             cursor = conn.cursor()
             
             query = '''
-                SELECT security_no, symbol, company_name, payment_date,
-                       amount, tax, currency, source_pdf, created_at
-                FROM "IsraeliDividend" 
-                WHERE user_id = %s 
-                ORDER BY payment_date DESC, created_at DESC
+                SELECT d.id, d.security_no, d.symbol, d.company_name, d.payment_date,
+                       d.amount, d.tax, d.currency, d.source_pdf, d.created_at, s.logo_svg
+                FROM "IsraeliDividend" d
+                LEFT JOIN "IsraeliStocks" s ON d.security_no = s.security_no
+                WHERE d.user_id = %s 
+                ORDER BY d.payment_date DESC, d.created_at DESC
             '''
             
             if limit:
@@ -702,15 +708,17 @@ class IsraeliStockService:
             dividends = []
             for row in rows:
                 dividends.append({
-                    'security_no': row[0],
-                    'symbol': row[1],
-                    'company_name': row[2],
-                    'payment_date': row[3].isoformat() if row[3] else None,
-                    'amount': float(row[4]) if row[4] else 0,
-                    'tax': float(row[5]) if row[5] else 0,
-                    'currency': row[6],
-                    'source_pdf': row[7],
-                    'created_at': row[8].isoformat() if row[8] else None
+                    'id': row[0],
+                    'security_no': row[1],
+                    'symbol': row[2],
+                    'company_name': row[3],
+                    'payment_date': row[4].isoformat() if row[4] else None,
+                    'amount': float(row[5]) if row[5] else 0,
+                    'tax': float(row[6]) if row[6] else 0,
+                    'currency': row[7],
+                    'source_pdf': row[8],
+                    'created_at': row[9].isoformat() if row[9] else None,
+                    'logo_svg': row[10] if len(row) > 10 else None
                 })
             
             cursor.close()

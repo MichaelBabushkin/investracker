@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { israeliStocksAPI } from '@/services/api'
 import { IsraeliStockTransaction } from '@/types/israeli-stocks'
+import StockLogo from './StockLogo'
 
 interface IsraeliStockTransactionsProps {
   refreshTrigger?: number
@@ -266,7 +267,13 @@ export default function IsraeliStockTransactions({ refreshTrigger }: IsraeliStoc
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0">
+                    <div className="flex items-center space-x-2">
+                      <StockLogo 
+                        symbol={transaction.symbol}
+                        logoSvg={transaction.logo_svg}
+                        size="sm"
+                        className="flex-shrink-0"
+                      />
                       {getTransactionIcon(transaction.transaction_type)}
                     </div>
                     

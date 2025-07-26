@@ -15,7 +15,7 @@ from sqlalchemy import create_engine, text
 from app.services.israeli_stock_service import IsraeliStockService
 from app.services.logo_crawler_service import LogoCrawlerService, crawl_all_logos, crawl_logo_for_stock
 from app.core.deps import get_current_user
-from app.core.database import get_db_connection
+from app.core.database import engine
 from app.models.user import User
 
 router = APIRouter()
@@ -623,7 +623,6 @@ async def get_stocks_with_logos(
         service = IsraeliStockService()
         
         # Get stocks with logos using raw SQL
-        engine = get_db_connection()
         with engine.connect() as conn:
             result = conn.execute(
                 text("""
