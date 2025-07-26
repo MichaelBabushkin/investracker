@@ -416,23 +416,182 @@ async def crawl_single_stock_logo(
 ):
     """
     Crawl logo for a specific stock by name
+    Perfect for admin panel - allows manual logo fetching for individual stocks
     """
     try:
+        # First check if stock exists
+        from app.core.database import engine
+        
+        # Find the stock in database
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT id, symbol, name, logo_svg IS NOT NULL as has_logo
+                    FROM "IsraeliStocks" 
+                    WHERE name ILIKE :name OR symbol ILIKE :symbol
+                    LIMIT 1
+                """),
+                {"name": f"%{stock_name}%", "symbol": f"%{stock_name}%"}
+            )
+            stock_info = result.fetchone()
+        
+        if not stock_info:
+            return {
+                "success": False,
+                "message": f"Stock not found: {stock_name}",
+                "suggestion": "Try using the exact stock symbol or company name"
+            }
+        
+        stock_id, symbol, name, had_logo = stock_info
+        
+        # Attempt to crawl the logo
         success = await crawl_logo_for_stock(stock_name)
         
         if success:
             return {
                 "success": True,
-                "message": f"Logo successfully fetched for {stock_name}"
+                "message": f"Logo successfully fetched for {symbol} ({name})",
+                "stock": {
+                    "id": stock_id,
+                    "symbol": symbol,
+                    "name": name,
+                    "had_logo_before": had_logo,
+                    "has_logo_now": True
+                }
             }
         else:
             return {
                 "success": False,
-                "message": f"Failed to fetch logo for {stock_name}"
+                "message": f"Failed to fetch logo for {symbol} ({name})",
+                "stock": {
+                    "id": stock_id,
+                    "symbol": symbol,
+                    "name": name,
+                    "had_logo_before": had_logo,
+                    "has_logo_now": had_logo
+                },
+                "suggestion": "Logo may not be available on TradingView for this stock"
             }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error crawling logo: {str(e)}")
+
+@router.put("/stocks/{stock_id}/logo")
+async def update_stock_logo_manual(
+    stock_id: int,
+    logo_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Manually update a stock's logo with custom SVG content
+    Perfect for admin panel when automatic crawling fails
+    
+    Body: {"svg_content": "<svg>...</svg>"}
+    """
+    try:
+        svg_content = logo_data.get("svg_content", "").strip()
+        
+        if not svg_content:
+            raise HTTPException(status_code=400, detail="svg_content is required")
+        
+        # Basic SVG validation
+        if not (svg_content.startswith('<svg') and svg_content.endswith('</svg>')):
+            raise HTTPException(status_code=400, detail="Invalid SVG format - must start with <svg and end with </svg>")
+        
+        # Update the stock logo
+        from app.core.database import engine
+        
+        with engine.connect() as conn:
+            # Check if stock exists
+            result = conn.execute(
+                text('SELECT symbol, name FROM "IsraeliStocks" WHERE id = :id'),
+                {"id": stock_id}
+            )
+            stock_info = result.fetchone()
+            
+            if not stock_info:
+                raise HTTPException(status_code=404, detail="Stock not found")
+            
+            symbol, name = stock_info
+            
+            # Update the logo
+            result = conn.execute(
+                text('UPDATE "IsraeliStocks" SET logo_svg = :svg WHERE id = :id'),
+                {"svg": svg_content, "id": stock_id}
+            )
+            
+            if result.rowcount > 0:
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": f"Logo successfully updated for {symbol} ({name})",
+                    "stock": {
+                        "id": stock_id,
+                        "symbol": symbol,
+                        "name": name,
+                        "logo_size": len(svg_content)
+                    }
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to update logo")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating logo: {str(e)}")
+
+@router.delete("/stocks/{stock_id}/logo")
+async def remove_stock_logo(
+    stock_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Remove a stock's logo (set to NULL)
+    Useful for admin panel to clean up bad logos
+    """
+    try:
+        from app.core.database import engine
+        
+        with engine.connect() as conn:
+            # Check if stock exists
+            result = conn.execute(
+                text('SELECT symbol, name, logo_svg IS NOT NULL as has_logo FROM "IsraeliStocks" WHERE id = :id'),
+                {"id": stock_id}
+            )
+            stock_info = result.fetchone()
+            
+            if not stock_info:
+                raise HTTPException(status_code=404, detail="Stock not found")
+            
+            symbol, name, had_logo = stock_info
+            
+            if not had_logo:
+                return {
+                    "success": True,
+                    "message": f"Stock {symbol} ({name}) already has no logo",
+                    "stock": {"id": stock_id, "symbol": symbol, "name": name}
+                }
+            
+            # Remove the logo
+            result = conn.execute(
+                text('UPDATE "IsraeliStocks" SET logo_svg = NULL WHERE id = :id'),
+                {"id": stock_id}
+            )
+            
+            if result.rowcount > 0:
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": f"Logo successfully removed for {symbol} ({name})",
+                    "stock": {"id": stock_id, "symbol": symbol, "name": name}
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to remove logo")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error removing logo: {str(e)}")
 
 @router.get("/stocks-without-logos")
 async def get_stocks_without_logos(
