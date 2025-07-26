@@ -10,9 +10,12 @@ import tempfile
 import os
 import shutil
 from datetime import datetime
+from sqlalchemy import create_engine, text
 
 from app.services.israeli_stock_service import IsraeliStockService
+from app.services.logo_crawler_service import LogoCrawlerService, crawl_all_logos, crawl_logo_for_stock
 from app.core.deps import get_current_user
+from app.core.database import get_db_connection
 from app.models.user import User
 
 router = APIRouter()
@@ -385,3 +388,111 @@ async def delete_transaction(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting transaction: {str(e)}")
+
+@router.post("/crawl-logos")
+async def crawl_all_stock_logos(
+    batch_size: int = 5,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Crawl logos for all stocks that don't have them
+    """
+    try:
+        result = await crawl_all_logos(batch_size)
+        
+        return {
+            "success": True,
+            "message": f"Logo crawling completed",
+            "results": result
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error crawling logos: {str(e)}")
+
+@router.post("/crawl-logo/{stock_name}")
+async def crawl_single_stock_logo(
+    stock_name: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Crawl logo for a specific stock by name
+    """
+    try:
+        success = await crawl_logo_for_stock(stock_name)
+        
+        if success:
+            return {
+                "success": True,
+                "message": f"Logo successfully fetched for {stock_name}"
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Failed to fetch logo for {stock_name}"
+            }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error crawling logo: {str(e)}")
+
+@router.get("/stocks-without-logos")
+async def get_stocks_without_logos(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get list of stocks that don't have logos yet
+    """
+    try:
+        async with LogoCrawlerService() as crawler:
+            stocks = crawler.get_stocks_without_logos()
+        
+        return {
+            "stocks": stocks,
+            "count": len(stocks)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving stocks: {str(e)}")
+
+@router.get("/stocks-with-logos")
+async def get_stocks_with_logos(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get list of stocks that have logos
+    """
+    try:
+        service = IsraeliStockService()
+        
+        # Get stocks with logos using raw SQL
+        engine = get_db_connection()
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT id, name, symbol, security_no, 
+                           CASE WHEN logo_svg IS NOT NULL AND logo_svg != '' 
+                           THEN true ELSE false END as has_logo
+                    FROM "IsraeliStocks" 
+                    WHERE is_active = true 
+                    AND logo_svg IS NOT NULL 
+                    AND logo_svg != ''
+                    ORDER BY name
+                """)
+            )
+            
+            stocks = []
+            for row in result:
+                stocks.append({
+                    'id': row[0],
+                    'name': row[1],
+                    'symbol': row[2],
+                    'security_no': row[3],
+                    'has_logo': row[4]
+                })
+        
+        return {
+            "stocks": stocks,
+            "count": len(stocks)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving stocks with logos: {str(e)}")

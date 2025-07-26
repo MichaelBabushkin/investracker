@@ -21,6 +21,7 @@ class IsraeliStock(Base):
     security_no = Column(String(20), unique=True, nullable=False, index=True)
     symbol = Column(String(10), nullable=False, index=True)
     name = Column(String(100), nullable=False)
+    logo_svg = Column(Text, nullable=True)  # SVG logo content stored as JSON/text
     index_name = Column(String(20), nullable=False, default="TA-125")  # TA-125 or SME-60
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)

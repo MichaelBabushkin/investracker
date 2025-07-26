@@ -24,6 +24,7 @@ class IsraeliStockCreate(IsraeliStockBase):
 class IsraeliStockResponse(IsraeliStockBase):
     id: int
     index_name: str
+    logo_svg: Optional[str] = Field(None, description="SVG logo content")
     is_active: bool
     created_at: datetime
     updated_at: datetime
