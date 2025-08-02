@@ -881,7 +881,7 @@ class IsraeliStockService:
                 query = '''
                     SELECT h.id, h.security_no, h.symbol, h.company_name, h.quantity, 
                            h.last_price, h.current_value, h.holding_date, 
-                           h.currency, s.logo_svg
+                           h.currency, h.purchase_cost, s.logo_svg
                     FROM "IsraeliStockHolding" h
                     LEFT JOIN "IsraeliStocks" s ON h.security_no = s.security_no
                     WHERE h.user_id = %s AND h.source_pdf = %s
@@ -893,7 +893,7 @@ class IsraeliStockService:
                 query = '''
                     SELECT h.id, h.security_no, h.symbol, h.company_name, h.quantity, 
                            h.last_price, h.current_value, h.holding_date, 
-                           h.currency, s.logo_svg
+                           h.currency, h.purchase_cost, s.logo_svg
                     FROM "IsraeliStockHolding" h
                     LEFT JOIN "IsraeliStocks" s ON h.security_no = s.security_no
                     WHERE h.user_id = %s AND h.holding_date = %s
@@ -917,8 +917,15 @@ class IsraeliStockService:
             
             # Second pass: create holdings with calculated percentages
             for row in rows:
-                current_value = float(row[6]) if row[6] else 0  # current_value is now at index 6
-                portfolio_percentage = (current_value / total_portfolio_value * 100) if total_portfolio_value > 0 else 0
+                current_value = float(row[6]) if row[6] else 0  # current_value is at index 6
+                purchase_cost = float(row[9]) if row[9] else 0  # purchase_cost is at index 9
+                
+                # Israeli portfolio percentage (within Israeli stocks only)
+                israeli_portfolio_percentage = (current_value / total_portfolio_value * 100) if total_portfolio_value > 0 else 0
+                
+                # Overall portfolio percentage (for future use when we add global stocks)
+                # For now, it's the same as Israeli percentage since we only have Israeli stocks
+                overall_portfolio_percentage = israeli_portfolio_percentage
                 
                 holdings.append({
                     'id': row[0],  # ID for editing
@@ -928,10 +935,12 @@ class IsraeliStockService:
                     'quantity': float(row[4]) if row[4] else 0,
                     'last_price': float(row[5]) if row[5] else 0,
                     'current_value': current_value,
-                    'portfolio_percentage': round(portfolio_percentage, 2),
+                    'purchase_cost': purchase_cost,
+                    'portfolio_percentage': round(israeli_portfolio_percentage, 2),  # Israeli stocks percentage
+                    'overall_portfolio_percentage': round(overall_portfolio_percentage, 2),  # Overall portfolio percentage
                     'currency': row[8],
                     'holding_date': row[7].isoformat() if row[7] else None,
-                    'logo_svg': row[9] if len(row) > 9 else None
+                    'logo_svg': row[10] if len(row) > 10 else None
                 })
             
             cursor.close()

@@ -15,7 +15,8 @@ export interface IsraeliStockHolding {
   last_price?: number
   purchase_cost?: number
   current_value?: number
-  portfolio_percentage?: number
+  portfolio_percentage?: number // Percentage within Israeli stocks portfolio
+  overall_portfolio_percentage?: number // Percentage within overall portfolio (for future global stocks)
   currency: string
   holding_date?: string
   source_pdf: string
