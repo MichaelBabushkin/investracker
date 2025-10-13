@@ -12,6 +12,15 @@ import {
 import { israeliStocksAPI } from '@/services/api'
 import { IsraeliDividend } from '@/types/israeli-stocks'
 import StockLogo from './StockLogo'
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip
+} from 'recharts'
 
 interface IsraeliStockDividendsProps {
   refreshTrigger?: number
@@ -65,11 +74,16 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
       acc[key] = {
         company_name: dividend.company_name,
         symbol: dividend.symbol,
+        logo_svg: dividend.logo_svg,
         total_amount: 0,
         total_tax: 0,
         count: 0,
         dividends: []
       }
+    }
+    // capture logo if not already set
+    if (!acc[key].logo_svg && dividend.logo_svg) {
+      acc[key].logo_svg = dividend.logo_svg
     }
     acc[key].total_amount += dividend.amount
     acc[key].total_tax += dividend.tax || 0
@@ -81,6 +95,36 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
   const toggleCompany = (symbol: string) => {
     setExpanded(prev => ({ ...prev, [symbol]: !prev[symbol] }))
   }
+
+  // Build monthly data for chart (last 12 months, net amounts)
+  const monthlyData = (() => {
+    const map = new Map<string, { key: string; label: string; gross: number; tax: number; net: number }>()
+    for (const d of dividends || []) {
+      if (!d.payment_date) continue
+      const dt = new Date(d.payment_date)
+      if (isNaN(dt.getTime())) continue
+      const year = dt.getFullYear()
+      const month = dt.getMonth() + 1
+      const key = `${year}-${String(month).padStart(2, '0')}`
+      const label = dt.toLocaleDateString('he-IL', { month: 'short', year: 'numeric' })
+      if (!map.has(key)) {
+        map.set(key, { key, label, gross: 0, tax: 0, net: 0 })
+      }
+      const item = map.get(key)!
+      const gross = d.amount || 0
+      const tax = d.tax || 0
+      item.gross += gross
+      item.tax += tax
+      item.net += (gross - tax)
+    }
+    const sorted = Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key))
+    // Show last 12 months for readability
+    const last12 = sorted.slice(-12)
+    return last12
+  })()
+
+  const currencyTick = (value: any) => new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(Number(value) || 0)
+  const tooltipFormatter = (value: any) => formatCurrency(Number(value) || 0)
 
   if (loading) {
     return (
@@ -202,6 +246,27 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
         </div>
       )}
 
+      {/* Monthly Dividend Income (Net) */}
+      {monthlyData.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-medium text-gray-900">Monthly Dividend Income (Net)</h3>
+            <span className="text-xs text-gray-500">Last {monthlyData.length} months</span>
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                <YAxis tickFormatter={currencyTick} tick={{ fontSize: 12 }} />
+                <Tooltip formatter={tooltipFormatter} labelClassName="text-xs" />
+                <Bar dataKey="net" fill="#16a34a" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       {/* Dividends List */}
       {dividends.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -215,7 +280,13 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">Dividends by Company</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.values(dividendsByCompany).map((company: any) => (
+              {Object.values(dividendsByCompany)
+                .sort((a: any, b: any) => {
+                  const netA = (a.total_amount || 0) - (a.total_tax || 0)
+                  const netB = (b.total_amount || 0) - (b.total_tax || 0)
+                  return netB - netA
+                })
+                .map((company: any) => (
                 <div key={company.symbol} className="bg-white p-4 rounded-lg border border-gray-200">
                   <button
                     type="button"
@@ -223,11 +294,20 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
                     className="w-full text-left"
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-blue-600 font-semibold text-sm">
-                          {company.symbol.substring(0, 2)}
-                        </span>
-                      </div>
+                      {company.logo_svg ? (
+                        <StockLogo
+                          symbol={company.symbol}
+                          logoSvg={company.logo_svg}
+                          size="md"
+                          className="flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 font-semibold text-sm">
+                            {company.symbol.substring(0, 2)}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <div>
@@ -276,12 +356,6 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
                         .map((dividend: IsraeliDividend) => (
                           <div key={dividend.id} className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-3">
-                              <StockLogo 
-                                symbol={dividend.symbol}
-                                logoSvg={dividend.logo_svg}
-                                size="sm"
-                                className="flex-shrink-0"
-                              />
                               <div>
                                 <div className="font-medium text-gray-900">{formatDate(dividend.payment_date)}</div>
                                 <div className="text-xs text-gray-500">Source: {dividend.source_pdf}</div>
