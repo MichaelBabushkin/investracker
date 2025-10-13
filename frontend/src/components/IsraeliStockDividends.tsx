@@ -92,7 +92,11 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
     return acc
   }, {} as Record<string, any>)
 
-  const toggleCompany = (symbol: string) => {
+  const toggleCompany = (symbol: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     setExpanded(prev => ({ ...prev, [symbol]: !prev[symbol] }))
   }
 
@@ -279,7 +283,7 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
           {/* By Company - expandable cards */}
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">Dividends by Company</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex flex-wrap -m-2">
               {Object.values(dividendsByCompany)
                 .sort((a: any, b: any) => {
                   const netA = (a.total_amount || 0) - (a.total_tax || 0)
@@ -287,11 +291,13 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
                   return netB - netA
                 })
                 .map((company: any) => (
-                <div key={company.symbol} className="bg-white p-4 rounded-lg border border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => toggleCompany(company.symbol)}
-                    className="w-full text-left"
+                <div key={company.symbol} className="p-2 w-full md:w-1/2 lg:w-1/3">
+                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                  <div
+                    role="button"
+                    aria-expanded={!!expanded[company.symbol]}
+                    onClick={(e) => toggleCompany(company.symbol, e)}
+                    className="w-full text-left cursor-pointer select-none"
                   >
                     <div className="flex items-center space-x-3">
                       {company.logo_svg ? (
@@ -314,7 +320,7 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
                             <h4 className="font-medium text-gray-900">{company.symbol}</h4>
                             <p className="text-sm text-gray-600">{company.company_name}</p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2" onClick={(e) => toggleCompany(company.symbol, e)}>
                             <span className="text-xs text-gray-500">{company.count} payments</span>
                             {expanded[company.symbol] ? (
                               <ChevronUpIcon className="h-5 w-5 text-gray-500" />
@@ -342,7 +348,7 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
                         </span>
                       </div>
                     </div>
-                  </button>
+                  </div>
 
                   {expanded[company.symbol] && (
                     <div className="mt-4 border-t pt-3 space-y-3">
@@ -379,6 +385,7 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
                       ))}
                     </div>
                   )}
+                  </div>
                 </div>
               ))}
             </div>
