@@ -141,26 +141,7 @@ export default function IsraeliStocksDashboard() {
           )}
         </div>
 
-        {/* Quick Stats Footer */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-            <BuildingOfficeIcon className="mx-auto h-8 w-8 text-blue-600 mb-2" />
-            <p className="text-sm text-gray-600">Portfolio Holdings</p>
-            <p className="text-xs text-gray-500">Track your stock positions</p>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-            <ArrowRightIcon className="mx-auto h-8 w-8 text-green-600 mb-2" />
-            <p className="text-sm text-gray-600">Trading History</p>
-            <p className="text-xs text-gray-500">Buy, sell, and dividend transactions</p>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-            <CurrencyDollarIcon className="mx-auto h-8 w-8 text-purple-600 mb-2" />
-            <p className="text-sm text-gray-600">Dividend Income</p>
-            <p className="text-xs text-gray-500">Track dividend payments and taxes</p>
-          </div>
-        </div>
+        {/* Removed Quick Stats Footer per request */}
       </div>
     </div>
   )
