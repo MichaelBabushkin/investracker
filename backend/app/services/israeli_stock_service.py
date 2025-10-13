@@ -42,6 +42,8 @@ class IsraeliStockService:
     
     def __init__(self):
         load_dotenv()
+        # Prefer DATABASE_URL if provided; otherwise use discrete env vars with defaults
+        self.db_url = os.getenv('DATABASE_URL')
         self.db_config = {
             'host': os.getenv('DB_HOST', 'localhost'),
             'port': os.getenv('DB_PORT', '5433'),
@@ -52,7 +54,16 @@ class IsraeliStockService:
         
     def create_database_connection(self):
         """Create and return a database connection"""
-        return psycopg2.connect(**self.db_config)
+        try:
+            if self.db_url:
+                return psycopg2.connect(self.db_url)
+            return psycopg2.connect(**self.db_config)
+        except Exception as e:
+            # As a fallback, attempt to build DSN from env if available
+            dsn = os.getenv('DATABASE_URL')
+            if dsn:
+                return psycopg2.connect(dsn)
+            raise e
     
     def load_israeli_stocks(self) -> Dict[str, Tuple[str, str, str]]:
         """Load Israeli stocks from database"""
@@ -87,12 +98,9 @@ class IsraeliStockService:
                     # Extract text to find Hebrew headings
                     page_text = page.extract_text() or ""
                     
-                    # Determine table type based on Hebrew headings
-                    table_type = None
-                    if "תורתי טוריפ" in page_text:  # Holdings details
-                        table_type = "holdings"
-                    elif "תועונת טוריפ" in page_text:  # Transactions details
-                        table_type = "transactions"
+                    # Determine page-level heading hints (a page may contain both types!)
+                    has_holdings_heading = "תורתי טוריפ" in page_text  # Holdings details
+                    has_transactions_heading = "תועונת טוריפ" in page_text  # Transactions details
                     
                     # Extract tables from this page
                     tables = page.extract_tables()
@@ -105,15 +113,22 @@ class IsraeliStockService:
                                     cleaned_row = [str(cell).strip() if cell is not None else "" for cell in row]
                                     cleaned_table.append(cleaned_row)
                                 
+                                # Decide table type: if page has only one heading type, use it; if both/none, leave None (to be inferred later)
+                                inferred_table_type = None
+                                if has_holdings_heading and not has_transactions_heading:
+                                    inferred_table_type = "holdings"
+                                elif has_transactions_heading and not has_holdings_heading:
+                                    inferred_table_type = "transactions"
+
                                 table_info = {
                                     'page': page_num + 1,
                                     'table_number': table_num + 1,
                                     'data': cleaned_table,
-                                    'hebrew_heading_type': table_type  # Add the heading-based type
+                                    'hebrew_heading_type': inferred_table_type  # Page-level hint only
                                 }
                                 all_tables.append(table_info)
-                                
-                                print(f"DEBUG: Page {page_num + 1}, Table {table_num + 1} - Hebrew heading indicates: {table_type}")
+                                hint_dbg = inferred_table_type if inferred_table_type else "ambiguous/none"
+                                print(f"DEBUG: Page {page_num + 1}, Table {table_num + 1} - Hebrew heading hint: {hint_dbg}")
             
             return all_tables
             
@@ -164,7 +179,8 @@ class IsraeliStockService:
                         
                         import re
                         for line in lines:
-                            date_match = re.search(r'(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{4})', line)
+                            # Accept dates with '/', '-', or '.' as separators
+                            date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{4})', line)
                             if date_match:
                                 date_str = date_match.group(1)
                                 return self.parse_date_string(date_str)
@@ -305,21 +321,30 @@ class IsraeliStockService:
                 df = pd.read_csv(csv_file)
                 filename = os.path.basename(csv_file)
                 
-                # Get the table type from Hebrew heading
-                csv_type = "holdings"  # default
+                # Determine table type: prefer unambiguous Hebrew heading; else fall back to content-based detection
+                csv_type = None
                 if filename in table_info_map:
                     heading_type = table_info_map[filename].get('hebrew_heading_type')
-                    if heading_type:
+                    if heading_type in ("holdings", "transactions"):
                         csv_type = heading_type
-                        print(f"DEBUG: {filename} - Using Hebrew heading type: {csv_type}")
+                        print(f"DEBUG: {filename} - Using Hebrew heading hint: {csv_type}")
                     else:
-                        print(f"DEBUG: {filename} - No Hebrew heading found, defaulting to holdings")
+                        print(f"DEBUG: {filename} - Ambiguous/none heading hint; using content-based detection")
                 else:
-                    print(f"DEBUG: {filename} - Not found in table info map")
+                    print(f"DEBUG: {filename} - Not found in table info map; using content-based detection")
+
+                if csv_type is None:
+                    # Use content-based detection on the DataFrame itself
+                    try:
+                        csv_type = self.determine_csv_type(df, csv_file)
+                    except Exception:
+                        csv_type = "holdings"  # safe default
+                    print(f"DEBUG: {filename} - Content-based type: {csv_type}")
                 
                 if csv_type == "holdings":
                     holdings = self.find_israeli_stocks_in_csv(df, israeli_stocks, csv_file, "holdings", pdf_name, holding_date)
-                    all_holdings.extend(holdings)
+                    if holdings:
+                        all_holdings.extend(holdings)
                     print(f"DEBUG: {filename} - Found {len(holdings)} holdings")
                 elif csv_type == "transactions":
                     transactions = self.find_israeli_stocks_in_csv(df, israeli_stocks, csv_file, "transactions", pdf_name, holding_date)
@@ -386,35 +411,28 @@ class IsraeliStockService:
                                  csv_type: str, pdf_name: str, holding_date: Optional[datetime]) -> List[Dict]:
         """Find Israeli stocks in a CSV DataFrame"""
         results = []
-        df_str = df.to_string()
-        
+        # Avoid relying on df.to_string() gate; directly search per security across columns
         for security_no, (symbol, name, index_name) in israeli_stocks.items():
-            if security_no in df_str:
-                if csv_type == "holdings":
-                    # For holdings tables, check if this row contains dividend data
-                    mask = df.astype(str).apply(lambda x: x.str.contains(security_no, na=False)).any(axis=1)
-                    relevant_rows = df[mask]
-                    
-                    for idx, row in relevant_rows.iterrows():
-                        # Check if this row is a dividend entry in the holdings table
-                        row_str = ' '.join(str(val) for val in row.values).lower()
-                        if any(dividend_kw in row_str for dividend_kw in ['דנדביד', 'דיבידנד', 'dividend']):
-                            # This is a dividend entry in the holdings table
-                            dividend_data = self.parse_dividend_from_holdings_row(row, security_no, symbol, name, pdf_name)
-                            if dividend_data:
-                                dividend_data['transaction_type'] = 'DIVIDEND'  # Mark as dividend
-                                results.append(dividend_data)
-                                print(f"DEBUG: Found dividend in holdings table - {symbol}: {dividend_data}")
-                        else:
-                            # Regular holding entry
-                            holding_data = self.parse_holding_row(row, security_no, symbol, name, pdf_name, holding_date)
-                            if holding_data:
-                                results.append(holding_data)
-                else:
-                    # Transaction tables
-                    transaction_data = self.extract_transaction_from_csv(df, security_no, symbol, name, pdf_name)
-                    if transaction_data:
-                        results.extend(transaction_data)
+            mask = df.astype(str).apply(lambda x: x.str.contains(security_no, na=False)).any(axis=1)
+            if not mask.any():
+                continue
+            relevant_rows = df[mask]
+            if csv_type == "holdings":
+                # For holdings tables, check if this row contains dividend data
+                for idx, row in relevant_rows.iterrows():
+                    row_str = ' '.join(str(val) for val in row.values).lower()
+                    # Skip any rows that look like dividends; dividends are parsed only from transactions tables
+                    if any(dividend_kw in row_str for dividend_kw in ['דנדביד', 'דיבידנד', 'dividend', 'div/']):
+                        print(f"DEBUG: Skipping dividend-like row in holdings table for {symbol}")
+                        continue
+                    holding_data = self.parse_holding_row(row, security_no, symbol, name, pdf_name, holding_date)
+                    if holding_data:
+                        results.append(holding_data)
+            else:
+                # Transaction tables
+                transaction_data = self.extract_transaction_from_csv(df, security_no, symbol, name, pdf_name)
+                if transaction_data:
+                    results.extend(transaction_data)
         
         return results
     
@@ -463,52 +481,7 @@ class IsraeliStockService:
         
         return holding
     
-    def parse_dividend_from_holdings_row(self, row, security_no: str, symbol: str, name: str, pdf_name: str) -> Optional[Dict]:
-        """Parse a dividend entry from holdings table row"""
-        row_values = [str(val).replace(',', '') if pd.notna(val) else '' for val in row.values]
-        
-        dividend = {
-            'security_no': security_no,
-            'symbol': symbol,
-            'name': name,
-            'source_pdf': pdf_name,
-            'currency': 'ILS',
-            'transaction_type': 'DIVIDEND'
-        }
-        
-        try:
-            # For dividends in holdings table, the structure is typically:
-            # [percentage, dividend_amount, cost_basis, market_price, quantity, name_with_dividend_keyword, security_no]
-            
-            # Extract dividend amount (usually in column 1)
-            if len(row_values) > 1 and row_values[1]:
-                try:
-                    dividend_amount = float(row_values[1])
-                    dividend['total_value'] = abs(dividend_amount)
-                except ValueError:
-                    pass
-            
-            # Extract quantity if available (usually in column 4)
-            if len(row_values) > 4 and row_values[4]:
-                try:
-                    quantity = float(row_values[4])
-                    dividend['quantity'] = abs(quantity)
-                except ValueError:
-                    pass
-            
-            # Set a default date (we can't extract it from holdings table)
-            dividend['transaction_date'] = None
-            
-            # Only return if we found a dividend amount
-            if dividend.get('total_value'):
-                print(f"DEBUG: Parsed dividend from holdings - {symbol}: Amount={dividend.get('total_value')}, Quantity={dividend.get('quantity', 'N/A')}")
-                return dividend
-            else:
-                return None
-                
-        except Exception as e:
-            print(f"DEBUG: Error parsing dividend from holdings row for {symbol}: {e}")
-            return None
+    
     
     def extract_transaction_from_csv(self, df: pd.DataFrame, security_no: str, symbol: str, 
                                    name: str, pdf_name: str) -> List[Dict]:
@@ -539,6 +512,7 @@ class IsraeliStockService:
         # Enhanced Hebrew to English transaction type mapping
         hebrew_mappings = {
             'דנדביד': 'DIVIDEND',
+            'דיבידנד': 'DIVIDEND',
             'ביד/': 'DIVIDEND',
             'div/': 'DIVIDEND',
             'dividend': 'DIVIDEND',
@@ -568,8 +542,8 @@ class IsraeliStockService:
         import re
         for value in row_values:
             value_str = str(value).strip()
-            # Look for date patterns like DD/MM/YY or DD/MM/YYYY
-            date_match = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})', value_str)
+            # Look for date patterns like DD/MM/YY or DD/MM/YYYY (also support '-' and '.')
+            date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', value_str)
             if date_match:
                 transaction_date = date_match.group(1)
                 break
@@ -579,7 +553,7 @@ class IsraeliStockService:
         for value in row_values:
             try:
                 # Clean the value and try to convert to float
-                clean_value = str(value).replace(',', '').replace(' ', '').strip()
+                clean_value = str(value).replace('₪', '').replace(',', '').replace(' ', '').replace('+', '').strip()
                 if clean_value and clean_value.replace('.', '').replace('-', '').isdigit():
                     numeric_values.append(float(clean_value))
             except (ValueError, AttributeError):
@@ -611,11 +585,11 @@ class IsraeliStockService:
                         
                         # Column 5: Net dividend amount
                         if len(row_values) >= 6 and row_values[5]:
-                            net_amount = float(str(row_values[5]).replace(',', ''))
+                            net_amount = float(str(row_values[5]).replace('₪', '').replace(',', '').strip())
                         
                         # Column 3: Tax withheld
                         if len(row_values) >= 4 and row_values[3]:
-                            tax_amount = float(str(row_values[3]).replace(',', ''))
+                            tax_amount = float(str(row_values[3]).replace('₪', '').replace(',', '').strip())
                             transaction['tax'] = abs(tax_amount)
                         
                         # Calculate gross amount (total before tax)
@@ -628,7 +602,7 @@ class IsraeliStockService:
                         
                         # Column 0: Remaining quantity (might be relevant)
                         if len(row_values) >= 1 and row_values[0]:
-                            qty = float(str(row_values[0]).replace(',', ''))
+                            qty = float(str(row_values[0]).replace('₪', '').replace(',', '').strip())
                             if qty > 0:
                                 transaction['quantity'] = abs(qty)
                         
