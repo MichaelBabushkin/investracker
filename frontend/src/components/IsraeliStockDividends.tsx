@@ -5,7 +5,9 @@ import {
   CurrencyDollarIcon,
   CalendarIcon,
   BanknotesIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from '@heroicons/react/24/outline'
 import { israeliStocksAPI } from '@/services/api'
 import { IsraeliDividend } from '@/types/israeli-stocks'
@@ -19,6 +21,7 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
   const [dividends, setDividends] = useState<IsraeliDividend[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   const fetchDividends = async () => {
     try {
@@ -74,6 +77,10 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
     acc[key].dividends.push(dividend)
     return acc
   }, {} as Record<string, any>)
+
+  const toggleCompany = (symbol: string) => {
+    setExpanded(prev => ({ ...prev, [symbol]: !prev[symbol] }))
+  }
 
   if (loading) {
     return (
@@ -204,112 +211,100 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
         </div>
       ) : (
         <div className="space-y-6">
-          {/* By Company Summary */}
+          {/* By Company - expandable cards */}
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">Dividends by Company</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {Object.values(dividendsByCompany).map((company: any) => (
                 <div key={company.symbol} className="bg-white p-4 rounded-lg border border-gray-200">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 font-semibold text-sm">
-                        {company.symbol.substring(0, 2)}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">{company.symbol}</h4>
-                      <p className="text-sm text-gray-600">{company.company_name}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-3 space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Gross Amount:</span>
-                      <span className="font-medium">{formatCurrency(company.total_amount)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Tax Paid:</span>
-                      <span className="font-medium">{formatCurrency(company.total_tax)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Net Amount:</span>
-                      <span className="font-medium text-green-600">
-                        {formatCurrency(company.total_amount - company.total_tax)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Payments:</span>
-                      <span className="font-medium">{company.count}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Individual Dividends */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">All Dividend Payments</h3>
-            <div className="space-y-4">
-              {dividends.map((dividend) => (
-                <div key={dividend.id} className="investment-card">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex items-center space-x-2">
-                          <StockLogo 
-                            symbol={dividend.symbol}
-                            logoSvg={dividend.logo_svg}
-                            size="sm"
-                            className="flex-shrink-0"
-                          />
-                          <CurrencyDollarIcon className="h-5 w-5 text-blue-600" />
-                        </div>
-                        
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                              {dividend.symbol}
-                            </h3>
-                            <span className="px-2 py-1 text-xs font-medium rounded-full border text-blue-600 bg-blue-50 border-blue-200">
-                              DIVIDEND
-                            </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleCompany(company.symbol)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span className="text-blue-600 font-semibold text-sm">
+                          {company.symbol.substring(0, 2)}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium text-gray-900">{company.symbol}</h4>
+                            <p className="text-sm text-gray-600">{company.company_name}</p>
                           </div>
-                          <p className="text-sm text-gray-600">{dividend.company_name}</p>
-                          <p className="text-xs text-gray-500">Security: {dividend.security_no}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">{company.count} payments</span>
+                            {expanded[company.symbol] ? (
+                              <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+                            ) : (
+                              <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+                            )}
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <p className="text-xs text-gray-500">Payment Date</p>
-                          <p className="text-sm font-medium">{formatDate(dividend.payment_date)}</p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs text-gray-500">Gross Amount</p>
-                          <p className="text-sm font-medium text-blue-600">{formatCurrency(dividend.amount)}</p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs text-gray-500">Tax Withheld</p>
-                          <p className="text-sm font-medium text-red-600">{formatCurrency(dividend.tax)}</p>
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs text-gray-500">Net Amount</p>
-                          <p className="text-sm font-medium text-green-600">
-                            {formatCurrency(dividend.amount - (dividend.tax || 0))}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 flex items-center space-x-4 text-xs text-gray-500">
-                        <span>Source: {dividend.source_pdf}</span>
-                        <span>Added: {formatDate(dividend.created_at)}</span>
                       </div>
                     </div>
-                  </div>
+
+                    <div className="mt-3 space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Gross Amount:</span>
+                        <span className="font-medium">{formatCurrency(company.total_amount)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Tax Paid:</span>
+                        <span className="font-medium">{formatCurrency(company.total_tax)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Net Amount:</span>
+                        <span className="font-medium text-green-600">
+                          {formatCurrency(company.total_amount - company.total_tax)}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+
+                  {expanded[company.symbol] && (
+                    <div className="mt-4 border-t pt-3 space-y-3">
+                      {company.dividends
+                        .slice()
+                        .sort((a: IsraeliDividend, b: IsraeliDividend) => {
+                          const da = a.payment_date ? new Date(a.payment_date).getTime() : 0
+                          const db = b.payment_date ? new Date(b.payment_date).getTime() : 0
+                          return db - da
+                        })
+                        .map((dividend: IsraeliDividend) => (
+                          <div key={dividend.id} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-3">
+                              <StockLogo 
+                                symbol={dividend.symbol}
+                                logoSvg={dividend.logo_svg}
+                                size="sm"
+                                className="flex-shrink-0"
+                              />
+                              <div>
+                                <div className="font-medium text-gray-900">{formatDate(dividend.payment_date)}</div>
+                                <div className="text-xs text-gray-500">Source: {dividend.source_pdf}</div>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-6">
+                              <div>
+                                <div className="text-xs text-gray-500">Gross</div>
+                                <div className="font-medium text-blue-600">{formatCurrency(dividend.amount)}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-gray-500">Tax</div>
+                                <div className="font-medium text-red-600">{formatCurrency(dividend.tax || 0)}</div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-gray-500">Net</div>
+                                <div className="font-medium text-green-600">{formatCurrency(dividend.amount - (dividend.tax || 0))}</div>
+                              </div>
+                            </div>
+                          </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
