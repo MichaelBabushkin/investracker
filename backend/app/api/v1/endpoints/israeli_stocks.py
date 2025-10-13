@@ -476,6 +476,76 @@ async def crawl_single_stock_logo(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error crawling logo: {str(e)}")
 
+@router.post("/crawl-tradingview-logo-urls")
+async def crawl_tradingview_logo_urls(
+    batch_size: int = 5,
+    missing_only: bool = True,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Crawl TradingView symbol pages for many stocks and extract the company logo URL (logo_url).
+    Does not fetch/store SVG content, only the URL reference.
+    """
+    try:
+        async with LogoCrawlerService() as crawler:
+            results = await crawler.crawl_tradingview_logo_urls_for_all(batch_size=batch_size, missing_only=missing_only)
+        return {"success": True, "results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error crawling TradingView logo URLs: {str(e)}")
+
+@router.post("/crawl-tradingview-logo-url/{symbol}")
+async def crawl_tradingview_logo_url_for_symbol(
+    symbol: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Crawl TradingView symbol page for a single TASE symbol and update its logo_url.
+    """
+    try:
+        async with LogoCrawlerService() as crawler:
+            result = await crawler.crawl_tradingview_logo_url_for_symbol(symbol)
+            if not result:
+                return {"success": False, "message": f"No logo URL found for symbol {symbol}"}
+            return {"success": True, "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error crawling TradingView logo URL: {str(e)}")
+
+@router.post("/fetch-logo-svg-from-url")
+async def fetch_logo_svg_from_url_bulk(
+    batch_size: int = 5,
+    only_missing: bool = True,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    For stocks with logo_url set, fetch the SVG and store it into logo_svg.
+    If only_missing=True, process only stocks where logo_svg is NULL/empty.
+    """
+    try:
+        async with LogoCrawlerService() as crawler:
+            results = await crawler.populate_logo_svg_from_logo_urls_for_all(batch_size=batch_size, only_missing=only_missing)
+        return {"success": True, "results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error populating logo_svg from logo_url: {str(e)}")
+
+@router.post("/fetch-logo-svg-from-url/{stock_id}")
+async def fetch_logo_svg_from_url_for_stock(
+    stock_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Populate logo_svg for a single stock by its ID using stored logo_url.
+    """
+    try:
+        async with LogoCrawlerService() as crawler:
+            res = await crawler.populate_logo_svg_for_stock_id(stock_id)
+            if res is None:
+                return {"success": False, "message": "Stock not found or no logo_url"}
+            if res is False:
+                return {"success": False, "message": "Failed to fetch or store SVG"}
+            return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error populating logo_svg: {str(e)}")
+
 @router.put("/stocks/{stock_id}/logo")
 async def update_stock_logo_manual(
     stock_id: int,
@@ -485,22 +555,25 @@ async def update_stock_logo_manual(
     """
     Manually update a stock's logo with custom SVG content
     Perfect for admin panel when automatic crawling fails
-    
-    Body: {"svg_content": "<svg>...</svg>"}
+
+    Body: {"svg_content": "<svg>...</svg>", "logo_url": "https://..."}
     """
     try:
-        svg_content = logo_data.get("svg_content", "").strip()
-        
+        svg_content = (logo_data.get("svg_content") or "").strip()
+        logo_url = (logo_data.get("logo_url") or None)
+
         if not svg_content:
             raise HTTPException(status_code=400, detail="svg_content is required")
-        
+
         # Basic SVG validation
-        if not (svg_content.startswith('<svg') and svg_content.endswith('</svg>')):
-            raise HTTPException(status_code=400, detail="Invalid SVG format - must start with <svg and end with </svg>")
-        
-        # Update the stock logo
+        if not (svg_content.startswith("<svg") and svg_content.endswith("</svg>")):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid SVG format - must start with <svg and end with </svg>"
+            )
+
         from app.core.database import engine
-        
+
         with engine.connect() as conn:
             # Check if stock exists
             result = conn.execute(
@@ -508,19 +581,24 @@ async def update_stock_logo_manual(
                 {"id": stock_id}
             )
             stock_info = result.fetchone()
-            
             if not stock_info:
                 raise HTTPException(status_code=404, detail="Stock not found")
-            
+
             symbol, name = stock_info
-            
-            # Update the logo
-            result = conn.execute(
-                text('UPDATE "IsraeliStocks" SET logo_svg = :svg WHERE id = :id'),
-                {"svg": svg_content, "id": stock_id}
-            )
-            
-            if result.rowcount > 0:
+
+            # Update the logo fields
+            if logo_url:
+                result = conn.execute(
+                    text('UPDATE "IsraeliStocks" SET logo_url = :url, logo_svg = :svg WHERE id = :id'),
+                    {"url": logo_url, "svg": svg_content, "id": stock_id}
+                )
+            else:
+                result = conn.execute(
+                    text('UPDATE "IsraeliStocks" SET logo_svg = :svg WHERE id = :id'),
+                    {"svg": svg_content, "id": stock_id}
+                )
+
+            if result.rowcount and result.rowcount > 0:
                 conn.commit()
                 return {
                     "success": True,
@@ -532,9 +610,7 @@ async def update_stock_logo_manual(
                         "logo_size": len(svg_content)
                     }
                 }
-            else:
-                raise HTTPException(status_code=500, detail="Failed to update logo")
-        
+            raise HTTPException(status_code=500, detail="Failed to update logo")
     except HTTPException:
         raise
     except Exception as e:

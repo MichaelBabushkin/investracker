@@ -1,6 +1,9 @@
 import axios from 'axios'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+// Prefer relative base '/api' to leverage Next.js rewrites in dev/prod
+// This maps '/api/<path>' -> '<NEXT_PUBLIC_API_URL or http://localhost:8000/api/v1>/<path>' per next.config.js
+// Falls back to explicit NEXT_PUBLIC_API_URL when provided
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api'
 
 // Create axios instance
 const api = axios.create({
@@ -312,6 +315,64 @@ export const israeliStocksAPI = {
   
   getSummary: async () => {
     const response = await api.get('/israeli-stocks/summary')
+    return response.data
+  },
+
+  // Admin: list stocks by logo presence
+  getStocksWithoutLogos: async () => {
+    const response = await api.get('/israeli-stocks/stocks-without-logos')
+    return response.data
+  },
+
+  getStocksWithLogos: async () => {
+    const response = await api.get('/israeli-stocks/stocks-with-logos')
+    return response.data
+  },
+
+  updateStockLogo: async (stockId: number, svgContent: string) => {
+    const response = await api.put(`/israeli-stocks/stocks/${stockId}/logo`, { svg_content: svgContent })
+    return response.data
+  },
+
+  // Admin: logo crawler endpoints
+  crawlLogos: async (batchSize?: number) => {
+    const body = batchSize ? { batch_size: batchSize } : {}
+    const response = await api.post('/israeli-stocks/crawl-logos', body)
+    return response.data
+  },
+
+  crawlLogoForStock: async (stockName: string) => {
+    const encoded = encodeURIComponent(stockName)
+    const response = await api.post(`/israeli-stocks/crawl-logo/${encoded}`)
+    return response.data
+  },
+
+  // Admin: TradingView logo URL crawling
+  crawlTradingViewLogoUrls: async (batchSize?: number, missingOnly: boolean = true) => {
+    const body: any = {}
+    if (batchSize) body.batch_size = batchSize
+    body.missing_only = missingOnly
+    const response = await api.post('/israeli-stocks/crawl-tradingview-logo-urls', body)
+    return response.data
+  },
+
+  crawlTradingViewLogoUrlForSymbol: async (symbol: string) => {
+    const encoded = encodeURIComponent(symbol)
+    const response = await api.post(`/israeli-stocks/crawl-tradingview-logo-url/${encoded}`)
+    return response.data
+  },
+
+  // Admin: populate logo_svg from stored logo_url
+  populateLogoSvgFromUrlBulk: async (batchSize?: number, onlyMissing: boolean = true) => {
+    const body: any = {}
+    if (batchSize) body.batch_size = batchSize
+    body.only_missing = onlyMissing
+    const response = await api.post('/israeli-stocks/fetch-logo-svg-from-url', body)
+    return response.data
+  },
+
+  populateLogoSvgFromUrlForStock: async (stockId: number) => {
+    const response = await api.post(`/israeli-stocks/fetch-logo-svg-from-url/${stockId}`)
     return response.data
   }
 }
