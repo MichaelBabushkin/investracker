@@ -32,7 +32,7 @@ FastAPI-based backend for the Investracker investment tracking and analytics app
    ```bash
    python -m venv venv
    venv\Scripts\activate  # Windows
-   # source venv/bin/activate  # Linux/Mac
+   # source venv/Scripts/activate  # Linux/Mac
    ```
 
 2. **Install dependencies**:
