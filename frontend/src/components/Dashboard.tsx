@@ -33,6 +33,7 @@ import {
   Bar
 } from 'recharts'
 import ReportUploader from './ReportUploader'
+import IsraeliMarketHighlights from './IsraeliMarketHighlights'
 
 export default function Dashboard() {
   const { user } = useSelector((state: RootState) => state.auth)
@@ -147,8 +148,8 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Portfolio Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        {/* Portfolio Summary Cards + Israeli Market Entry */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -230,6 +231,22 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
+
+          {/* Israeli Market Link Card */}
+          <a href="/israeli-stocks" className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow p-6 flex flex-col justify-between hover:shadow-md transition">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-white/80">Regional Markets</h3>
+              <span className="text-[10px] px-2 py-0.5 bg-white/20 text-white rounded-full tracking-wide">NEW</span>
+            </div>
+            <div>
+              <p className="text-xl font-bold text-white mb-1">Israeli Market</p>
+              <p className="text-xs text-white/80 mb-4">Upload PDFs & analyze TA stocks</p>
+              <div className="flex items-center text-sm text-white font-medium gap-1 transition-all">
+                <span>Open Dashboard</span>
+                <ArrowRightOnRectangleIcon className="h-4 w-4" />
+              </div>
+            </div>
+          </a>
         </div>
 
         {/* Charts Section */}
@@ -520,6 +537,11 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Israeli Market Highlights Section */}
+        <div className="mt-12">
+          <IsraeliMarketHighlights />
         </div>
       </div>
 
