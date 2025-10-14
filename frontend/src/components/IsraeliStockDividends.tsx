@@ -102,6 +102,7 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
 
   // Build monthly data for chart (last 12 months, net amounts)
   const monthlyData = (() => {
+    // Build map keyed by numeric month string YYYY-MM to ensure consistency across charts
     const map = new Map<string, { key: string; label: string; gross: number; tax: number; net: number }>()
     for (const d of dividends || []) {
       if (!d.payment_date) continue
@@ -110,7 +111,8 @@ export default function IsraeliStockDividends({ refreshTrigger }: IsraeliStockDi
       const year = dt.getFullYear()
       const month = dt.getMonth() + 1
       const key = `${year}-${String(month).padStart(2, '0')}`
-      const label = dt.toLocaleDateString('he-IL', { month: 'short', year: 'numeric' })
+      // Use numeric label (YYYY-MM) instead of locale month name for unified formatting with transactions chart
+      const label = key
       if (!map.has(key)) {
         map.set(key, { key, label, gross: 0, tax: 0, net: 0 })
       }

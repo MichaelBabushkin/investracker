@@ -499,7 +499,9 @@ class IsraeliStockService:
     
     def parse_transaction_row(self, row, security_no: str, symbol: str, name: str, pdf_name: str) -> Optional[Dict]:
         """Parse a single row into transaction data with Hebrew mappings"""
-        row_values = [str(val).replace(',', '') if pd.notna(val) else '' for val in row.values]
+        # Normalize all cells to strings and strip thousand separators for numeric parsing
+        row_values = [str(val).strip() if pd.notna(val) else '' for val in row.values]
+        row_values_no_commas = [s.replace(',', '') for s in row_values]
         
         transaction = {
             'security_no': security_no,
@@ -520,6 +522,7 @@ class IsraeliStockService:
             'ךיצר': 'BUY',
             'קנייה': 'BUY',
             'מכירה': 'SELL',
+            'ףיצר/מ': 'SELL',
             'מיכור': 'SELL',
             'חסמ/': 'BUY',  # Assuming this is a buy transaction type from the debug output
             'buy': 'BUY',
@@ -537,23 +540,43 @@ class IsraeliStockService:
             if transaction_type:
                 break
         
-        # Look for date patterns
+        # Look for date patterns (prefer a dedicated date column if present)
         transaction_date = None
+        transaction_time = None
         import re
-        for value in row_values:
-            value_str = str(value).strip()
-            # Look for date patterns like DD/MM/YY or DD/MM/YYYY (also support '-' and '.')
-            date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', value_str)
-            if date_match:
-                transaction_date = date_match.group(1)
-                break
+        # Try column-based date/time first if columns present
+        if len(row_values) >= 12:
+            # Common layouts show date at index 1 and time at index 11
+            date_candidate = row_values[1]
+            time_candidate = row_values[11]
+            m = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', date_candidate or '')
+            if m:
+                transaction_date = m.group(1)
+            tm = re.search(r'\b(\d{1,2}:\d{2})\b', time_candidate or '')
+            if tm:
+                transaction_time = tm.group(1)
+        # Fallback: scan entire row for date/time
+        if not transaction_date:
+            for value in row_values:
+                value_str = str(value).strip()
+                date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', value_str)
+                if date_match:
+                    transaction_date = date_match.group(1)
+                    break
+        if not transaction_time:
+            for value in row_values:
+                value_str = str(value).strip()
+                time_match = re.search(r'\b(\d{1,2}:\d{2})\b', value_str)
+                if time_match:
+                    transaction_time = time_match.group(1)
+                    break
         
-        # Try to extract numeric values (amounts, prices, quantities)
+        # Try to extract numeric values (amounts, prices, quantities) for fallback logic
         numeric_values = []
-        for value in row_values:
+        for value in row_values_no_commas:
             try:
                 # Clean the value and try to convert to float
-                clean_value = str(value).replace('₪', '').replace(',', '').replace(' ', '').replace('+', '').strip()
+                clean_value = str(value).replace('₪', '').replace(' ', '').replace('+', '').strip()
                 if clean_value and clean_value.replace('.', '').replace('-', '').isdigit():
                     numeric_values.append(float(clean_value))
             except (ValueError, AttributeError):
@@ -566,9 +589,11 @@ class IsraeliStockService:
             else:
                 transaction['transaction_type'] = 'BUY'  # Default
             
-            # Set transaction date if found
+            # Set transaction date/time if found
             if transaction_date:
                 transaction['transaction_date'] = transaction_date
+            if transaction_time:
+                transaction['transaction_time'] = transaction_time
             
             # Assign numeric values to appropriate fields based on transaction type
             if numeric_values:
@@ -613,17 +638,61 @@ class IsraeliStockService:
                         if len(numeric_values) >= 2:
                             transaction['tax'] = abs(numeric_values[1]) if numeric_values[1] > 0 else 0
                 else:
-                    # For buy/sell transactions: quantity, price, total_value, commission, tax
-                    if len(numeric_values) >= 1:
-                        transaction['total_value'] = abs(numeric_values[0])
-                    if len(numeric_values) >= 2:
-                        transaction['quantity'] = abs(numeric_values[1])
-                    if len(numeric_values) >= 3:
-                        transaction['price'] = abs(numeric_values[2])
-                    if len(numeric_values) >= 4:
-                        transaction['commission'] = abs(numeric_values[3]) if numeric_values[3] > 0 else 0
-                    if len(numeric_values) >= 5:
-                        transaction['tax'] = abs(numeric_values[4]) if numeric_values[4] > 0 else 0
+                    # For buy/sell transactions: prefer column-positioned parsing when available
+                    def to_float(val: str) -> Optional[float]:
+                        try:
+                            s = (val or '').replace('₪', '').replace(',', '').replace(' ', '').strip()
+                            if not s:
+                                return None
+                            return float(s)
+                        except Exception:
+                            return None
+
+                    used_positional = False
+                    if len(row_values) >= 12:
+                        qty = to_float(row_values[7])  # quantity
+                        price_raw = to_float(row_values[6])  # price (often in agorot)
+                        commission = to_float(row_values[4]) or 0.0
+                        tax = to_float(row_values[3]) or 0.0
+                        total = to_float(row_values[5])  # net/total
+
+                        if qty is not None or price_raw is not None or total is not None:
+                            if qty is not None:
+                                transaction['quantity'] = abs(qty)
+                            if price_raw is not None:
+                                # Convert from agorot to shekels if looks like agorot (>= 1000)
+                                price = price_raw / 100.0 
+                                transaction['price'] = abs(price)
+                            if commission is not None:
+                                transaction['commission'] = abs(commission)
+                            if tax is not None:
+                                transaction['tax'] = abs(tax)
+                            if total is not None:
+                                transaction['total_value'] = abs(total)
+                            else:
+                                # Compute total if not provided
+                                if transaction.get('quantity') is not None and transaction.get('price') is not None:
+                                    base = float(transaction['quantity']) * float(transaction['price'])
+                                    if transaction['transaction_type'] == 'SELL':
+                                        transaction['total_value'] = abs(base - commission - tax)
+                                    else:
+                                        transaction['total_value'] = abs(base + commission + tax)
+                            used_positional = True
+
+                    if not used_positional:
+                        # Fallback heuristic based on ordered numeric values
+                        if len(numeric_values) >= 1:
+                            transaction['total_value'] = abs(numeric_values[0])
+                        if len(numeric_values) >= 2:
+                            transaction['quantity'] = abs(numeric_values[1])
+                        if len(numeric_values) >= 3:
+                            price_candidate = abs(numeric_values[2])
+                            # Convert if looks like agorot
+                            transaction['price'] = price_candidate / 100.0 if price_candidate >= 1000 else price_candidate
+                        if len(numeric_values) >= 4:
+                            transaction['commission'] = abs(numeric_values[3]) if numeric_values[3] > 0 else 0
+                        if len(numeric_values) >= 5:
+                            transaction['tax'] = abs(numeric_values[4]) if numeric_values[4] > 0 else 0
             
             # Only return transaction if we found a transaction type or date
             if transaction_type or transaction_date:
