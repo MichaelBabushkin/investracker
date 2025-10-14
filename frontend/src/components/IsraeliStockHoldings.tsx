@@ -378,7 +378,7 @@ export default function IsraeliStockHoldings({ refreshTrigger }: IsraeliStockHol
                             {holding.portfolio_percentage ? `${holding.portfolio_percentage.toFixed(2)}%` : 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatCurrency(holding.last_price)}
+                            {formatCurrency(typeof holding.last_price === 'number' ? holding.last_price / 100 : holding.last_price)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <button
