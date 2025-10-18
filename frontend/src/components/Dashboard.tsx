@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import { RootState, AppDispatch } from '@/store'
-import { logout } from '@/store/slices/authSlice'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState, AppDispatch } from "@/store";
+import { logout } from "@/store/slices/authSlice";
+import { useRouter } from "next/navigation";
 import {
   ChartBarIcon,
   CurrencyDollarIcon,
@@ -16,8 +16,8 @@ import {
   BellIcon,
   UserCircleIcon,
   MagnifyingGlassIcon,
-  ChartPieIcon
-} from '@heroicons/react/24/outline'
+  ChartPieIcon,
+} from "@heroicons/react/24/outline";
 import {
   PieChart,
   Pie,
@@ -30,72 +30,157 @@ import {
   Tooltip,
   ResponsiveContainer,
   BarChart,
-  Bar
-} from 'recharts'
-import ReportUploader from './ReportUploader'
-import IsraeliMarketHighlights from './IsraeliMarketHighlights'
+  Bar,
+} from "recharts";
+import ReportUploader from "./ReportUploader";
+import IsraeliMarketHighlights from "./IsraeliMarketHighlights";
 
 export default function Dashboard() {
-  const { user } = useSelector((state: RootState) => state.auth)
-  const dispatch = useDispatch<AppDispatch>()
-  const router = useRouter()
+  const { user } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
 
   // Mock data for demonstration
   const [portfolioData] = useState({
-    totalValue: 125430.50,
+    totalValue: 125430.5,
     dayChange: 2340.25,
     dayChangePercent: 1.9,
-    totalGainLoss: 15430.50,
+    totalGainLoss: 15430.5,
     totalGainLossPercent: 13.9,
-    totalInvested: 110000.00
-  })
+    totalInvested: 110000.0,
+  });
 
   const [holdings] = useState([
-    { symbol: 'AAPL', name: 'Apple Inc.', shares: 50, currentPrice: 182.52, value: 9126.00, gainLoss: 1205.50, gainLossPercent: 15.2, allocation: 7.3 },
-    { symbol: 'GOOGL', name: 'Alphabet Inc.', shares: 25, currentPrice: 2785.48, value: 69637.00, gainLoss: -892.35, gainLossPercent: -1.3, allocation: 55.5 },
-    { symbol: 'MSFT', name: 'Microsoft Corp.', shares: 75, currentPrice: 415.26, value: 31144.50, gainLoss: 2134.75, gainLossPercent: 7.4, allocation: 24.8 },
-    { symbol: 'TSLA', name: 'Tesla Inc.', shares: 30, currentPrice: 248.50, value: 7455.00, gainLoss: -523.20, gainLossPercent: -6.6, allocation: 5.9 },
-    { symbol: 'Cash', name: 'Cash & Cash Equivalents', shares: 0, currentPrice: 1.00, value: 8068.00, gainLoss: 0, gainLossPercent: 0, allocation: 6.4 }
-  ])
+    {
+      symbol: "AAPL",
+      name: "Apple Inc.",
+      shares: 50,
+      currentPrice: 182.52,
+      value: 9126.0,
+      gainLoss: 1205.5,
+      gainLossPercent: 15.2,
+      allocation: 7.3,
+    },
+    {
+      symbol: "GOOGL",
+      name: "Alphabet Inc.",
+      shares: 25,
+      currentPrice: 2785.48,
+      value: 69637.0,
+      gainLoss: -892.35,
+      gainLossPercent: -1.3,
+      allocation: 55.5,
+    },
+    {
+      symbol: "MSFT",
+      name: "Microsoft Corp.",
+      shares: 75,
+      currentPrice: 415.26,
+      value: 31144.5,
+      gainLoss: 2134.75,
+      gainLossPercent: 7.4,
+      allocation: 24.8,
+    },
+    {
+      symbol: "TSLA",
+      name: "Tesla Inc.",
+      shares: 30,
+      currentPrice: 248.5,
+      value: 7455.0,
+      gainLoss: -523.2,
+      gainLossPercent: -6.6,
+      allocation: 5.9,
+    },
+    {
+      symbol: "Cash",
+      name: "Cash & Cash Equivalents",
+      shares: 0,
+      currentPrice: 1.0,
+      value: 8068.0,
+      gainLoss: 0,
+      gainLossPercent: 0,
+      allocation: 6.4,
+    },
+  ]);
 
   const [recentTransactions] = useState([
-    { id: 1, type: 'buy', symbol: 'AAPL', shares: 10, price: 178.25, date: '2024-01-15', total: 1782.50 },
-    { id: 2, type: 'sell', symbol: 'GOOGL', shares: 5, price: 2790.00, date: '2024-01-14', total: 13950.00 },
-    { id: 3, type: 'buy', symbol: 'MSFT', shares: 25, price: 412.80, date: '2024-01-12', total: 10320.00 },
-    { id: 4, type: 'buy', symbol: 'TSLA', shares: 15, price: 245.30, date: '2024-01-10', total: 3679.50 },
-    { id: 5, type: 'dividend', symbol: 'AAPL', shares: 0, price: 0.24, date: '2024-01-08', total: 12.00 }
-  ])
+    {
+      id: 1,
+      type: "buy",
+      symbol: "AAPL",
+      shares: 10,
+      price: 178.25,
+      date: "2024-01-15",
+      total: 1782.5,
+    },
+    {
+      id: 2,
+      type: "sell",
+      symbol: "GOOGL",
+      shares: 5,
+      price: 2790.0,
+      date: "2024-01-14",
+      total: 13950.0,
+    },
+    {
+      id: 3,
+      type: "buy",
+      symbol: "MSFT",
+      shares: 25,
+      price: 412.8,
+      date: "2024-01-12",
+      total: 10320.0,
+    },
+    {
+      id: 4,
+      type: "buy",
+      symbol: "TSLA",
+      shares: 15,
+      price: 245.3,
+      date: "2024-01-10",
+      total: 3679.5,
+    },
+    {
+      id: 5,
+      type: "dividend",
+      symbol: "AAPL",
+      shares: 0,
+      price: 0.24,
+      date: "2024-01-08",
+      total: 12.0,
+    },
+  ]);
 
   // Portfolio performance data (last 30 days)
   const [performanceData] = useState([
-    { date: '2024-01-01', value: 120000 },
-    { date: '2024-01-03', value: 121500 },
-    { date: '2024-01-05', value: 119800 },
-    { date: '2024-01-08', value: 122300 },
-    { date: '2024-01-10', value: 123800 },
-    { date: '2024-01-12', value: 124200 },
-    { date: '2024-01-15', value: 125430 }
-  ])
+    { date: "2024-01-01", value: 120000 },
+    { date: "2024-01-03", value: 121500 },
+    { date: "2024-01-05", value: 119800 },
+    { date: "2024-01-08", value: 122300 },
+    { date: "2024-01-10", value: 123800 },
+    { date: "2024-01-12", value: 124200 },
+    { date: "2024-01-15", value: 125430 },
+  ]);
 
   const [sectorData] = useState([
-    { name: 'Technology', value: 69.6, amount: 87340 },
-    { name: 'Automotive', value: 5.9, amount: 7455 },
-    { name: 'Cash', value: 6.4, amount: 8068 },
-    { name: 'Services', value: 18.1, amount: 22568 }
-  ])
+    { name: "Technology", value: 69.6, amount: 87340 },
+    { name: "Automotive", value: 5.9, amount: 7455 },
+    { name: "Cash", value: 6.4, amount: 8068 },
+    { name: "Services", value: 18.1, amount: 22568 },
+  ]);
 
   // Chart colors
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
-  
+  const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
+
   // Search and filter states
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedTimeframe, setSelectedTimeframe] = useState('30d')
-  const [showUploader, setShowUploader] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTimeframe, setSelectedTimeframe] = useState("30d");
+  const [showUploader, setShowUploader] = useState(false);
 
   const handleLogout = () => {
-    dispatch(logout())
-    router.push('/')
-  }
+    dispatch(logout());
+    router.push("/");
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -108,12 +193,12 @@ export default function Dashboard() {
                 <span className="text-primary-600">Invest</span>racker
               </h1>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <button className="p-2 text-gray-400 hover:text-gray-500">
                 <BellIcon className="h-6 w-6" />
               </button>
-              
+
               <div className="flex items-center space-x-3">
                 <UserCircleIcon className="h-8 w-8 text-gray-400" />
                 <div className="hidden md:block">
@@ -123,8 +208,8 @@ export default function Dashboard() {
                   <p className="text-xs text-gray-500">{user?.email}</p>
                 </div>
               </div>
-              
-              <button 
+
+              <button
                 onClick={handleLogout}
                 className="p-2 text-gray-400 hover:text-gray-500"
                 title="Logout"
@@ -174,12 +259,28 @@ export default function Dashboard() {
                 )}
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Today's Change</p>
-                <p className={`text-2xl font-bold ${portfolioData.dayChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {portfolioData.dayChange >= 0 ? '+' : ''}${portfolioData.dayChange.toLocaleString()}
+                <p className="text-sm font-medium text-gray-500">
+                  Today's Change
                 </p>
-                <p className={`text-sm ${portfolioData.dayChangePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {portfolioData.dayChangePercent >= 0 ? '+' : ''}{portfolioData.dayChangePercent}%
+                <p
+                  className={`text-2xl font-bold ${
+                    portfolioData.dayChange >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {portfolioData.dayChange >= 0 ? "+" : ""}$
+                  {portfolioData.dayChange.toLocaleString()}
+                </p>
+                <p
+                  className={`text-sm ${
+                    portfolioData.dayChangePercent >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {portfolioData.dayChangePercent >= 0 ? "+" : ""}
+                  {portfolioData.dayChangePercent}%
                 </p>
               </div>
             </div>
@@ -191,12 +292,28 @@ export default function Dashboard() {
                 <ChartBarIcon className="h-8 w-8 text-blue-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Gain/Loss</p>
-                <p className={`text-2xl font-bold ${portfolioData.totalGainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {portfolioData.totalGainLoss >= 0 ? '+' : ''}${portfolioData.totalGainLoss.toLocaleString()}
+                <p className="text-sm font-medium text-gray-500">
+                  Total Gain/Loss
                 </p>
-                <p className={`text-sm ${portfolioData.totalGainLossPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {portfolioData.totalGainLossPercent >= 0 ? '+' : ''}{portfolioData.totalGainLossPercent}%
+                <p
+                  className={`text-2xl font-bold ${
+                    portfolioData.totalGainLoss >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {portfolioData.totalGainLoss >= 0 ? "+" : ""}$
+                  {portfolioData.totalGainLoss.toLocaleString()}
+                </p>
+                <p
+                  className={`text-sm ${
+                    portfolioData.totalGainLossPercent >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {portfolioData.totalGainLossPercent >= 0 ? "+" : ""}
+                  {portfolioData.totalGainLossPercent}%
                 </p>
               </div>
             </div>
@@ -208,12 +325,19 @@ export default function Dashboard() {
                 <CurrencyDollarIcon className="h-8 w-8 text-purple-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Invested</p>
+                <p className="text-sm font-medium text-gray-500">
+                  Total Invested
+                </p>
                 <p className="text-2xl font-bold text-gray-900">
                   ${portfolioData.totalInvested.toLocaleString()}
                 </p>
                 <p className="text-sm text-gray-500">
-                  {((portfolioData.totalValue / portfolioData.totalInvested - 1) * 100).toFixed(1)}% return
+                  {(
+                    (portfolioData.totalValue / portfolioData.totalInvested -
+                      1) *
+                    100
+                  ).toFixed(1)}
+                  % return
                 </p>
               </div>
             </div>
@@ -223,7 +347,9 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Holdings</p>
-                <p className="text-2xl font-bold text-gray-900">{holdings.filter(h => h.symbol !== 'Cash').length}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {holdings.filter((h) => h.symbol !== "Cash").length}
+                </p>
                 <p className="text-sm text-gray-500">Active positions</p>
               </div>
               <button className="bg-primary-600 hover:bg-primary-700 text-white p-2 rounded-lg">
@@ -233,14 +359,25 @@ export default function Dashboard() {
           </div>
 
           {/* Israeli Market Link Card */}
-          <a href="/israeli-stocks" className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow p-6 flex flex-col justify-between hover:shadow-md transition">
+          <a
+            href="/israeli-stocks"
+            className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow p-6 flex flex-col justify-between hover:shadow-md transition"
+          >
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-white/80">Regional Markets</h3>
-              <span className="text-[10px] px-2 py-0.5 bg-white/20 text-white rounded-full tracking-wide">NEW</span>
+              <h3 className="text-sm font-medium text-white/80">
+                Regional Markets
+              </h3>
+              <span className="text-[10px] px-2 py-0.5 bg-white/20 text-white rounded-full tracking-wide">
+                NEW
+              </span>
             </div>
             <div>
-              <p className="text-xl font-bold text-white mb-1">Israeli Market</p>
-              <p className="text-xs text-white/80 mb-4">Upload PDFs & analyze TA stocks</p>
+              <p className="text-xl font-bold text-white mb-1">
+                Israeli Market
+              </p>
+              <p className="text-xs text-white/80 mb-4">
+                Upload PDFs & analyze TA stocks
+              </p>
               <div className="flex items-center text-sm text-white font-medium gap-1 transition-all">
                 <span>Open Dashboard</span>
                 <ArrowRightOnRectangleIcon className="h-4 w-4" />
@@ -254,8 +391,10 @@ export default function Dashboard() {
           {/* Portfolio Performance Chart */}
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Portfolio Performance</h3>
-              <select 
+              <h3 className="text-lg font-medium text-gray-900">
+                Portfolio Performance
+              </h3>
+              <select
                 value={selectedTimeframe}
                 onChange={(e) => setSelectedTimeframe(e.target.value)}
                 className="text-sm border border-gray-300 rounded-md px-3 py-1"
@@ -270,25 +409,35 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={performanceData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="date" 
+                  <XAxis
+                    dataKey="date"
                     tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    tickFormatter={(value) =>
+                      new Date(value).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })
+                    }
                   />
-                  <YAxis 
+                  <YAxis
                     tick={{ fontSize: 12 }}
                     tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                   />
-                  <Tooltip 
-                    formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Portfolio Value']}
-                    labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                  <Tooltip
+                    formatter={(value) => [
+                      `$${Number(value).toLocaleString()}`,
+                      "Portfolio Value",
+                    ]}
+                    labelFormatter={(label) =>
+                      new Date(label).toLocaleDateString()
+                    }
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="#3B82F6" 
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#3B82F6"
                     strokeWidth={2}
-                    dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
+                    dot={{ fill: "#3B82F6", strokeWidth: 2, r: 4 }}
                     activeDot={{ r: 6 }}
                   />
                 </LineChart>
@@ -299,7 +448,9 @@ export default function Dashboard() {
           {/* Portfolio Allocation Chart */}
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Portfolio Allocation</h3>
+              <h3 className="text-lg font-medium text-gray-900">
+                Portfolio Allocation
+              </h3>
               <ChartPieIcon className="h-5 w-5 text-gray-400" />
             </div>
             <div className="h-64">
@@ -317,7 +468,10 @@ export default function Dashboard() {
                     labelLine={false}
                   >
                     {sectorData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
                     ))}
                   </Pie>
                   <Tooltip formatter={(value, name) => [`${value}%`, name]} />
@@ -327,8 +481,8 @@ export default function Dashboard() {
             <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
               {sectorData.map((sector, index) => (
                 <div key={sector.name} className="flex items-center">
-                  <div 
-                    className="w-3 h-3 rounded-full mr-2" 
+                  <div
+                    className="w-3 h-3 rounded-full mr-2"
                     style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   />
                   <span className="text-gray-600">{sector.name}</span>
@@ -345,7 +499,9 @@ export default function Dashboard() {
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-gray-900">Current Holdings</h3>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Current Holdings
+                  </h3>
                   <div className="relative">
                     <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
@@ -384,47 +540,72 @@ export default function Dashboard() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {holdings
-                      .filter(holding => 
-                        holding.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        holding.name.toLowerCase().includes(searchTerm.toLowerCase())
+                      .filter(
+                        (holding) =>
+                          holding.symbol
+                            .toLowerCase()
+                            .includes(searchTerm.toLowerCase()) ||
+                          holding.name
+                            .toLowerCase()
+                            .includes(searchTerm.toLowerCase())
                       )
                       .map((holding) => (
-                      <tr key={holding.symbol} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{holding.symbol}</div>
-                            <div className="text-sm text-gray-500 truncate max-w-32">{holding.name}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {holding.symbol === 'Cash' ? '-' : holding.shares}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {holding.symbol === 'Cash' ? '-' : `$${holding.currentPrice.toFixed(2)}`}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ${holding.value.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {holding.allocation}%
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {holding.symbol === 'Cash' ? (
-                            <span className="text-gray-500">-</span>
-                          ) : (
-                            <>
-                              <span className={`${holding.gainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {holding.gainLoss >= 0 ? '+' : ''}${holding.gainLoss.toFixed(2)}
-                              </span>
-                              <br />
-                              <span className={`text-xs ${holding.gainLossPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                ({holding.gainLossPercent >= 0 ? '+' : ''}{holding.gainLossPercent}%)
-                              </span>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                        <tr key={holding.symbol} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {holding.symbol}
+                              </div>
+                              <div className="text-sm text-gray-500 truncate max-w-32">
+                                {holding.name}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {holding.symbol === "Cash" ? "-" : holding.shares}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {holding.symbol === "Cash"
+                              ? "-"
+                              : `$${holding.currentPrice.toFixed(2)}`}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ${holding.value.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {holding.allocation}%
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {holding.symbol === "Cash" ? (
+                              <span className="text-gray-500">-</span>
+                            ) : (
+                              <>
+                                <span
+                                  className={`${
+                                    holding.gainLoss >= 0
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                  }`}
+                                >
+                                  {holding.gainLoss >= 0 ? "+" : ""}$
+                                  {holding.gainLoss.toFixed(2)}
+                                </span>
+                                <br />
+                                <span
+                                  className={`text-xs ${
+                                    holding.gainLossPercent >= 0
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                  }`}
+                                >
+                                  ({holding.gainLossPercent >= 0 ? "+" : ""}
+                                  {holding.gainLossPercent}%)
+                                </span>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
@@ -435,38 +616,58 @@ export default function Dashboard() {
           <div>
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Recent Transactions</h3>
+                <h3 className="text-lg font-medium text-gray-900">
+                  Recent Transactions
+                </h3>
               </div>
               <div className="px-6 py-4">
                 <div className="space-y-4">
                   {recentTransactions.slice(0, 5).map((transaction) => (
-                    <div key={transaction.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
+                    <div
+                      key={transaction.id}
+                      className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0"
+                    >
                       <div className="flex items-center space-x-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium ${
-                          transaction.type === 'buy' ? 'bg-green-500' : 
-                          transaction.type === 'sell' ? 'bg-red-500' : 
-                          'bg-blue-500'
-                        }`}>
-                          {transaction.type === 'buy' ? 'B' : transaction.type === 'sell' ? 'S' : 'D'}
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium ${
+                            transaction.type === "buy"
+                              ? "bg-green-500"
+                              : transaction.type === "sell"
+                              ? "bg-red-500"
+                              : "bg-blue-500"
+                          }`}
+                        >
+                          {transaction.type === "buy"
+                            ? "B"
+                            : transaction.type === "sell"
+                            ? "S"
+                            : "D"}
                         </div>
                         <div>
                           <p className="text-sm font-medium text-gray-900">
-                            {transaction.type.toUpperCase()} {transaction.symbol}
+                            {transaction.type.toUpperCase()}{" "}
+                            {transaction.symbol}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {transaction.type === 'dividend' ? 
-                              `Dividend payment` : 
-                              `${transaction.shares} shares @ $${transaction.price}`
-                            }
+                            {transaction.type === "dividend"
+                              ? `Dividend payment`
+                              : `${transaction.shares} shares @ $${transaction.price}`}
                           </p>
-                          <p className="text-xs text-gray-500">{transaction.date}</p>
+                          <p className="text-xs text-gray-500">
+                            {transaction.date}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`text-sm font-medium ${
-                          transaction.type === 'buy' ? 'text-red-600' : 'text-green-600'
-                        }`}>
-                          {transaction.type === 'buy' ? '-' : '+'}${transaction.total.toLocaleString()}
+                        <p
+                          className={`text-sm font-medium ${
+                            transaction.type === "buy"
+                              ? "text-red-600"
+                              : "text-green-600"
+                          }`}
+                        >
+                          {transaction.type === "buy" ? "-" : "+"}$
+                          {transaction.total.toLocaleString()}
                         </p>
                       </div>
                     </div>
@@ -481,7 +682,9 @@ export default function Dashboard() {
             {/* Market Overview */}
             <div className="mt-6 bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Market Overview</h3>
+                <h3 className="text-lg font-medium text-gray-900">
+                  Market Overview
+                </h3>
               </div>
               <div className="p-6 space-y-3">
                 <div className="flex justify-between items-center">
@@ -511,14 +714,16 @@ export default function Dashboard() {
             {/* Quick Actions */}
             <div className="mt-6 bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+                <h3 className="text-lg font-medium text-gray-900">
+                  Quick Actions
+                </h3>
               </div>
               <div className="p-6 space-y-3">
                 <button className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
                   <PlusIcon className="h-5 w-5" />
                   <span>Add Transaction</span>
                 </button>
-                <button 
+                <button
                   onClick={() => setShowUploader(true)}
                   className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
                 >
@@ -551,27 +756,40 @@ export default function Dashboard() {
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Upload Investment Reports</h2>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Upload Investment Reports
+                </h2>
                 <button
                   onClick={() => setShowUploader(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
               <p className="text-gray-600 mt-2">
-                Upload your PDF investment reports to automatically extract and analyze your portfolio data.
+                Upload your PDF investment reports to automatically extract and
+                analyze your portfolio data.
               </p>
             </div>
-            
+
             <div className="p-6">
-              <ReportUploader 
+              <ReportUploader
                 onUploadComplete={(results) => {
-                  console.log('Upload results:', results)
+                  console.log("Upload results:", results);
                   // Here you could update the dashboard data with real extracted data
-                  setShowUploader(false)
+                  setShowUploader(false);
                 }}
                 maxFiles={3}
               />
@@ -580,5 +798,5 @@ export default function Dashboard() {
         </div>
       )}
     </div>
-  )
+  );
 }

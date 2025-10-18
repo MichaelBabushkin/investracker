@@ -16,7 +16,16 @@ import {
 import { israeliStocksAPI } from "@/services/api";
 import { IsraeliStockTransaction } from "@/types/israeli-stocks";
 import StockLogo from "./StockLogo";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid,
+} from "recharts";
 
 interface IsraeliStockTransactionsProps {
   refreshTrigger?: number;
@@ -172,7 +181,8 @@ export default function IsraeliStockTransactions({
 
   // Monthly activity dataset (BUY / SELL) for chart
   const monthlyData = useMemo(() => {
-    const map: Record<string, { month: string; buy: number; sell: number }> = {};
+    const map: Record<string, { month: string; buy: number; sell: number }> =
+      {};
     const parseDate = (d?: string): Date | null => {
       if (!d) return null;
       // Try ISO first
@@ -187,26 +197,29 @@ export default function IsraeliStockTransactions({
         const day = parseInt(m[1], 10);
         const month = parseInt(m[2], 10) - 1;
         let year = parseInt(m[3], 10);
-        if (year < 100) year += (year < 50 ? 2000 : 1900); // heuristic
+        if (year < 100) year += year < 50 ? 2000 : 1900; // heuristic
         dateObj = new Date(year, month, day);
         if (!isNaN(dateObj.getTime())) return dateObj;
       }
       const tryAny = new Date(d);
       return isNaN(tryAny.getTime()) ? null : tryAny;
     };
-    transactions.forEach(t => {
-      const type = (t.transaction_type || '').toUpperCase();
-      if (type !== 'BUY' && type !== 'SELL') return; // exclude dividends
+    transactions.forEach((t) => {
+      const type = (t.transaction_type || "").toUpperCase();
+      if (type !== "BUY" && type !== "SELL") return; // exclude dividends
       const dt = parseDate(t.transaction_date as any);
       if (!dt) return;
-      const key = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(
+        2,
+        "0"
+      )}`;
       if (!map[key]) map[key] = { month: key, buy: 0, sell: 0 };
       const val = t.total_value || 0;
-      if (type === 'BUY') map[key].buy += val;
-      else if (type === 'SELL') map[key].sell += val;
+      if (type === "BUY") map[key].buy += val;
+      else if (type === "SELL") map[key].sell += val;
     });
     // Sort chronologically
-    return Object.values(map).sort((a,b) => a.month.localeCompare(b.month));
+    return Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
   }, [transactions]);
 
   if (loading) {
@@ -357,19 +370,36 @@ export default function IsraeliStockTransactions({
       {monthlyData.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-gray-700">Monthly Trading Activity (Buy vs Sell)</h3>
-            <span className="text-xs text-gray-400">Last {monthlyData.length} months</span>
+            <h3 className="text-sm font-medium text-gray-700">
+              Monthly Trading Activity (Buy vs Sell)
+            </h3>
+            <span className="text-xs text-gray-400">
+              Last {monthlyData.length} months
+            </span>
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <BarChart
+                data={monthlyData}
+                margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(v:any) => formatCurrency(v)} />
+                <Tooltip formatter={(v: any) => formatCurrency(v)} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="buy" name="Buy" fill="#16a34a" radius={[4,4,0,0]} />
-                <Bar dataKey="sell" name="Sell" fill="#dc2626" radius={[4,4,0,0]} />
+                <Bar
+                  dataKey="buy"
+                  name="Buy"
+                  fill="#16a34a"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="sell"
+                  name="Sell"
+                  fill="#dc2626"
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>

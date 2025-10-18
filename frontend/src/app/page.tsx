@@ -1,14 +1,16 @@
-'use client'
+"use client";
 
-import React from 'react'
-import { useSelector } from 'react-redux'
-import { RootState } from '@/store'
-import LandingPage from '@/components/LandingPage'
-import Dashboard from '@/components/Dashboard'
+import React from "react";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store";
+import LandingPage from "@/components/LandingPage";
+import Dashboard from "@/components/Dashboard";
 
 export default function HomePage() {
-  const { isAuthenticated, user, isLoading } = useSelector((state: RootState) => state.auth)
-  
+  const { isAuthenticated, user, isLoading } = useSelector(
+    (state: RootState) => state.auth
+  );
+
   // Show loading state while checking authentication
   if (isLoading) {
     return (
@@ -18,13 +20,13 @@ export default function HomePage() {
           <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
-    )
+    );
   }
-  
+
   // Show dashboard for authenticated users, landing page for others
   if (isAuthenticated && user) {
-    return <Dashboard />
+    return <Dashboard />;
   }
-  
-  return <LandingPage />
+
+  return <LandingPage />;
 }

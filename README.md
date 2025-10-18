@@ -20,6 +20,7 @@ Investracker provides professional-grade investment portfolio tracking with adva
 ## 🏗️ Architecture
 
 ### Backend (FastAPI + PostgreSQL)
+
 - **Framework**: FastAPI with automatic OpenAPI documentation
 - **Database**: PostgreSQL with SQLAlchemy ORM
 - **Authentication**: JWT-based with OAuth2 and refresh tokens
@@ -27,6 +28,7 @@ Investracker provides professional-grade investment portfolio tracking with adva
 - **Future**: Designed for easy MongoDB migration
 
 ### Frontend (Next.js + TypeScript)
+
 - **Framework**: Next.js 14 with App Router
 - **Language**: TypeScript for type safety
 - **Styling**: Tailwind CSS with custom design system
@@ -89,11 +91,13 @@ Investracker/
 ### Backend Setup
 
 1. **Navigate to backend directory**:
+
    ```bash
    cd backend
    ```
 
 2. **Create virtual environment**:
+
    ```bash
    python -m venv venv
    venv\Scripts\activate  # Windows
@@ -101,17 +105,20 @@ Investracker/
    ```
 
 3. **Install dependencies**:
+
    ```bash
    pip install -r requirements.txt
    ```
 
 4. **Set up environment variables**:
+
    ```bash
    copy .env.example .env
    # Edit .env with your database credentials
    ```
 
 5. **Create PostgreSQL database**:
+
    ```sql
    CREATE DATABASE investracker_db;
    CREATE USER investracker_user WITH PASSWORD 'your_password';
@@ -119,11 +126,13 @@ Investracker/
    ```
 
 6. **Initialize database**:
+
    ```bash
    python init_db.py
    ```
 
 7. **Run the backend**:
+
    ```bash
    uvicorn app.main:app --reload
    ```
@@ -134,22 +143,26 @@ Investracker/
 ### Frontend Setup
 
 1. **Navigate to frontend directory**:
+
    ```bash
    cd frontend
    ```
 
 2. **Install dependencies**:
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**:
+
    ```bash
    copy .env.example .env.local
    # Configure API URL and other settings
    ```
 
 4. **Run the frontend**:
+
    ```bash
    npm run dev
    ```
@@ -215,18 +228,21 @@ The API uses JWT (JSON Web Tokens) for authentication:
 ## 📈 Analytics Features
 
 ### Portfolio Analytics
+
 - Total portfolio value and performance
 - Asset allocation by class, sector, region
 - Risk metrics (volatility, Sharpe ratio, max drawdown)
 - Time-weighted returns calculation
 
 ### Dividend Analysis
+
 - Historical dividend income tracking
 - Monthly/quarterly dividend projections
 - Dividend yield calculations
 - Payment calendar and alerts
 
 ### Performance Metrics
+
 - Time-weighted return (TWR)
 - Modified Dietz return
 - Benchmark comparisons
@@ -235,12 +251,14 @@ The API uses JWT (JSON Web Tokens) for authentication:
 ## 🧪 Testing
 
 ### Backend Testing
+
 ```bash
 cd backend
 pytest
 ```
 
 ### Frontend Testing
+
 ```bash
 cd frontend
 npm test
@@ -279,6 +297,7 @@ CMD ["npm", "start"]
 ## 🔮 Future Enhancements
 
 ### Planned Features
+
 - [ ] MongoDB migration support
 - [ ] Real-time price data integration
 - [ ] CSV/Excel import for transactions
@@ -289,6 +308,7 @@ CMD ["npm", "start"]
 - [ ] Robo-advisor integration
 
 ### Technical Improvements
+
 - [ ] WebSocket support for real-time updates
 - [ ] Advanced caching strategies
 - [ ] Multi-language support
@@ -304,6 +324,7 @@ CMD ["npm", "start"]
 5. Open a Pull Request
 
 ### Development Guidelines
+
 - Follow TypeScript/Python best practices
 - Write comprehensive tests
 - Update documentation

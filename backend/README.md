@@ -29,6 +29,7 @@ FastAPI-based backend for the Investracker investment tracking and analytics app
 ### Installation Steps
 
 1. **Create and activate virtual environment**:
+
    ```bash
    python -m venv venv
    venv\Scripts\activate  # Windows
@@ -36,17 +37,20 @@ FastAPI-based backend for the Investracker investment tracking and analytics app
    ```
 
 2. **Install dependencies**:
+
    ```bash
    pip install -r requirements.txt
    ```
 
 3. **Set up environment variables**:
+
    ```bash
    copy .env.example .env
    # Edit .env file with your database credentials and other settings
    ```
 
 4. **Create PostgreSQL database**:
+
    ```sql
    CREATE DATABASE investracker_db;
    CREATE USER investracker_user WITH PASSWORD 'your_password';
@@ -54,6 +58,7 @@ FastAPI-based backend for the Investracker investment tracking and analytics app
    ```
 
 5. **Initialize database**:
+
    ```bash
    python init_db.py
    ```
@@ -74,6 +79,7 @@ Once the server is running, you can access:
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/v1/auth/register` - Register new user
 - `POST /api/v1/auth/login` - User login
 - `POST /api/v1/auth/refresh` - Refresh access token
@@ -81,6 +87,7 @@ Once the server is running, you can access:
 - `PUT /api/v1/auth/me` - Update user profile
 
 ### Portfolios
+
 - `POST /api/v1/portfolios/` - Create portfolio
 - `GET /api/v1/portfolios/` - List user portfolios
 - `GET /api/v1/portfolios/{id}` - Get portfolio details
@@ -88,6 +95,7 @@ Once the server is running, you can access:
 - `DELETE /api/v1/portfolios/{id}` - Delete portfolio
 
 ### Transactions
+
 - `POST /api/v1/transactions/` - Create transaction
 - `GET /api/v1/transactions/` - List transactions (with filters)
 - `GET /api/v1/transactions/{id}` - Get transaction details
@@ -95,6 +103,7 @@ Once the server is running, you can access:
 - `DELETE /api/v1/transactions/{id}` - Delete transaction
 
 ### Analytics
+
 - `GET /api/v1/analytics/portfolio/{id}/overview` - Portfolio overview
 - `GET /api/v1/analytics/portfolio/{id}/allocation` - Asset allocation
 - `GET /api/v1/analytics/portfolio/{id}/performance` - Performance metrics
@@ -154,6 +163,7 @@ alembic upgrade head
 ### Code Quality
 
 The project uses:
+
 - **Black** for code formatting
 - **isort** for import sorting
 - **flake8** for linting

@@ -1,5 +1,5 @@
-import IsraeliStocksDashboard from '@/components/IsraeliStocksDashboard'
+import IsraeliStocksDashboard from "@/components/IsraeliStocksDashboard";
 
 export default function IsraeliStocksPage() {
-  return <IsraeliStocksDashboard />
+  return <IsraeliStocksDashboard />;
 }

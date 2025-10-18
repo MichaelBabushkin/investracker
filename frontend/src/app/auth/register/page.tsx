@@ -1,77 +1,76 @@
-'use client'
+"use client";
 
-import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { authAPI } from '@/services/api'
-import { parseBackendError } from '@/utils/errorHandling'
-import { ErrorDisplay } from '@/components/ErrorDisplay'
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { authAPI } from "@/services/api";
+import { parseBackendError } from "@/utils/errorHandling";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    first_name: '',
-    last_name: ''
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  
-  const router = useRouter()
+    email: "",
+    password: "",
+    confirmPassword: "",
+    first_name: "",
+    last_name: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
-    })
-  }
+      [e.target.name]: e.target.value,
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    setSuccess('')
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setSuccess("");
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
-      setLoading(false)
-      return
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
     }
 
     try {
-      console.log('Attempting registration with:', { 
+      console.log("Attempting registration with:", {
         email: formData.email,
         first_name: formData.first_name,
-        last_name: formData.last_name 
-      })
-      
+        last_name: formData.last_name,
+      });
+
       // Call the backend API
       const response = await authAPI.register({
         email: formData.email,
         password: formData.password,
         first_name: formData.first_name,
-        last_name: formData.last_name
-      })
-      
-      console.log('Registration response:', response)
-      
-      setSuccess('Registration successful! Redirecting to login...')
-      
+        last_name: formData.last_name,
+      });
+
+      console.log("Registration response:", response);
+
+      setSuccess("Registration successful! Redirecting to login...");
+
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        router.push('/auth/login')
-      }, 2000)
-      
+        router.push("/auth/login");
+      }, 2000);
     } catch (error: any) {
-      console.error('Registration error:', error)
-      const errorMessage = parseBackendError(error)
-      setError(errorMessage)
+      console.error("Registration error:", error);
+      const errorMessage = parseBackendError(error);
+      setError(errorMessage);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -81,15 +80,18 @@ export default function RegisterPage() {
             Create your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <a href="/auth/login" className="font-medium text-primary-600 hover:text-primary-500">
+            Or{" "}
+            <a
+              href="/auth/login"
+              className="font-medium text-primary-600 hover:text-primary-500"
+            >
               sign in to your existing account
             </a>
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <ErrorDisplay error={error} />
-          
+
           {success && (
             <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
               {success}
@@ -98,7 +100,10 @@ export default function RegisterPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="first_name"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   First name
                 </label>
                 <input
@@ -112,7 +117,10 @@ export default function RegisterPage() {
                 />
               </div>
               <div>
-                <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="last_name"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Last name
                 </label>
                 <input
@@ -126,9 +134,12 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
-            
+
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email address
               </label>
               <input
@@ -143,9 +154,12 @@ export default function RegisterPage() {
                 placeholder="Email address"
               />
             </div>
-            
+
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
               <input
@@ -160,9 +174,12 @@ export default function RegisterPage() {
                 placeholder="Password"
               />
             </div>
-            
+
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Confirm Password
               </label>
               <input
@@ -185,11 +202,11 @@ export default function RegisterPage() {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? "Creating Account..." : "Create Account"}
             </button>
           </div>
         </form>
       </div>
     </div>
-  )
+  );
 }
