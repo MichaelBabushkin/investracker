@@ -270,116 +270,250 @@ class WorldStockService:
         return holdings
     
     def extract_transactions_from_tables(self, pdf_path: str, pdf_name: str) -> List[Dict]:
-        """Extract transactions from PDF tables"""
+        """Extract transactions from PDF tables - handles multi-page 'Trades' table"""
         transactions = []
+        
+        print("\n" + "="*80)
+        print("STARTING TRANSACTION EXTRACTION FROM TRADES TABLE")
+        print("="*80)
+        
+        # Store the column mapping from the first page to reuse on continuation pages
+        saved_col_map = None
         
         try:
             with pdfplumber.open(pdf_path) as pdf:
-                for page_num, page in enumerate(pdf.pages):
+                print(f"Total pages in PDF: {len(pdf.pages)}")
+                
+                for page_num, page in enumerate(pdf.pages, 1):
                     text = page.extract_text() or ""
                     
-                    # Look for "Detailed Trade History" section
-                    if 'Trade History' not in text and 'Transactions' not in text:
+                    # Look for "Trades" section - check if page has trade-related content
+                    # On continuation pages, "Trades" header might not appear, so also check for stock symbols
+                    has_trades_keyword = 'Trades' in text
+                    has_stock_data = any(keyword in text for keyword in ['Symbol', 'Quantity', 'Date/Time', 'T. Price'])
+                    
+                    if not (has_trades_keyword or has_stock_data):
+                        print(f"\n--- Page {page_num}: No trades content found, skipping ---")
                         continue
                     
+                    print(f"\n--- Page {page_num}: Processing for trades (has_trades={has_trades_keyword}, has_stock_data={has_stock_data}) ---")
+                    
                     tables = page.extract_tables()
-                    for table in tables:
+                    print(f"  Found {len(tables)} tables on this page")
+                    
+                    for table_idx, table in enumerate(tables):
                         if not table or len(table) < 2:
+                            print(f"    Table {table_idx + 1}: Skipped (too small: {len(table) if table else 0} rows)")
                             continue
                         
-                        # Find header row
+                        # Check if this is the Trades table
+                        first_row_text = ' '.join([str(cell) for cell in table[0] if cell]).strip()
+                        
+                        # More flexible detection: look for Symbol column in first few rows
+                        has_trades_header = 'Trades' in first_row_text
+                        has_symbol_column = any('Symbol' in str(cell) for row in table[:5] for cell in row if cell)
+                        
+                        # Also check if we have stock ticker patterns (like "ADBE", "AFRM", etc.)
+                        has_ticker_data = any(
+                            str(cell).strip().isupper() and len(str(cell).strip()) <= 5 and str(cell).strip().isalpha()
+                            for row in table[1:6] for cell in row if cell
+                        )
+                        
+                        if not (has_trades_header or has_symbol_column or has_ticker_data):
+                            print(f"    Table {table_idx + 1}: Not a trades table (first row: {first_row_text[:80]})")
+                            continue
+                        
+                        print(f"  Table {table_idx + 1}: Processing Trades table")
+                        print(f"    First row: {first_row_text[:100]}")
+                        print(f"    Has header: {has_trades_header}, Has Symbol col: {has_symbol_column}, Has ticker data: {has_ticker_data}")
+                        
+                        # Find header row with column names
                         header_row = None
                         data_start_idx = 0
+                        
                         for idx, row in enumerate(table):
-                            row_str = ' '.join([str(cell) for cell in row if cell])
-                            if 'Symbol' in row_str or 'Date' in row_str or 'Trade' in row_str:
+                            row_str = ' '.join([str(cell) for cell in row if cell]).strip()
+                            # Look for the actual column header row (Symbol, Date/Time, Quantity, etc.)
+                            if 'Symbol' in row_str and ('Date' in row_str or 'Quantity' in row_str):
                                 header_row = row
                                 data_start_idx = idx + 1
+                                print(f"    Found header at row {idx}: {[str(cell)[:20] for cell in row if cell]}")
                                 break
                         
-                        if header_row is None:
+                        # If no header found but we have a saved column map from previous page, use it
+                        if header_row is None and saved_col_map is not None:
+                            print(f"    No header found, using saved column mapping from previous page")
+                            col_map = saved_col_map
+                            data_start_idx = 0  # Start from first row since there's no header
+                        elif header_row is None:
+                            print(f"    WARNING: No valid header row found and no saved mapping")
                             continue
-                        
-                        # Map columns
-                        col_map = {}
-                        for idx, header in enumerate(header_row):
-                            if header:
+                        else:
+                            # Map columns based on header
+                            col_map = {}
+                            for idx, header in enumerate(header_row):
+                                if not header:
+                                    continue
                                 header_lower = str(header).lower().strip()
+                                
                                 if 'symbol' in header_lower:
                                     col_map['symbol'] = idx
-                                elif 'date' in header_lower and 'time' not in header_lower:
-                                    col_map['date'] = idx
-                                elif 'time' in header_lower:
-                                    col_map['time'] = idx
-                                elif 'quantity' in header_lower or 'qty' in header_lower:
+                                elif 'date/time' in header_lower or (('date' in header_lower) and ('time' in header_lower)):
+                                    col_map['date_time'] = idx
+                                elif 'quantity' in header_lower:
                                     col_map['quantity'] = idx
-                                elif 'trade price' in header_lower or 'exec price' in header_lower:
+                                elif 't. price' in header_lower or 't.price' in header_lower:
                                     col_map['trade_price'] = idx
-                                elif 'close price' in header_lower:
+                                elif 'c. price' in header_lower or 'c.price' in header_lower:
                                     col_map['close_price'] = idx
                                 elif 'proceeds' in header_lower:
                                     col_map['proceeds'] = idx
-                                elif 'commission' in header_lower:
+                                elif 'comm/fee' in header_lower or 'commission' in header_lower:
                                     col_map['commission'] = idx
-                                elif 'basis' in header_lower and 'cost' in header_lower:
+                                elif 'basis' in header_lower:
                                     col_map['basis'] = idx
-                                elif 'realized' in header_lower and 'p/l' in header_lower:
+                                elif 'realized p/l' in header_lower or 'realized' in header_lower:
                                     col_map['realized_pl'] = idx
-                                elif 'mtm' in header_lower or 'mark' in header_lower:
+                                elif 'mtm p/l' in header_lower or 'mtm' in header_lower:
                                     col_map['mtm_pl'] = idx
-                                elif 'code' in header_lower or 'type' in header_lower:
-                                    col_map['trade_code'] = idx
+                                elif 'code' in header_lower:
+                                    col_map['code'] = idx
+                            
+                            # Save this mapping for continuation pages
+                            saved_col_map = col_map
+                        
+                        print(f"    Column mapping: {col_map}")
                         
                         # Extract data rows
-                        for row in table[data_start_idx:]:
+                        rows_extracted = 0
+                        for row_idx, row in enumerate(table[data_start_idx:], data_start_idx):
                             if not row or len(row) == 0:
                                 continue
                             
-                            if 'symbol' not in col_map or 'date' not in col_map:
+                            # Get symbol
+                            if 'symbol' not in col_map:
                                 continue
                             
                             symbol = row[col_map['symbol']]
-                            date_str = row[col_map['date']]
-                            
-                            if not symbol or not date_str:
+                            if not symbol:
                                 continue
                             
+                            symbol_str = str(symbol).strip()
+                            
+                            # Skip summary rows (like "Total ADBE", "Total AFRM", etc.)
+                            if 'total' in symbol_str.lower() or symbol_str.lower() == 'stocks' or symbol_str.lower() == 'usd':
+                                continue
+                            
+                            # Skip empty symbols
+                            if not symbol_str or len(symbol_str) == 0:
+                                continue
+                            
+                            # Get date/time
+                            date_time_str = None
+                            if 'date_time' in col_map and row[col_map['date_time']]:
+                                date_time_str = str(row[col_map['date_time']]).strip()
+                            
+                            # Skip rows without date/time
+                            if not date_time_str:
+                                continue
+                            
+                            # Parse date and time from combined field (format: "2025-07-22, 12:23:39")
+                            transaction_date = None
+                            transaction_time = None
+                            if date_time_str:
+                                parts = date_time_str.split(',')
+                                if len(parts) >= 1:
+                                    transaction_date = self.parse_date_string(parts[0].strip())
+                                if len(parts) >= 2:
+                                    transaction_time = parts[1].strip()
+                            
+                            # Parse numeric fields
+                            quantity = None
+                            if 'quantity' in col_map and row[col_map['quantity']]:
+                                quantity = self.parse_decimal(str(row[col_map['quantity']]))
+                            
+                            trade_price = None
+                            if 'trade_price' in col_map and row[col_map['trade_price']]:
+                                trade_price = self.parse_decimal(str(row[col_map['trade_price']]))
+                            
+                            close_price = None
+                            if 'close_price' in col_map and row[col_map['close_price']]:
+                                close_price = self.parse_decimal(str(row[col_map['close_price']]))
+                            
+                            proceeds = None
+                            if 'proceeds' in col_map and row[col_map['proceeds']]:
+                                proceeds = self.parse_decimal(str(row[col_map['proceeds']]))
+                            
+                            commission = None
+                            if 'commission' in col_map and row[col_map['commission']]:
+                                commission = self.parse_decimal(str(row[col_map['commission']]))
+                            
+                            basis = None
+                            if 'basis' in col_map and row[col_map['basis']]:
+                                basis = self.parse_decimal(str(row[col_map['basis']]))
+                            
+                            realized_pl = None
+                            if 'realized_pl' in col_map and row[col_map['realized_pl']]:
+                                realized_pl = self.parse_decimal(str(row[col_map['realized_pl']]))
+                            
+                            mtm_pl = None
+                            if 'mtm_pl' in col_map and row[col_map['mtm_pl']]:
+                                mtm_pl = self.parse_decimal(str(row[col_map['mtm_pl']]))
+                            
+                            code = None
+                            if 'code' in col_map and row[col_map['code']]:
+                                code = str(row[col_map['code']]).strip()
+                            
+                            # Determine transaction type
+                            transaction_type = None
+                            if code:
+                                code_upper = code.upper()
+                                if 'O' in code_upper and 'C' not in code_upper:
+                                    transaction_type = 'BUY'
+                                elif 'C' in code_upper:
+                                    transaction_type = 'SELL'
+                                elif 'O;P' in code_upper or 'O,P' in code_upper:
+                                    transaction_type = 'BUY'  # Partial open is still a buy
+                            elif quantity:
+                                # Fallback: positive quantity = buy, negative = sell
+                                if quantity > 0:
+                                    transaction_type = 'BUY'
+                                elif quantity < 0:
+                                    transaction_type = 'SELL'
+                                    quantity = abs(quantity)  # Make quantity positive
+                            
                             transaction = {
-                                'symbol': str(symbol).strip(),
-                                'transaction_date': self.parse_date_string(str(date_str)),
-                                'transaction_time': str(row[col_map['time']]).strip() if 'time' in col_map and row[col_map['time']] else None,
-                                'quantity': self.parse_decimal(str(row[col_map['quantity']])) if 'quantity' in col_map else None,
-                                'trade_price': self.parse_decimal(str(row[col_map.get('trade_price')])) if 'trade_price' in col_map else None,
-                                'close_price': self.parse_decimal(str(row[col_map.get('close_price')])) if 'close_price' in col_map else None,
-                                'proceeds': self.parse_decimal(str(row[col_map.get('proceeds')])) if 'proceeds' in col_map else None,
-                                'commission': self.parse_decimal(str(row[col_map.get('commission')])) if 'commission' in col_map else None,
-                                'basis': self.parse_decimal(str(row[col_map.get('basis')])) if 'basis' in col_map else None,
-                                'realized_pl': self.parse_decimal(str(row[col_map.get('realized_pl')])) if 'realized_pl' in col_map else None,
-                                'mtm_pl': self.parse_decimal(str(row[col_map.get('mtm_pl')])) if 'mtm_pl' in col_map else None,
-                                'trade_code': str(row[col_map['trade_code']]).strip() if 'trade_code' in col_map and row[col_map['trade_code']] else None,
+                                'symbol': symbol_str,
+                                'transaction_date': transaction_date,
+                                'transaction_time': transaction_time,
+                                'transaction_type': transaction_type,
+                                'quantity': quantity,
+                                'trade_price': trade_price,
+                                'close_price': close_price,
+                                'proceeds': proceeds,
+                                'commission': commission,
+                                'basis': basis,
+                                'realized_pl': realized_pl,
+                                'mtm_pl': mtm_pl,
+                                'trade_code': code,
                                 'source_pdf': pdf_name
                             }
                             
-                            # Determine transaction type from trade code
-                            if transaction['trade_code']:
-                                code = transaction['trade_code'].upper()
-                                if 'O' in code:
-                                    transaction['transaction_type'] = 'OPEN'
-                                elif 'C' in code:
-                                    transaction['transaction_type'] = 'CLOSE'
-                                elif 'P' in code:
-                                    transaction['transaction_type'] = 'PARTIAL'
-                                else:
-                                    transaction['transaction_type'] = code
-                            elif transaction['quantity'] and transaction['quantity'] > 0:
-                                transaction['transaction_type'] = 'BUY'
-                            elif transaction['quantity'] and transaction['quantity'] < 0:
-                                transaction['transaction_type'] = 'SELL'
-                            
                             transactions.append(transaction)
+                            rows_extracted += 1
+                            
+                            print(f"      Row {row_idx}: {symbol_str} | {date_time_str} | Qty: {quantity} | Type: {transaction_type}")
+                        
+                        print(f"    Extracted {rows_extracted} transactions from this table")
         
         except Exception as e:
-            print(f"Error extracting transactions from tables: {e}")
+            print(f"ERROR extracting transactions: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        print(f"\n{'='*80}")
+        print(f"TRANSACTION EXTRACTION COMPLETE: Total {len(transactions)} transactions found")
+        print(f"{'='*80}\n")
         
         return transactions
     
@@ -562,6 +696,9 @@ class WorldStockService:
             # Extract text for account info (only first few pages)
             text = self.extract_text_from_pdf(pdf_path, max_pages=2)
             account_info = self.extract_account_info(text)
+            print(f"  Account Number: {account_info.get('account_number')}")
+            print(f"  Account Alias: {account_info.get('account_alias')}")
+            print(f"  Broker: {account_info.get('broker_name')}")
             
             print(f"Step 2: Extracting holdings...")
             # Extract data from tables
@@ -580,9 +717,13 @@ class WorldStockService:
             account_id = self.save_account_to_database(account_info, user_id)
             
             if account_id:
+                print(f"  Account ID: {account_id}")
                 holdings_saved = self.save_holdings_to_database(holdings, user_id, account_id) if holdings else 0
+                print(f"  Holdings: {len(holdings)} found, {holdings_saved} saved")
                 transactions_saved = self.save_transactions_to_database(transactions, user_id, account_id) if transactions else 0
+                print(f"  Transactions: {len(transactions)} found, {transactions_saved} saved")
                 dividends_saved = self.save_dividends_to_database(dividends, user_id, account_id) if dividends else 0
+                print(f"  Dividends: {len(dividends)} found, {dividends_saved} saved")
             else:
                 holdings_saved = transactions_saved = dividends_saved = 0
             
@@ -610,15 +751,24 @@ class WorldStockService:
             conn = self.create_database_connection()
             cursor = conn.cursor()
             
+            account_number = account_info.get('account_number')
+            
+            # If no account number found in PDF, use a default based on user and broker
+            if not account_number:
+                broker_name = account_info.get('broker_name', 'UNKNOWN')
+                account_number = f"DEFAULT_{broker_name[:20]}_{user_id[:10]}"
+                print(f"  No account number found in PDF, using default: {account_number}")
+            
             # Check if account already exists
             cursor.execute(
                 'SELECT id FROM "WorldStockAccount" WHERE account_number = %s AND user_id = %s',
-                (account_info.get('account_number'), user_id)
+                (account_number, user_id)
             )
             result = cursor.fetchone()
             
             if result:
                 account_id = result[0]
+                print(f"  Found existing account ID: {account_id}")
                 # Update existing account
                 cursor.execute('''
                     UPDATE "WorldStockAccount" 
@@ -634,6 +784,7 @@ class WorldStockService:
                 ))
             else:
                 # Insert new account
+                print(f"  Creating new account with number: {account_number}")
                 cursor.execute('''
                     INSERT INTO "WorldStockAccount" 
                     (user_id, account_number, account_alias, account_type, base_currency, broker_name)
@@ -641,13 +792,14 @@ class WorldStockService:
                     RETURNING id
                 ''', (
                     user_id,
-                    account_info.get('account_number'),
+                    account_number,
                     account_info.get('account_alias'),
                     account_info.get('account_type'),
                     account_info.get('base_currency', 'USD'),
                     account_info.get('broker_name')
                 ))
                 account_id = cursor.fetchone()[0]
+                print(f"  Created new account ID: {account_id}")
             
             conn.commit()
             cursor.close()
@@ -723,20 +875,38 @@ class WorldStockService:
             saved_count = 0
             for transaction in transactions:
                 try:
-                    # Check if transaction already exists
-                    cursor.execute('''
-                        SELECT id FROM "WorldStockTransaction" 
-                        WHERE user_id = %s AND account_id = %s AND symbol = %s 
-                        AND transaction_date = %s AND quantity = %s
-                    ''', (
-                        user_id,
-                        account_id,
-                        transaction.get('symbol'),
-                        transaction.get('transaction_date'),
-                        transaction.get('quantity')
-                    ))
+                    # Check if transaction already exists (by symbol, date, and time for precision)
+                    # Handle NULL transaction_time properly
+                    if transaction.get('transaction_time'):
+                        cursor.execute('''
+                            SELECT id FROM "WorldStockTransaction" 
+                            WHERE user_id = %s AND account_id = %s AND symbol = %s 
+                            AND transaction_date = %s AND transaction_time = %s
+                        ''', (
+                            user_id,
+                            account_id,
+                            transaction.get('symbol'),
+                            transaction.get('transaction_date'),
+                            transaction.get('transaction_time')
+                        ))
+                    else:
+                        # If no time, check by symbol, date, quantity, and price
+                        cursor.execute('''
+                            SELECT id FROM "WorldStockTransaction" 
+                            WHERE user_id = %s AND account_id = %s AND symbol = %s 
+                            AND transaction_date = %s AND transaction_time IS NULL
+                            AND quantity = %s AND trade_price = %s
+                        ''', (
+                            user_id,
+                            account_id,
+                            transaction.get('symbol'),
+                            transaction.get('transaction_date'),
+                            transaction.get('quantity'),
+                            transaction.get('trade_price')
+                        ))
                     
                     if cursor.fetchone():
+                        print(f"  Skipping duplicate transaction: {transaction.get('symbol')} on {transaction.get('transaction_date')} at {transaction.get('transaction_time')}")
                         continue  # Skip duplicates
                     
                     cursor.execute('''
@@ -791,7 +961,7 @@ class WorldStockService:
             saved_count = 0
             for dividend in dividends:
                 try:
-                    # Check if dividend already exists
+                    # Check if dividend already exists (by symbol, payment_date, and amount)
                     cursor.execute('''
                         SELECT id FROM "WorldStockDividend" 
                         WHERE user_id = %s AND account_id = %s AND symbol = %s 
@@ -805,6 +975,7 @@ class WorldStockService:
                     ))
                     
                     if cursor.fetchone():
+                        print(f"  Skipping duplicate dividend: {dividend.get('symbol')} on {dividend.get('payment_date')} amount {dividend.get('amount')}")
                         continue  # Skip duplicates
                     
                     cursor.execute('''

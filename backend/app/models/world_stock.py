@@ -1,7 +1,7 @@
 """
 World Stock SQLAlchemy Models
 """
-from sqlalchemy import Column, Integer, String, Numeric, Date, Time, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -61,7 +61,7 @@ class WorldStockTransaction(Base):
     account_id = Column(Integer, ForeignKey("WorldStockAccount.id", ondelete="CASCADE"), index=True)
     symbol = Column(String(20), nullable=False, index=True)
     transaction_date = Column(Date, index=True)
-    transaction_time = Column(Time)
+    transaction_time = Column(String(20))  # Time as string (e.g., "12:23:39")
     transaction_type = Column(String(20))  # O (Open), C (Close), P (Partial)
     quantity = Column(Numeric(15, 4))
     trade_price = Column(Numeric(15, 4))

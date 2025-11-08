@@ -122,16 +122,16 @@ export default function WorldStockTransactions({
 
   // Calculate metrics
   const totalOpened = transactions
-    .filter((t) => t.o_c_p_code?.toUpperCase() === "O")
+    .filter((t) => t.trade_code?.toUpperCase() === "O")
     .reduce(
-      (sum, t) => sum + (t.quantity || 0) * (t.price || 0) + (t.commission || 0),
+      (sum, t) => sum + (t.quantity || 0) * (t.trade_price || 0) + (t.commission || 0),
       0
     );
 
   const totalClosed = transactions
-    .filter((t) => t.o_c_p_code?.toUpperCase() === "C")
+    .filter((t) => t.trade_code?.toUpperCase() === "C")
     .reduce(
-      (sum, t) => sum + (t.quantity || 0) * (t.price || 0) - (t.commission || 0),
+      (sum, t) => sum + (t.quantity || 0) * (t.trade_price || 0) - (t.commission || 0),
       0
     );
 
@@ -146,9 +146,9 @@ export default function WorldStockTransactions({
       {};
 
     transactions.forEach((t) => {
-      if (!t.trade_date) return;
+      if (!t.transaction_date) return;
       
-      const date = new Date(t.trade_date);
+      const date = new Date(t.transaction_date);
       if (isNaN(date.getTime())) return;
 
       const monthKey = `${date.getFullYear()}-${String(
@@ -163,11 +163,11 @@ export default function WorldStockTransactions({
         map[monthKey] = { month: monthLabel, opened: 0, closed: 0 };
       }
 
-      const value = (t.quantity || 0) * (t.price || 0);
+      const value = (t.quantity || 0) * (t.trade_price || 0);
 
-      if (t.o_c_p_code?.toUpperCase() === "O") {
+      if (t.trade_code?.toUpperCase() === "O") {
         map[monthKey].opened += value;
-      } else if (t.o_c_p_code?.toUpperCase() === "C") {
+      } else if (t.trade_code?.toUpperCase() === "C") {
         map[monthKey].closed += value;
       }
     });
@@ -363,30 +363,35 @@ export default function WorldStockTransactions({
             <tbody className="bg-white divide-y divide-gray-200">
               {transactions.map((transaction) => {
                 const totalValue =
-                  (transaction.quantity || 0) * (transaction.price || 0);
+                  (transaction.quantity || 0) * (transaction.trade_price || 0);
 
                 return (
                   <tr key={transaction.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(transaction.trade_date)}
+                      <div>{formatDate(transaction.transaction_date)}</div>
+                      {transaction.transaction_time && (
+                        <div className="text-xs text-gray-500">
+                          {transaction.transaction_time}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-semibold text-gray-900">
                         {transaction.symbol}
                       </div>
-                      <div className="text-xs text-gray-500 max-w-xs truncate">
-                        {transaction.description || "-"}
+                      <div className="text-xs text-gray-500">
+                        {transaction.transaction_type || "-"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getTransactionColor(
-                          transaction.o_c_p_code || ""
+                          transaction.trade_code || ""
                         )}`}
                       >
-                        {getTransactionIcon(transaction.o_c_p_code || "")}
+                        {getTransactionIcon(transaction.trade_code || "")}
                         <span className="ml-1">
-                          {getTransactionLabel(transaction.o_c_p_code || "")}
+                          {getTransactionLabel(transaction.trade_code || "")}
                         </span>
                       </span>
                     </td>
@@ -394,7 +399,7 @@ export default function WorldStockTransactions({
                       {formatNumber(transaction.quantity)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
-                      {formatCurrency(transaction.price)}
+                      {formatCurrency(transaction.trade_price)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
                       {formatCurrency(totalValue)}
