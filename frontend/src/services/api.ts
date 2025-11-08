@@ -417,4 +417,72 @@ export const israeliStocksAPI = {
   },
 };
 
+// World Stocks API
+export const worldStocksAPI = {
+  uploadPDF: async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await api.post("/world-stocks/upload-pdf", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  },
+
+  getAccounts: async () => {
+    const response = await api.get("/world-stocks/accounts");
+    return response.data || [];
+  },
+
+  getHoldings: async (accountId?: number, limit?: number) => {
+    const params = new URLSearchParams();
+    if (accountId) params.append("account_id", accountId.toString());
+    if (limit) params.append("limit", limit.toString());
+    
+    const paramString = params.toString();
+    const response = await api.get(`/world-stocks/holdings${paramString ? `?${paramString}` : ""}`);
+    return response.data || [];
+  },
+
+  getTransactions: async (accountId?: number, symbol?: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (accountId) params.append("account_id", accountId.toString());
+    if (symbol) params.append("symbol", symbol);
+    if (limit) params.append("limit", limit.toString());
+    
+    const paramString = params.toString();
+    const response = await api.get(`/world-stocks/transactions${paramString ? `?${paramString}` : ""}`);
+    return response.data || [];
+  },
+
+  getDividends: async (accountId?: number, symbol?: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (accountId) params.append("account_id", accountId.toString());
+    if (symbol) params.append("symbol", symbol);
+    if (limit) params.append("limit", limit.toString());
+    
+    const paramString = params.toString();
+    const response = await api.get(`/world-stocks/dividends${paramString ? `?${paramString}` : ""}`);
+    return response.data || [];
+  },
+
+  getSummary: async (accountId?: number) => {
+    const params = accountId ? `?account_id=${accountId}` : "";
+    const response = await api.get(`/world-stocks/summary${params}`);
+    return response.data;
+  },
+
+  deleteHolding: async (holdingId: number) => {
+    const response = await api.delete(`/world-stocks/holdings/${holdingId}`);
+    return response.data;
+  },
+
+  deleteAccount: async (accountId: number) => {
+    const response = await api.delete(`/world-stocks/accounts/${accountId}`);
+    return response.data;
+  },
+};
+
 export default api;

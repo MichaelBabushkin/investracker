@@ -19,6 +19,15 @@ from .israeli_stock_models import (
     IsraeliStockSummary
 )
 
+# World Stock Analysis Models
+from .world_stock import (
+    WorldStockAccount,
+    WorldStockHolding,
+    WorldStockTransaction,
+    WorldStockDividend,
+    WorldStockPerformance
+)
+
 __all__ = [
     "User",
     "Portfolio", 
@@ -36,5 +45,11 @@ __all__ = [
     "IsraeliStockHolding",
     "IsraeliStockTransaction", 
     "IsraeliDividend",
-    "IsraeliStockSummary"
+    "IsraeliStockSummary",
+    # World Stock Models
+    "WorldStockAccount",
+    "WorldStockHolding",
+    "WorldStockTransaction",
+    "WorldStockDividend",
+    "WorldStockPerformance"
 ]
