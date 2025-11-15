@@ -1,60 +1,107 @@
-# Investracker - Investment Portfolio Tracking & Analytics
+# 📊 Investracker# 📊 Investracker
 
-A comprehensive full-stack investment tracking and analytics application built with FastAPI (Python) backend and Next.js (TypeScript) frontend.
 
-## 🎯 Project Overview
 
-Investracker provides professional-grade investment portfolio tracking with advanced analytics, helping investors make informed decisions through comprehensive data visualization and performance metrics.
+Personal investment portfolio tracker with automated PDF statement parsing for Israeli and US brokers.Personal investment portfolio tracker with PDF statement parsing for Israeli and US brokers.
 
-### Key Features
 
-- **Portfolio Management**: Create and manage multiple investment portfolios
-- **Transaction Tracking**: Record buy/sell transactions, dividends, fees, and splits
-- **Advanced Analytics**: Time-weighted returns, Sharpe ratios, risk metrics
-- **Asset Allocation**: Visual breakdown by asset class, sector, and region
-- **Dividend Tracking**: Comprehensive dividend income analysis
-- **ESG Integration**: Environmental, Social, Governance scoring
-- **Performance Comparison**: Benchmark comparisons and peer analysis
-- **Risk Analysis**: Volatility, correlation matrices, max drawdown calculations
 
-## 🏗️ Architecture
+## ✨ Features## ✨ Features
 
-### Backend (FastAPI + PostgreSQL)
 
-- **Framework**: FastAPI with automatic OpenAPI documentation
-- **Database**: PostgreSQL with SQLAlchemy ORM
-- **Authentication**: JWT-based with OAuth2 and refresh tokens
-- **API Design**: RESTful with comprehensive error handling
-- **Future**: Designed for easy MongoDB migration
 
-### Frontend (Next.js + TypeScript)
+- **📄 PDF Statement Parsing**: Automatically extract transactions, holdings, and dividends from broker PDFs- **📄 PDF Statement Parsing**: Automatically extract transactions from broker PDFs
 
-- **Framework**: Next.js 14 with App Router
-- **Language**: TypeScript for type safety
-- **Styling**: Tailwind CSS with custom design system
-- **State Management**: Redux Toolkit
-- **Charts**: Recharts for data visualization
-- **UI Components**: Headless UI with custom components
+- **🇮🇱 Israeli Stocks**: Support for Israeli broker statements- **🇮🇱 Israeli Stocks**: Support for Israeli broker statements
 
-## 📁 Project Structure
+- **🌍 World Stocks**: Support for US broker statements (Interactive Brokers format)- **🌍 World Stocks**: Support for US broker statements (Interactive Brokers, etc.)
 
-```
-Investracker/
+- **📈 Portfolio Analytics**: Track holdings, transactions, dividends, and performance- **📈 Portfolio Analytics**: Track holdings, transactions, dividends, and performance
+
+- **💰 P&L Tracking**: Realized and unrealized gains/losses with detailed metrics- **💰 P&L Tracking**: Realized and unrealized gains/losses
+
+- **📊 Interactive Dashboards**: Visualize portfolio performance with charts and tables- **📊 Interactive Charts**: Visualize your portfolio performance
+
+
+
+## 🏗️ Tech Stack## 🏗️ Tech Stack
+
+
+
+**Backend:** FastAPI, PostgreSQL, SQLAlchemy, PDFPlumber  **Backend:**
+
+**Frontend:** Next.js 14, TypeScript, Tailwind CSS, Recharts  - FastAPI (Python 3.12)
+
+**Deployment:** Railway (backend), Vercel (frontend - coming soon)- PostgreSQL
+
+- SQLAlchemy ORM
+
+## 🚀 Quick Start- Alembic for migrations
+
+- PDFPlumber for PDF parsing
+
+### Backend
+
+```bash**Frontend:**
+
+cd backend- Next.js 14 (App Router)
+
+python -m venv venv- TypeScript
+
+venv\Scripts\activate- Tailwind CSS
+
+pip install -r requirements.txt- Recharts for visualizations
+
+alembic upgrade head
+
+uvicorn app.main:app --reload**Deployment:**
+
+```- Backend: Railway
+
+- Frontend: Vercel (coming soon)
+
+### Frontend- Database: Railway PostgreSQL
+
+```bash
+
+cd frontend## 📁 Project Structure
+
+npm install
+
+npm run dev```
+
+```Investracker/
+
 ├── backend/                    # FastAPI Backend
-│   ├── app/
+
+## 📚 Documentation│   ├── app/
+
 │   │   ├── api/v1/            # API endpoints
-│   │   │   └── endpoints/     # Route handlers
-│   │   ├── core/              # Core functionality
-│   │   │   ├── auth.py        # Authentication logic
+
+- **API Docs**: `http://localhost:8000/docs` (when backend is running)│   │   │   └── endpoints/     # Route handlers
+
+- **Deployment Guide**: See `DEPLOYMENT_PLAN.md`│   │   ├── core/              # Core functionality
+
+- **Getting Started**: See `GETTING_STARTED.md`│   │   │   ├── auth.py        # Authentication logic
+
 │   │   │   ├── config.py      # Configuration settings
-│   │   │   └── database.py    # Database setup
+
+## 🌐 Production│   │   │   └── database.py    # Database setup
+
 │   │   ├── models/            # SQLAlchemy models
-│   │   │   ├── user.py
-│   │   │   ├── portfolio.py
+
+**Backend**: https://investracker-production.up.railway.app  │   │   │   ├── user.py
+
+**Frontend**: Coming soon│   │   │   ├── portfolio.py
+
 │   │   │   ├── asset.py
-│   │   │   ├── transaction.py
+
+---│   │   │   ├── transaction.py
+
 │   │   │   ├── holding.py
-│   │   │   └── market_data.py
+
+Made with ❤️ for better investment tracking│   │   │   └── market_data.py
+
 │   │   ├── schemas/           # Pydantic schemas
 │   │   └── main.py           # FastAPI application
 │   ├── requirements.txt
