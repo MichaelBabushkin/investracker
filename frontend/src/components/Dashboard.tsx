@@ -29,8 +29,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
+
 } from "recharts";
 import ReportUploader from "./ReportUploader";
 import IsraeliMarketHighlights from "./IsraeliMarketHighlights";
