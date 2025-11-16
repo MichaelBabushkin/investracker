@@ -335,6 +335,22 @@ export const israeliStocksAPI = {
     return response.data;
   },
 
+  createTransaction: async (transactionData: any) => {
+    const response = await api.post(
+      "/israeli-stocks/transactions",
+      transactionData
+    );
+    return response.data;
+  },
+
+  updateTransaction: async (transactionId: number, transactionData: any) => {
+    const response = await api.put(
+      `/israeli-stocks/transactions/${transactionId}`,
+      transactionData
+    );
+    return response.data;
+  },
+
   getSummary: async () => {
     const response = await api.get("/israeli-stocks/summary");
     return response.data;
