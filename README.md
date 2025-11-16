@@ -1,8 +1,6 @@
-# 📊 Investracker# 📊 Investracker
+# 📊 Investracker
 
-
-
-Personal investment portfolio tracker with automated PDF statement parsing for Israeli and US brokers.Personal investment portfolio tracker with PDF statement parsing for Israeli and US brokers.
+Personal investment portfolio tracker with automated PDF statement parsing for Israeli and US brokers.
 
 
 
