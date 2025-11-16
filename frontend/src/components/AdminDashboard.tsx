@@ -736,7 +736,7 @@ export default function AdminDashboard() {
                 )}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Uses the stock's logo_url field, if present.
+                Uses the stock&apos;s logo_url field, if present.
               </p>
             </div>
           </div>

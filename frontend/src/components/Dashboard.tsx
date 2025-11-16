@@ -229,7 +229,7 @@ export default function Dashboard() {
             Welcome back, {user?.first_name}!
           </h2>
           <p className="text-gray-600 mt-1">
-            Here's an overview of your investment portfolio
+            Here&apos;s an overview of your investment portfolio
           </p>
         </div>
 
@@ -260,7 +260,7 @@ export default function Dashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">
-                  Today's Change
+                  Today&apos;s Change
                 </p>
                 <p
                   className={`text-2xl font-bold ${
