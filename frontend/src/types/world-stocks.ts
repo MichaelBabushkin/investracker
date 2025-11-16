@@ -16,6 +16,7 @@ export interface WorldStockHolding {
   account_id?: number;
   symbol: string;
   company_name?: string;
+  description?: string;
   quantity?: number;
   avg_entry_price?: number;
   current_price?: number;
