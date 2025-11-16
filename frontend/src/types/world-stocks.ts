@@ -2,6 +2,7 @@ export interface WorldStockAccount {
   id: number;
   user_id: string;
   account_number: string;
+  account_holder?: string;
   account_alias?: string;
   account_type?: string;
   base_currency: string;
