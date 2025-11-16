@@ -120,7 +120,7 @@ export default function WorldStocksDashboard() {
                   <option value="">All Accounts</option>
                   {accounts.map((account) => (
                     <option key={account.id} value={account.id}>
-                      {account.account_number} - {account.account_holder}
+                      {account.account_number} - {account.account_alias || account.broker_name || 'Unknown'}
                     </option>
                   ))}
                 </select>
