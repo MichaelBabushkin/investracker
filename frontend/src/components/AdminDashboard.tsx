@@ -9,6 +9,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
+import Logo from "./Logo";
 
 export default function AdminDashboard() {
   const [batchSize, setBatchSize] = useState<number>(5);
@@ -238,12 +239,17 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center gap-3">
-          <Cog6ToothIcon className="h-6 w-6 text-gray-700" />
-          <h1 className="text-xl font-semibold text-gray-900">Admin Panel</h1>
-          <span className="text-xs text-gray-500">
-            (temporary, will be restricted later)
-          </span>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Logo size="md" linkTo="/dashboard" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Cog6ToothIcon className="h-6 w-6 text-gray-700" />
+            <h1 className="text-xl font-semibold text-gray-900">Admin Panel</h1>
+            <span className="text-xs text-gray-500">
+              (temporary, will be restricted later)
+            </span>
+          </div>
         </div>
       </header>
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">

@@ -29,8 +29,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-
 } from "recharts";
+import Logo from "./Logo";
 import ReportUploader from "./ReportUploader";
 import IsraeliMarketHighlights from "./IsraeliMarketHighlights";
 import WorldMarketHighlights from "./WorldMarketHighlights";
@@ -189,9 +189,7 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">
-                <span className="text-primary-600">Invest</span>racker
-              </h1>
+              <Logo size="md" linkTo="/dashboard" />
             </div>
 
             <div className="flex items-center space-x-4">

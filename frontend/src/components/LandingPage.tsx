@@ -8,6 +8,7 @@ import {
   UserGroupIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
+import Logo from "./Logo";
 
 export default function LandingPage() {
   return (
@@ -18,9 +19,7 @@ export default function LandingPage() {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold text-gray-900">
-                  <span className="text-primary-600">Invest</span>racker
-                </h1>
+                <Logo size="md" linkTo="/" />
               </div>
             </div>
             <div className="flex items-center space-x-4">
