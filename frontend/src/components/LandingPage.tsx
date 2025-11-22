@@ -21,7 +21,8 @@ const Player = dynamic(
 );
 
 const DotLottiePlayer = dynamic(
-  () => import("@lottiefiles/dotlottie-react").then((mod) => mod.DotLottieReact),
+  () =>
+    import("@lottiefiles/dotlottie-react").then((mod) => mod.DotLottieReact),
   { ssr: false }
 );
 
@@ -150,14 +151,16 @@ export default function LandingPage() {
             </div>
 
             {/* Right side - Lottie Animation */}
-            <div className="relative hidden lg:block">
-              <div className="relative z-10">
-                <DotLottiePlayer
-                  autoplay
-                  loop
-                  src="/lottie/Hero.lottie"
-                  style={{ height: "500px", width: "500px" }}
-                />
+            <div className="relative">
+              <div className="relative z-10 flex justify-center">
+                {DotLottiePlayer && (
+                  <DotLottiePlayer 
+                    src="/lottie/Hero.lottie" 
+                    loop 
+                    autoplay 
+                    style={{ width: "100%", maxWidth: "500px", height: "auto" }}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -275,12 +278,14 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
-              <Player
-                autoplay
-                loop
-                src="https://assets8.lottiefiles.com/packages/lf20_xyadoh9h.json"
-                style={{ height: "400px", width: "400px" }}
-              />
+              {DotLottiePlayer && (
+                <DotLottiePlayer
+                  src="/lottie/track.lottie"
+                  loop
+                  autoplay
+                  style={{ height: "400px", width: "400px" }}
+                />
+              )}
             </div>
             <div>
               <h2 className="text-4xl font-bold text-gray-900 mb-6">
@@ -346,14 +351,15 @@ export default function LandingPage() {
                 No credit card required • Free forever
               </p>
             </div>
-            <div className="hidden md:block">
-              <Player
-                autoplay
-                loop
-                src="https://assets1.lottiefiles.com/packages/lf20_u4yrau.json"
-                style={{ height: "350px", width: "350px" }}
-                className="mx-auto"
-              />
+            <div className="flex justify-center">
+              {DotLottiePlayer && (
+                <DotLottiePlayer
+                  src="/lottie/join-us.lottie"
+                  loop
+                  autoplay
+                  style={{ width: "100%", maxWidth: "350px", height: "auto" }}
+                />
+              )}
             </div>
           </div>
         </div>
