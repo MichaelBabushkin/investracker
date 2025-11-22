@@ -96,7 +96,9 @@ export default function WorldStockHoldings({
     ? holdings.reduce((sum, holding) => sum + (holding.unrealized_pl || 0), 0)
     : 0;
   const totalUnrealizedPLPercent =
-    totalValue > 0 ? (totalUnrealizedPL / (totalValue - totalUnrealizedPL)) * 100 : 0;
+    totalValue > 0
+      ? (totalUnrealizedPL / (totalValue - totalUnrealizedPL)) * 100
+      : 0;
 
   // Prepare pie chart data
   const pieChartData = Array.isArray(holdings)
@@ -431,9 +433,7 @@ export default function WorldStockHoldings({
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, value }) =>
-                  `${name}: ${formatCurrency(value)}`
-                }
+                label={({ name, value }) => `${name}: ${formatCurrency(value)}`}
                 outerRadius={120}
                 fill="#8884d8"
                 dataKey="value"

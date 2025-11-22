@@ -2,11 +2,7 @@
 
 Personal investment portfolio tracker with automated PDF statement parsing for Israeli and US brokers.
 
-
-
 ## ✨ Features## ✨ Features
-
-
 
 - **📄 PDF Statement Parsing**: Automatically extract transactions, holdings, and dividends from broker PDFs- **📄 PDF Statement Parsing**: Automatically extract transactions from broker PDFs
 
@@ -20,15 +16,11 @@ Personal investment portfolio tracker with automated PDF statement parsing for I
 
 - **📊 Interactive Dashboards**: Visualize portfolio performance with charts and tables- **📊 Interactive Charts**: Visualize your portfolio performance
 
-
-
 ## 🏗️ Tech Stack## 🏗️ Tech Stack
 
+**Backend:** FastAPI, PostgreSQL, SQLAlchemy, PDFPlumber **Backend:**
 
-
-**Backend:** FastAPI, PostgreSQL, SQLAlchemy, PDFPlumber  **Backend:**
-
-**Frontend:** Next.js 14, TypeScript, Tailwind CSS, Recharts  - FastAPI (Python 3.12)
+**Frontend:** Next.js 14, TypeScript, Tailwind CSS, Recharts - FastAPI (Python 3.12)
 
 **Deployment:** Railway (backend), Vercel (frontend - coming soon)- PostgreSQL
 
@@ -40,7 +32,7 @@ Personal investment portfolio tracker with automated PDF statement parsing for I
 
 ### Backend
 
-```bash**Frontend:**
+````bash**Frontend:**
 
 cd backend- Next.js 14 (App Router)
 
@@ -123,7 +115,7 @@ Made with ❤️ for better investment tracking│   │   │   └── marke
     ├── package.json
     ├── tailwind.config.js
     └── README.md
-```
+````
 
 ## 🚀 Getting Started
 

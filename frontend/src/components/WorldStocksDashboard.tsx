@@ -12,7 +12,10 @@ import WorldStockUploader from "./WorldStockUploader";
 import WorldStockHoldings from "./WorldStockHoldings";
 import WorldStockTransactions from "./WorldStockTransactions";
 import WorldStockDividends from "./WorldStockDividends";
-import { WorldStockUploadResult, WorldStockAccount } from "@/types/world-stocks";
+import {
+  WorldStockUploadResult,
+  WorldStockAccount,
+} from "@/types/world-stocks";
 import { worldStocksAPI } from "@/services/api";
 
 type TabType = "upload" | "holdings" | "transactions" | "dividends";
@@ -21,7 +24,9 @@ export default function WorldStocksDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>("upload");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [accounts, setAccounts] = useState<WorldStockAccount[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<number | undefined>();
+  const [selectedAccountId, setSelectedAccountId] = useState<
+    number | undefined
+  >();
 
   useEffect(() => {
     fetchAccounts();
@@ -120,7 +125,10 @@ export default function WorldStocksDashboard() {
                   <option value="">All Accounts</option>
                   {accounts.map((account) => (
                     <option key={account.id} value={account.id}>
-                      {account.account_number} - {account.account_alias || account.broker_name || 'Unknown'}
+                      {account.account_number} -{" "}
+                      {account.account_alias ||
+                        account.broker_name ||
+                        "Unknown"}
                     </option>
                   ))}
                 </select>

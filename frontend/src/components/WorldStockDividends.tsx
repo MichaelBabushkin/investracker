@@ -56,7 +56,7 @@ export default function WorldStockDividends({
   }, [refreshTrigger, accountId, symbol]);
 
   const formatCurrency = (amount?: number | string) => {
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    const num = typeof amount === "string" ? parseFloat(amount) : amount;
     if (!num && num !== 0) return "$0.00";
     if (isNaN(num)) return "$0.00";
     return new Intl.NumberFormat("en-US", {
@@ -76,27 +76,20 @@ export default function WorldStockDividends({
   };
 
   // Calculate metrics (use 'amount' field which is the gross amount from API)
-  const totalGrossDividends = (dividends || []).reduce(
-    (sum, dividend) => {
-      const amount = parseFloat(String(dividend.amount || dividend.gross_amount || 0));
-      return sum + (isNaN(amount) ? 0 : amount);
-    },
-    0
-  );
-  const totalWithholdingTax = (dividends || []).reduce(
-    (sum, dividend) => {
-      const tax = parseFloat(String(dividend.withholding_tax || 0));
-      return sum + (isNaN(tax) ? 0 : tax);
-    },
-    0
-  );
-  const totalNetDividends = (dividends || []).reduce(
-    (sum, dividend) => {
-      const net = parseFloat(String(dividend.net_amount || 0));
-      return sum + (isNaN(net) ? 0 : net);
-    },
-    0
-  );
+  const totalGrossDividends = (dividends || []).reduce((sum, dividend) => {
+    const amount = parseFloat(
+      String(dividend.amount || dividend.gross_amount || 0)
+    );
+    return sum + (isNaN(amount) ? 0 : amount);
+  }, 0);
+  const totalWithholdingTax = (dividends || []).reduce((sum, dividend) => {
+    const tax = parseFloat(String(dividend.withholding_tax || 0));
+    return sum + (isNaN(tax) ? 0 : tax);
+  }, 0);
+  const totalNetDividends = (dividends || []).reduce((sum, dividend) => {
+    const net = parseFloat(String(dividend.net_amount || 0));
+    return sum + (isNaN(net) ? 0 : net);
+  }, 0);
 
   // Group dividends by symbol
   const dividendsBySymbol = (dividends || []).reduce((acc, dividend) => {
@@ -112,10 +105,12 @@ export default function WorldStockDividends({
         dividends: [],
       };
     }
-    const gross = parseFloat(String(dividend.amount || dividend.gross_amount || 0));
+    const gross = parseFloat(
+      String(dividend.amount || dividend.gross_amount || 0)
+    );
     const tax = parseFloat(String(dividend.withholding_tax || 0));
     const net = parseFloat(String(dividend.net_amount || 0));
-    
+
     acc[key].total_gross += isNaN(gross) ? 0 : gross;
     acc[key].total_tax += isNaN(tax) ? 0 : tax;
     acc[key].total_net += isNaN(net) ? 0 : net;
@@ -152,7 +147,7 @@ export default function WorldStockDividends({
       const gross = parseFloat(String(d.amount || d.gross_amount || 0));
       const tax = parseFloat(String(d.withholding_tax || 0));
       const net = parseFloat(String(d.net_amount || 0));
-      
+
       item.gross += isNaN(gross) ? 0 : gross;
       item.tax += isNaN(tax) ? 0 : tax;
       item.net += isNaN(net) ? 0 : net;

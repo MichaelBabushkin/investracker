@@ -242,8 +242,7 @@ export default function WorldStockUploader({
                             </p>
                             <p>
                               Dividends: {uploadedFile.result.dividends_found}{" "}
-                              found, {uploadedFile.result.dividends_saved}{" "}
-                              saved
+                              found, {uploadedFile.result.dividends_saved} saved
                             </p>
                           </div>
                         </div>

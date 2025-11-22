@@ -397,9 +397,7 @@ export default function Dashboard() {
               </span>
             </div>
             <div>
-              <p className="text-xl font-bold text-white mb-1">
-                World Market
-              </p>
+              <p className="text-xl font-bold text-white mb-1">World Market</p>
               <p className="text-xs text-white/80 mb-4">
                 Track US & international stocks
               </p>

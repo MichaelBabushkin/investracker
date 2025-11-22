@@ -162,7 +162,8 @@ export default function WorldMarketHighlights() {
               {summary.total_holdings} holdings
             </p>
             <p className="text-xs text-blue-600">
-              {summary.total_accounts} account{summary.total_accounts !== 1 ? "s" : ""}
+              {summary.total_accounts} account
+              {summary.total_accounts !== 1 ? "s" : ""}
             </p>
           </div>
         </div>

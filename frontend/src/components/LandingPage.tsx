@@ -26,7 +26,7 @@ export default function LandingPage() {
                 <Logo size="sm" linkTo="/" />
               </div>
             </div>
-            
+
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">
               <Link

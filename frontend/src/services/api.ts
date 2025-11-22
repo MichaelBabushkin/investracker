@@ -456,20 +456,28 @@ export const worldStocksAPI = {
     const params = new URLSearchParams();
     if (accountId) params.append("account_id", accountId.toString());
     if (limit) params.append("limit", limit.toString());
-    
+
     const paramString = params.toString();
-    const response = await api.get(`/world-stocks/holdings${paramString ? `?${paramString}` : ""}`);
+    const response = await api.get(
+      `/world-stocks/holdings${paramString ? `?${paramString}` : ""}`
+    );
     return response.data || [];
   },
 
-  getTransactions: async (accountId?: number, symbol?: string, limit?: number) => {
+  getTransactions: async (
+    accountId?: number,
+    symbol?: string,
+    limit?: number
+  ) => {
     const params = new URLSearchParams();
     if (accountId) params.append("account_id", accountId.toString());
     if (symbol) params.append("symbol", symbol);
     if (limit) params.append("limit", limit.toString());
-    
+
     const paramString = params.toString();
-    const response = await api.get(`/world-stocks/transactions${paramString ? `?${paramString}` : ""}`);
+    const response = await api.get(
+      `/world-stocks/transactions${paramString ? `?${paramString}` : ""}`
+    );
     return response.data || [];
   },
 
@@ -478,9 +486,11 @@ export const worldStocksAPI = {
     if (accountId) params.append("account_id", accountId.toString());
     if (symbol) params.append("symbol", symbol);
     if (limit) params.append("limit", limit.toString());
-    
+
     const paramString = params.toString();
-    const response = await api.get(`/world-stocks/dividends${paramString ? `?${paramString}` : ""}`);
+    const response = await api.get(
+      `/world-stocks/dividends${paramString ? `?${paramString}` : ""}`
+    );
     return response.data || [];
   },
 

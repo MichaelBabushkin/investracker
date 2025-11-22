@@ -35,9 +35,7 @@ export default function WorldStockTransactions({
   accountId,
   symbol,
 }: WorldStockTransactionsProps) {
-  const [transactions, setTransactions] = useState<WorldStockTransaction[]>(
-    []
-  );
+  const [transactions, setTransactions] = useState<WorldStockTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,7 +62,7 @@ export default function WorldStockTransactions({
 
   const formatCurrency = (amount?: number | string) => {
     if (amount === null || amount === undefined) return "$0.00";
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    const num = typeof amount === "string" ? parseFloat(amount) : amount;
     if (isNaN(num)) return "$0.00";
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -75,7 +73,7 @@ export default function WorldStockTransactions({
 
   const formatNumber = (num?: number | string) => {
     if (num === null || num === undefined) return "0";
-    const value = typeof num === 'string' ? parseFloat(num) : num;
+    const value = typeof num === "string" ? parseFloat(num) : num;
     if (isNaN(value)) return "0";
     return new Intl.NumberFormat("en-US").format(value);
   };
@@ -126,79 +124,89 @@ export default function WorldStockTransactions({
 
   // Calculate comprehensive metrics
   const metrics = useMemo(() => {
-    const closedTrades = transactions.filter((t) => t.trade_code?.toUpperCase() === "C");
-    const openTrades = transactions.filter((t) => t.trade_code?.toUpperCase() === "O");
-    
+    const closedTrades = transactions.filter(
+      (t) => t.trade_code?.toUpperCase() === "C"
+    );
+    const openTrades = transactions.filter(
+      (t) => t.trade_code?.toUpperCase() === "O"
+    );
+
     // Helper function to safely parse numeric values
     const parseNumeric = (value: any): number => {
       if (value === null || value === undefined) return 0;
-      const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+      const num = typeof value === "string" ? parseFloat(value) : Number(value);
       return isNaN(num) ? 0 : num;
     };
-    
+
     // Realized P/L statistics
     const totalRealizedPL = closedTrades.reduce((sum, t) => {
       return sum + parseNumeric(t.realized_pl);
     }, 0);
-    
-    const profitableTrades = closedTrades.filter((t) => parseNumeric(t.realized_pl) > 0);
-    const losingTrades = closedTrades.filter((t) => parseNumeric(t.realized_pl) < 0);
-    
+
+    const profitableTrades = closedTrades.filter(
+      (t) => parseNumeric(t.realized_pl) > 0
+    );
+    const losingTrades = closedTrades.filter(
+      (t) => parseNumeric(t.realized_pl) < 0
+    );
+
     const totalProfit = profitableTrades.reduce((sum, t) => {
       return sum + parseNumeric(t.realized_pl);
     }, 0);
-    
+
     const totalLoss = losingTrades.reduce((sum, t) => {
       return sum + parseNumeric(t.realized_pl);
     }, 0);
-    
+
     // Commission statistics
     const totalCommission = transactions.reduce((sum, t) => {
       return sum + Math.abs(parseNumeric(t.commission));
     }, 0);
-    
+
     // Volume statistics
     const totalVolume = transactions.reduce((sum, t) => {
       const qty = Math.abs(parseNumeric(t.quantity));
       const price = parseNumeric(t.trade_price);
-      return sum + (qty * price);
+      return sum + qty * price;
     }, 0);
-    
-    const avgTradeSize = transactions.length > 0 ? totalVolume / transactions.length : 0;
-    
+
+    const avgTradeSize =
+      transactions.length > 0 ? totalVolume / transactions.length : 0;
+
     // Win rate
-    const winRate = closedTrades.length > 0 
-      ? (profitableTrades.length / closedTrades.length) * 100 
-      : 0;
-    
+    const winRate =
+      closedTrades.length > 0
+        ? (profitableTrades.length / closedTrades.length) * 100
+        : 0;
+
     // Top 5 best and worst trades by realized P/L
     const tradesWithPL = closedTrades.filter((t) => {
       const pl = parseNumeric(t.realized_pl);
       return !isNaN(pl) && pl !== 0;
     });
-    
+
     const bestTrades = [...tradesWithPL]
       .sort((a, b) => parseNumeric(b.realized_pl) - parseNumeric(a.realized_pl))
       .slice(0, 5);
-    
+
     const worstTrades = [...tradesWithPL]
       .sort((a, b) => parseNumeric(a.realized_pl) - parseNumeric(b.realized_pl))
       .slice(0, 5);
-    
+
     // MTM P/L statistics
     const totalMTMPL = transactions.reduce((sum, t) => {
       return sum + parseNumeric(t.mtm_pl);
     }, 0);
-    
+
     // Proceeds statistics
     const totalProceeds = closedTrades.reduce((sum, t) => {
       return sum + Math.abs(parseNumeric(t.proceeds));
     }, 0);
-    
+
     const totalBasis = closedTrades.reduce((sum, t) => {
       return sum + Math.abs(parseNumeric(t.basis));
     }, 0);
-    
+
     return {
       totalRealizedPL,
       totalProfit,
@@ -222,25 +230,29 @@ export default function WorldStockTransactions({
   const totalOpened = transactions
     .filter((t) => t.trade_code?.toUpperCase() === "O")
     .reduce(
-      (sum, t) => sum + (t.quantity || 0) * (t.trade_price || 0) + (t.commission || 0),
+      (sum, t) =>
+        sum + (t.quantity || 0) * (t.trade_price || 0) + (t.commission || 0),
       0
     );
 
   const totalClosed = transactions
     .filter((t) => t.trade_code?.toUpperCase() === "C")
     .reduce(
-      (sum, t) => sum + (t.quantity || 0) * (t.trade_price || 0) - (t.commission || 0),
+      (sum, t) =>
+        sum + (t.quantity || 0) * (t.trade_price || 0) - (t.commission || 0),
       0
     );
 
   // Monthly activity data for chart
   const monthlyData = useMemo(() => {
-    const map: Record<string, { month: string; opened: number; closed: number }> =
-      {};
+    const map: Record<
+      string,
+      { month: string; opened: number; closed: number }
+    > = {};
 
     transactions.forEach((t) => {
       if (!t.transaction_date) return;
-      
+
       const date = new Date(t.transaction_date);
       if (isNaN(date.getTime())) return;
 
@@ -363,15 +375,19 @@ export default function WorldStockTransactions({
       {/* Enhanced Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Realized P/L */}
-        <div className={`p-6 rounded-lg shadow-md ${
-          metrics.totalRealizedPL >= 0 
-            ? 'bg-gradient-to-r from-green-500 to-green-600' 
-            : 'bg-gradient-to-r from-red-500 to-red-600'
-        } text-white`}>
+        <div
+          className={`p-6 rounded-lg shadow-md ${
+            metrics.totalRealizedPL >= 0
+              ? "bg-gradient-to-r from-green-500 to-green-600"
+              : "bg-gradient-to-r from-red-500 to-red-600"
+          } text-white`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm opacity-80">Total Realized P/L</p>
-              <p className="text-3xl font-bold">{formatCurrency(metrics.totalRealizedPL)}</p>
+              <p className="text-3xl font-bold">
+                {formatCurrency(metrics.totalRealizedPL)}
+              </p>
               <p className="text-xs opacity-70 mt-1">
                 {metrics.closedCount} closed trades
               </p>
@@ -385,7 +401,9 @@ export default function WorldStockTransactions({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm opacity-80">Win Rate</p>
-              <p className="text-3xl font-bold">{metrics.winRate.toFixed(1)}%</p>
+              <p className="text-3xl font-bold">
+                {metrics.winRate.toFixed(1)}%
+              </p>
               <p className="text-xs opacity-70 mt-1">
                 {metrics.profitableCount}W / {metrics.losingCount}L
               </p>
@@ -399,7 +417,9 @@ export default function WorldStockTransactions({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm opacity-80">Total Commissions</p>
-              <p className="text-3xl font-bold">{formatCurrency(metrics.totalCommission)}</p>
+              <p className="text-3xl font-bold">
+                {formatCurrency(metrics.totalCommission)}
+              </p>
               <p className="text-xs opacity-70 mt-1">
                 {transactions.length} transactions
               </p>
@@ -413,7 +433,9 @@ export default function WorldStockTransactions({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm opacity-80">Total Volume</p>
-              <p className="text-3xl font-bold">{formatCurrency(metrics.totalVolume)}</p>
+              <p className="text-3xl font-bold">
+                {formatCurrency(metrics.totalVolume)}
+              </p>
               <p className="text-xs opacity-70 mt-1">
                 Avg: {formatCurrency(metrics.avgTradeSize)}
               </p>
@@ -429,11 +451,15 @@ export default function WorldStockTransactions({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Profit</p>
-              <p className="text-xl font-bold text-green-600">{formatCurrency(metrics.totalProfit)}</p>
+              <p className="text-xl font-bold text-green-600">
+                {formatCurrency(metrics.totalProfit)}
+              </p>
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600">Trades</p>
-              <p className="text-xl font-semibold text-gray-900">{metrics.profitableCount}</p>
+              <p className="text-xl font-semibold text-gray-900">
+                {metrics.profitableCount}
+              </p>
             </div>
           </div>
         </div>
@@ -442,11 +468,15 @@ export default function WorldStockTransactions({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Loss</p>
-              <p className="text-xl font-bold text-red-600">{formatCurrency(metrics.totalLoss)}</p>
+              <p className="text-xl font-bold text-red-600">
+                {formatCurrency(metrics.totalLoss)}
+              </p>
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600">Trades</p>
-              <p className="text-xl font-semibold text-gray-900">{metrics.losingCount}</p>
+              <p className="text-xl font-semibold text-gray-900">
+                {metrics.losingCount}
+              </p>
             </div>
           </div>
         </div>
@@ -455,13 +485,19 @@ export default function WorldStockTransactions({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">MTM P/L</p>
-              <p className={`text-xl font-bold ${metrics.totalMTMPL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p
+                className={`text-xl font-bold ${
+                  metrics.totalMTMPL >= 0 ? "text-green-600" : "text-red-600"
+                }`}
+              >
                 {formatCurrency(metrics.totalMTMPL)}
               </p>
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600">Open Positions</p>
-              <p className="text-xl font-semibold text-gray-900">{metrics.openCount}</p>
+              <p className="text-xl font-semibold text-gray-900">
+                {metrics.openCount}
+              </p>
             </div>
           </div>
         </div>
@@ -478,26 +514,38 @@ export default function WorldStockTransactions({
           <div className="space-y-3">
             {metrics.bestTrades.length > 0 ? (
               metrics.bestTrades.map((trade, idx) => (
-                <div key={trade.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
+                <div
+                  key={trade.id}
+                  className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100"
+                >
                   <div className="flex items-center space-x-3">
                     <div className="flex items-center justify-center w-8 h-8 bg-green-600 text-white rounded-full text-sm font-bold">
                       {idx + 1}
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">{trade.symbol}</p>
+                      <p className="font-semibold text-gray-900">
+                        {trade.symbol}
+                      </p>
                       <p className="text-xs text-gray-600">
-                        {formatDate(trade.transaction_date)} • {trade.transaction_time}
+                        {formatDate(trade.transaction_date)} •{" "}
+                        {trade.transaction_time}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-green-600">{formatCurrency(trade.realized_pl)}</p>
-                    <p className="text-xs text-gray-600">{Math.abs(trade.quantity || 0)} shares</p>
+                    <p className="font-bold text-green-600">
+                      {formatCurrency(trade.realized_pl)}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {Math.abs(trade.quantity || 0)} shares
+                    </p>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-gray-500 text-center py-4">No closed trades yet</p>
+              <p className="text-gray-500 text-center py-4">
+                No closed trades yet
+              </p>
             )}
           </div>
         </div>
@@ -511,26 +559,38 @@ export default function WorldStockTransactions({
           <div className="space-y-3">
             {metrics.worstTrades.length > 0 ? (
               metrics.worstTrades.map((trade, idx) => (
-                <div key={trade.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
+                <div
+                  key={trade.id}
+                  className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100"
+                >
                   <div className="flex items-center space-x-3">
                     <div className="flex items-center justify-center w-8 h-8 bg-red-600 text-white rounded-full text-sm font-bold">
                       {idx + 1}
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">{trade.symbol}</p>
+                      <p className="font-semibold text-gray-900">
+                        {trade.symbol}
+                      </p>
                       <p className="text-xs text-gray-600">
-                        {formatDate(trade.transaction_date)} • {trade.transaction_time}
+                        {formatDate(trade.transaction_date)} •{" "}
+                        {trade.transaction_time}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-red-600">{formatCurrency(trade.realized_pl)}</p>
-                    <p className="text-xs text-gray-600">{Math.abs(trade.quantity || 0)} shares</p>
+                    <p className="font-bold text-red-600">
+                      {formatCurrency(trade.realized_pl)}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {Math.abs(trade.quantity || 0)} shares
+                    </p>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-gray-500 text-center py-4">No closed trades yet</p>
+              <p className="text-gray-500 text-center py-4">
+                No closed trades yet
+              </p>
             )}
           </div>
         </div>
@@ -546,7 +606,9 @@ export default function WorldStockTransactions({
             <BarChart data={monthlyData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
-              <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} />
+              <YAxis
+                tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+              />
               <Tooltip
                 formatter={(value: number) => formatCurrency(value)}
                 contentStyle={{
@@ -606,10 +668,11 @@ export default function WorldStockTransactions({
                 // Helper to safely parse numbers
                 const parseNum = (val: any): number => {
                   if (val === null || val === undefined) return 0;
-                  const n = typeof val === 'string' ? parseFloat(val) : Number(val);
+                  const n =
+                    typeof val === "string" ? parseFloat(val) : Number(val);
                   return isNaN(n) ? 0 : n;
                 };
-                
+
                 const quantity = parseNum(transaction.quantity);
                 const tradePrice = parseNum(transaction.trade_price);
                 const realizedPL = parseNum(transaction.realized_pl);
@@ -663,14 +726,26 @@ export default function WorldStockTransactions({
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
                       {formatCurrency(Math.abs(basis))}
                     </td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-right text-sm font-semibold ${
-                      realizedPL > 0 ? 'text-green-600' : realizedPL < 0 ? 'text-red-600' : 'text-gray-900'
-                    }`}>
+                    <td
+                      className={`px-6 py-4 whitespace-nowrap text-right text-sm font-semibold ${
+                        realizedPL > 0
+                          ? "text-green-600"
+                          : realizedPL < 0
+                          ? "text-red-600"
+                          : "text-gray-900"
+                      }`}
+                    >
                       {formatCurrency(realizedPL)}
                     </td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-right text-sm ${
-                      mtmPL > 0 ? 'text-green-600' : mtmPL < 0 ? 'text-red-600' : 'text-gray-600'
-                    }`}>
+                    <td
+                      className={`px-6 py-4 whitespace-nowrap text-right text-sm ${
+                        mtmPL > 0
+                          ? "text-green-600"
+                          : mtmPL < 0
+                          ? "text-red-600"
+                          : "text-gray-600"
+                      }`}
+                    >
                       {formatCurrency(mtmPL)}
                     </td>
                   </tr>
@@ -688,14 +763,20 @@ export default function WorldStockTransactions({
                 <td className="px-6 py-4 text-right text-sm font-bold text-gray-900">
                   {formatCurrency(Math.abs(metrics.totalBasis))}
                 </td>
-                <td className={`px-6 py-4 text-right text-sm font-bold ${
-                  metrics.totalRealizedPL >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
+                <td
+                  className={`px-6 py-4 text-right text-sm font-bold ${
+                    metrics.totalRealizedPL >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
                   {formatCurrency(metrics.totalRealizedPL)}
                 </td>
-                <td className={`px-6 py-4 text-right text-sm font-bold ${
-                  metrics.totalMTMPL >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
+                <td
+                  className={`px-6 py-4 text-right text-sm font-bold ${
+                    metrics.totalMTMPL >= 0 ? "text-green-600" : "text-red-600"
+                  }`}
+                >
                   {formatCurrency(metrics.totalMTMPL)}
                 </td>
               </tr>
