@@ -1,34 +1,37 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
-import AdminDashboard from "@/components/AdminDashboard";
+import AdminLayout, { AdminSection } from "@/components/admin/AdminLayout";
+import UsersSection from "@/components/admin/UsersSection";
+import StocksSection from "@/components/admin/StocksSection";
+import JobsSection from "@/components/admin/JobsSection";
 
 // Ensure this route is always treated as dynamic (no static optimization)
 export const dynamic = "force-dynamic";
 
 export default function AdminPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { user, isInitialized } = useSelector((state: RootState) => state.auth);
+  const [activeSection, setActiveSection] = useState<AdminSection>("users");
 
   useEffect(() => {
-    // Redirect if not authenticated
-    if (!isAuthenticated) {
-      router.push("/auth/login?redirect=/admin");
+    // Wait for auth initialization to complete
+    if (!isInitialized) {
       return;
     }
 
-    // Redirect if not admin
-    if (user && user.role?.toLowerCase() !== "admin") {
+    // If no user or user is not admin, redirect to home
+    if (!user || user.role?.toLowerCase() !== "admin") {
       router.push("/");
       return;
     }
-  }, [user, isAuthenticated, router]);
+  }, [user, isInitialized, router]);
 
-  // Show loading state while checking authentication
-  if (!isAuthenticated || !user) {
+  // Show loading state while auth is initializing
+  if (!isInitialized || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -39,21 +42,27 @@ export default function AdminPage() {
     );
   }
 
-  // Show unauthorized message if not admin
+  // If not admin, this will never render because useEffect will redirect
   if (user.role?.toLowerCase() !== "admin") {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600">You don't have permission to access this page.</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
+  const renderSection = () => {
+    switch (activeSection) {
+      case "users":
+        return <UsersSection />;
+      case "stocks":
+        return <StocksSection />;
+      case "jobs":
+        return <JobsSection />;
+      default:
+        return <UsersSection />;
+    }
+  };
+
   return (
-    <>
-      <AdminDashboard />
-    </>
+    <AdminLayout activeSection={activeSection} onSectionChange={setActiveSection}>
+      {renderSection()}
+    </AdminLayout>
   );
 }

@@ -238,21 +238,12 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Logo size="md" linkTo="/dashboard" />
-          </div>
-          <div className="flex items-center gap-3">
-            <Cog6ToothIcon className="h-6 w-6 text-gray-700" />
-            <h1 className="text-xl font-semibold text-gray-900">Admin Panel</h1>
-            <span className="text-xs text-gray-500">
-              (temporary, will be restricted later)
-            </span>
-          </div>
-        </div>
-      </header>
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
+          <p className="text-gray-600 mt-1">Manage system settings and data</p>
+        </div>
+        
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <div>

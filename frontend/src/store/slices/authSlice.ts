@@ -22,6 +22,7 @@ export interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
 }
 
@@ -31,6 +32,7 @@ const initialState: AuthState = {
   refreshToken: null,
   isAuthenticated: false,
   isLoading: false,
+  isInitialized: false,
   error: null,
 };
 
@@ -124,6 +126,7 @@ const authSlice = createSlice({
       state.token = null;
       state.refreshToken = null;
       state.isAuthenticated = false;
+      state.isInitialized = true;
       state.error = null;
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
@@ -135,6 +138,9 @@ const authSlice = createSlice({
       state.token = action.payload.access_token;
       state.refreshToken = action.payload.refresh_token;
       state.isAuthenticated = true;
+    },
+    setInitialized: (state) => {
+      state.isInitialized = true;
     },
   },
   extraReducers: (builder) => {
@@ -180,12 +186,14 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = action.payload;
         state.isAuthenticated = true;
+        state.isInitialized = true;
         state.error = null;
       })
       .addCase(getCurrentUser.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
         state.isAuthenticated = false;
+        state.isInitialized = true;
       })
 
       // Refresh token
@@ -203,5 +211,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError, setTokens } = authSlice.actions;
+export const { logout, clearError, setTokens, setInitialized } = authSlice.actions;
 export default authSlice.reducer;

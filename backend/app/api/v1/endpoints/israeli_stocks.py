@@ -9,6 +9,7 @@ from typing import List, Dict, Optional
 import tempfile
 import os
 import shutil
+import csv
 from datetime import datetime
 from sqlalchemy import create_engine, text
 
@@ -731,3 +732,86 @@ async def get_stocks_with_logos(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving stocks with logos: {str(e)}")
+
+@router.post("/import-stocks-from-csv")
+async def import_stocks_from_csv(
+    current_user: User = Depends(get_admin_user)
+):
+    """
+    Import Israeli stocks from IsraeliStocks.csv file
+    Admin only endpoint
+    """
+    # Get the backend root directory
+    backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+    csv_path = os.path.join(backend_root, "data", "IsraeliStocks.csv")
+    
+    if not os.path.exists(csv_path):
+        raise HTTPException(status_code=404, detail=f"CSV file not found at {csv_path}")
+    
+    try:
+        imported = 0
+        skipped = 0
+        errors = []
+        
+        with open(csv_path, 'r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            
+            with engine.connect() as conn:
+                for row in reader:
+                    try:
+                        security_no = row['security_no']
+                        symbol = row['symbol']
+                        name = row['name']
+                        logo_svg = row.get('logo_svg', '')
+                        logo_url = row.get('logo_url', '')
+                        
+                        # Check if stock already exists
+                        check_result = conn.execute(
+                            text('SELECT id FROM "IsraeliStocks" WHERE security_no = :security_no'),
+                            {"security_no": security_no}
+                        )
+                        existing = check_result.fetchone()
+                        
+                        if existing:
+                            skipped += 1
+                            continue
+                        
+                        # Insert new stock
+                        conn.execute(
+                            text('''
+                                INSERT INTO "IsraeliStocks" 
+                                (name, symbol, security_no, index_name, is_active, logo_svg, logo_url, created_at, updated_at)
+                                VALUES (:name, :symbol, :security_no, :index_name, :is_active, :logo_svg, :logo_url, NOW(), NOW())
+                            '''),
+                            {
+                                "name": name.strip(),
+                                "symbol": symbol.strip(),
+                                "security_no": security_no,
+                                "index_name": "TA-125",
+                                "is_active": True,
+                                "logo_svg": logo_svg if logo_svg else None,
+                                "logo_url": logo_url if logo_url else None
+                            }
+                        )
+                        imported += 1
+                        
+                    except Exception as e:
+                        errors.append(f"Error importing {symbol}: {str(e)}")
+                        
+                conn.commit()
+        
+        # Count total stocks in database
+        with engine.connect() as conn:
+            result = conn.execute(text('SELECT COUNT(*) FROM "IsraeliStocks"'))
+            total_count = result.scalar()
+        
+        return {
+            "message": f"Successfully imported {imported} stocks from CSV",
+            "imported": imported,
+            "skipped": skipped,
+            "total_in_db": total_count,
+            "errors": errors if errors else None
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error importing stocks: {str(e)}")

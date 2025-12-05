@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "@/store";
-import { getCurrentUser, setTokens } from "@/store/slices/authSlice";
+import { getCurrentUser, setTokens, setInitialized } from "@/store/slices/authSlice";
 
 export default function AuthInitializer({
   children,
@@ -19,8 +19,6 @@ export default function AuthInitializer({
       const refreshToken = localStorage.getItem("refreshToken");
 
       if (token && refreshToken) {
-        console.log("Found existing tokens, initializing auth...");
-
         // Set tokens in Redux store
         dispatch(
           setTokens({
@@ -32,23 +30,16 @@ export default function AuthInitializer({
         // Try to fetch current user data
         try {
           const result = await dispatch(getCurrentUser());
-          if (getCurrentUser.fulfilled.match(result)) {
-            console.log(
-              "Auth initialized successfully with user:",
-              result.payload
-            );
-          } else {
-            console.log("Failed to fetch user data, clearing tokens");
+          if (!getCurrentUser.fulfilled.match(result)) {
             localStorage.removeItem("token");
             localStorage.removeItem("refreshToken");
           }
         } catch (error) {
-          console.error("Error initializing auth:", error);
           localStorage.removeItem("token");
           localStorage.removeItem("refreshToken");
         }
       } else {
-        console.log("No existing tokens found");
+        dispatch(setInitialized());
       }
     };
 
