@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
+from app.models.enums import UserRole
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -92,4 +93,57 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Inactive user"
         )
+    return current_user
+
+def require_role(required_role: UserRole):
+    """
+    Dependency to require a specific role or higher.
+    Role hierarchy: ADMIN > USER > VIEWER
+    """
+    def role_checker(current_user: User = Depends(get_current_active_user)) -> User:
+        role_hierarchy = {
+            UserRole.VIEWER: 0,
+            UserRole.USER: 1,
+            UserRole.ADMIN: 2
+        }
+        
+        user_role_level = role_hierarchy.get(current_user.role, 0)
+        required_role_level = role_hierarchy.get(required_role, 0)
+        
+        if user_role_level < required_role_level:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient permissions. Required role: {required_role.value}"
+            )
+        
+        return current_user
+    
+    return role_checker
+
+def get_admin_user(current_user: User = Depends(get_current_active_user)) -> User:
+    """Dependency to require admin role"""
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Admin access required. Current role: {current_user.role.value}"
+        )
+    return current_user
+
+def get_user_or_admin(current_user: User = Depends(get_current_active_user)) -> User:
+    """Dependency to require user or admin role"""
+    role_hierarchy = {
+        UserRole.VIEWER: 0,
+        UserRole.USER: 1,
+        UserRole.ADMIN: 2
+    }
+    
+    user_role_level = role_hierarchy.get(current_user.role, 0)
+    required_role_level = role_hierarchy.get(UserRole.USER, 1)
+    
+    if user_role_level < required_role_level:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Insufficient permissions. Required role: USER or higher"
+        )
+    
     return current_user

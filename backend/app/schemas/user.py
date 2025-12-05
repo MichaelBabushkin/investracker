@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 from datetime import datetime
+from app.models.enums import UserRole
 
 # User Registration
 class UserCreate(BaseModel):
@@ -22,6 +23,7 @@ class UserResponse(BaseModel):
     email: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    role: UserRole = UserRole.USER
     is_active: bool
     is_verified: bool
     phone: Optional[str] = None
@@ -32,6 +34,7 @@ class UserResponse(BaseModel):
     
     class Config:
         from_attributes = True
+        use_enum_values = True  # This will use the enum value (string) instead of enum name
 
 # User Update
 class UserUpdate(BaseModel):
@@ -58,8 +61,34 @@ class TokenRefresh(BaseModel):
 # Password Reset Request
 class PasswordResetRequest(BaseModel):
     email: EmailStr
-
 # Password Reset
 class PasswordReset(BaseModel):
     token: str
+    new_password: str = Field(..., min_length=8)
+
+# Admin: Update User Role
+class UserRoleUpdate(BaseModel):
+    user_id: str
+    role: UserRole
+    
+    @field_validator('role')
+    @classmethod
+    def validate_role(cls, v):
+        if not UserRole.is_valid_role(v.value):
+            raise ValueError(f'Invalid role. Must be one of: {UserRole.get_all_roles()}')
+        return v
+
+# Admin: User List Response
+class UserListResponse(BaseModel):
+    id: str
+    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    role: UserRole
+    is_active: bool
+    is_verified: bool
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
     new_password: str = Field(..., min_length=8)

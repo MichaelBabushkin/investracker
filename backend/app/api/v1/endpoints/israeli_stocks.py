@@ -15,6 +15,7 @@ from sqlalchemy import create_engine, text
 from app.services.israeli_stock_service import IsraeliStockService
 from app.services.logo_crawler_service import LogoCrawlerService, crawl_all_logos, crawl_logo_for_stock
 from app.core.deps import get_current_user
+from app.core.auth import get_admin_user
 from app.core.database import engine
 from app.models.user import User
 
@@ -392,10 +393,10 @@ async def delete_transaction(
 @router.post("/crawl-logos")
 async def crawl_all_stock_logos(
     batch_size: int = 5,
-    current_user: User = Depends(get_current_user)
+    current_admin: User = Depends(get_admin_user)
 ):
     """
-    Crawl logos for all stocks that don't have them
+    Crawl logos for all stocks that don't have them (Admin only)
     """
     try:
         result = await crawl_all_logos(batch_size)
@@ -412,10 +413,10 @@ async def crawl_all_stock_logos(
 @router.post("/crawl-logo/{stock_name}")
 async def crawl_single_stock_logo(
     stock_name: str,
-    current_user: User = Depends(get_current_user)
+    current_admin: User = Depends(get_admin_user)
 ):
     """
-    Crawl logo for a specific stock by name
+    Crawl logo for a specific stock by name (Admin only)
     Perfect for admin panel - allows manual logo fetching for individual stocks
     """
     try:
@@ -480,10 +481,10 @@ async def crawl_single_stock_logo(
 async def crawl_tradingview_logo_urls(
     batch_size: int = 5,
     missing_only: bool = True,
-    current_user: User = Depends(get_current_user)
+    current_admin: User = Depends(get_admin_user)
 ):
     """
-    Crawl TradingView symbol pages for many stocks and extract the company logo URL (logo_url).
+    Crawl TradingView symbol pages for many stocks and extract the company logo URL (Admin only)
     Does not fetch/store SVG content, only the URL reference.
     """
     try:
@@ -496,10 +497,10 @@ async def crawl_tradingview_logo_urls(
 @router.post("/crawl-tradingview-logo-url/{symbol}")
 async def crawl_tradingview_logo_url_for_symbol(
     symbol: str,
-    current_user: User = Depends(get_current_user)
+    current_admin: User = Depends(get_admin_user)
 ):
     """
-    Crawl TradingView symbol page for a single TASE symbol and update its logo_url.
+    Crawl TradingView symbol page for a single TASE symbol and update its logo_url (Admin only)
     """
     try:
         async with LogoCrawlerService() as crawler:
@@ -514,10 +515,10 @@ async def crawl_tradingview_logo_url_for_symbol(
 async def fetch_logo_svg_from_url_bulk(
     batch_size: int = 5,
     only_missing: bool = True,
-    current_user: User = Depends(get_current_user)
+    current_admin: User = Depends(get_admin_user)
 ):
     """
-    For stocks with logo_url set, fetch the SVG and store it into logo_svg.
+    For stocks with logo_url set, fetch the SVG and store it into logo_svg (Admin only)
     If only_missing=True, process only stocks where logo_svg is NULL/empty.
     """
     try:
@@ -530,10 +531,10 @@ async def fetch_logo_svg_from_url_bulk(
 @router.post("/fetch-logo-svg-from-url/{stock_id}")
 async def fetch_logo_svg_from_url_for_stock(
     stock_id: int,
-    current_user: User = Depends(get_current_user)
+    current_admin: User = Depends(get_admin_user)
 ):
     """
-    Populate logo_svg for a single stock by its ID using stored logo_url.
+    Populate logo_svg for a single stock by its ID using stored logo_url (Admin only)
     """
     try:
         async with LogoCrawlerService() as crawler:
@@ -550,10 +551,10 @@ async def fetch_logo_svg_from_url_for_stock(
 async def update_stock_logo_manual(
     stock_id: int,
     logo_data: dict,
-    current_user: User = Depends(get_current_user)
+    current_admin: User = Depends(get_admin_user)
 ):
     """
-    Manually update a stock's logo with custom SVG content
+    Manually update a stock's logo with custom SVG content (Admin only)
     Perfect for admin panel when automatic crawling fails
 
     Body: {"svg_content": "<svg>...</svg>", "logo_url": "https://..."}
@@ -619,10 +620,10 @@ async def update_stock_logo_manual(
 @router.delete("/stocks/{stock_id}/logo")
 async def remove_stock_logo(
     stock_id: int,
-    current_user: User = Depends(get_current_user)
+    current_admin: User = Depends(get_admin_user)
 ):
     """
-    Remove a stock's logo (set to NULL)
+    Remove a stock's logo (set to NULL) (Admin only)
     Useful for admin panel to clean up bad logos
     """
     try:
