@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
-import AdminDashboard from "@/components/AdminDashboard";
+import AdminLayout, { AdminSection } from "@/components/admin/AdminLayout";
+import UsersSection from "@/components/admin/UsersSection";
+import StocksSection from "@/components/admin/StocksSection";
+import JobsSection from "@/components/admin/JobsSection";
 
 // Ensure this route is always treated as dynamic (no static optimization)
 export const dynamic = "force-dynamic";
@@ -12,6 +15,7 @@ export const dynamic = "force-dynamic";
 export default function AdminPage() {
   const router = useRouter();
   const { user, isInitialized } = useSelector((state: RootState) => state.auth);
+  const [activeSection, setActiveSection] = useState<AdminSection>("users");
 
   useEffect(() => {
     // Wait for auth initialization to complete
@@ -43,9 +47,22 @@ export default function AdminPage() {
     return null;
   }
 
+  const renderSection = () => {
+    switch (activeSection) {
+      case "users":
+        return <UsersSection />;
+      case "stocks":
+        return <StocksSection />;
+      case "jobs":
+        return <JobsSection />;
+      default:
+        return <UsersSection />;
+    }
+  };
+
   return (
-    <>
-      <AdminDashboard />
-    </>
+    <AdminLayout activeSection={activeSection} onSectionChange={setActiveSection}>
+      {renderSection()}
+    </AdminLayout>
   );
 }
