@@ -137,6 +137,8 @@ const StocksSection: React.FC = () => {
             World stocks management interface coming soon
           </div>
         )}
+
+        {activeTab === "logos" && (
           <div className="space-y-6">
             {/* Logo Crawler Section */}
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
@@ -270,13 +272,7 @@ const StocksSection: React.FC = () => {
           </div>
         )}
 
-        {activeTab === "israeli" && (
-          <div className="text-center py-12 text-gray-500">
-            Israeli stocks management interface coming soon
-          </div>
-        )}
-
-        {activeTab === "logos" && (
+        {activeTab === "metadata" && (
           <div className="text-center py-12 text-gray-500">
             Metadata editor interface coming soon
           </div>

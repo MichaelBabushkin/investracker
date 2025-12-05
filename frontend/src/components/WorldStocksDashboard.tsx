@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   CloudArrowUpIcon,
   BuildingOfficeIcon,
@@ -28,11 +28,7 @@ export default function WorldStocksDashboard() {
     number | undefined
   >();
 
-  useEffect(() => {
-    fetchAccounts();
-  }, [refreshTrigger]);
-
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     try {
       const data = await worldStocksAPI.getAccounts();
       setAccounts(data);
@@ -43,7 +39,11 @@ export default function WorldStocksDashboard() {
     } catch (err) {
       console.error("Failed to fetch accounts:", err);
     }
-  };
+  }, [selectedAccountId]);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts, refreshTrigger]);
 
   const handleUploadComplete = (results: WorldStockUploadResult[]) => {
     // Trigger refresh of all components
