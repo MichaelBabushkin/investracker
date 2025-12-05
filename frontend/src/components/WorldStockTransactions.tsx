@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ArrowRightIcon,
   CalendarIcon,
@@ -39,7 +39,7 @@ export default function WorldStockTransactions({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -54,11 +54,11 @@ export default function WorldStockTransactions({
     } finally {
       setLoading(false);
     }
-  };
+  }, [accountId, symbol]);
 
   useEffect(() => {
     fetchTransactions();
-  }, [refreshTrigger, accountId, symbol]);
+  }, [fetchTransactions, refreshTrigger]);
 
   const formatCurrency = (amount?: number | string) => {
     if (amount === null || amount === undefined) return "$0.00";

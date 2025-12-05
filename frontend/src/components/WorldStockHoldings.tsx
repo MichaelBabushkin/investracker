@@ -36,7 +36,7 @@ export default function WorldStockHoldings({
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "chart">("table");
 
-  const fetchHoldings = async () => {
+  const fetchHoldings = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -49,11 +49,11 @@ export default function WorldStockHoldings({
     } finally {
       setLoading(false);
     }
-  };
+  }, [accountId]);
 
   useEffect(() => {
     fetchHoldings();
-  }, [refreshTrigger, accountId]);
+  }, [fetchHoldings, refreshTrigger]);
 
   const handleDeleteHolding = async (holdingId: number) => {
     if (!confirm("Are you sure you want to delete this holding?")) return;

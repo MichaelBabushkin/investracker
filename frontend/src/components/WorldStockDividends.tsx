@@ -36,7 +36,7 @@ export default function WorldStockDividends({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDividends = async () => {
+  const fetchDividends = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -49,11 +49,11 @@ export default function WorldStockDividends({
     } finally {
       setLoading(false);
     }
-  };
+  }, [accountId, symbol]);
 
   useEffect(() => {
     fetchDividends();
-  }, [refreshTrigger, accountId, symbol]);
+  }, [fetchDividends, refreshTrigger]);
 
   const formatCurrency = (amount?: number | string) => {
     const num = typeof amount === "string" ? parseFloat(amount) : amount;
