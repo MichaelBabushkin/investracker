@@ -431,6 +431,11 @@ export const israeliStocksAPI = {
     );
     return response.data;
   },
+
+  importStocksFromCSV: async () => {
+    const response = await api.post("/israeli-stocks/import-stocks-from-csv");
+    return response.data;
+  },
 };
 
 // World Stocks API

@@ -6,12 +6,40 @@ import {
   PhotoIcon,
   PencilSquareIcon,
   TableCellsIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
+import { israeliStocksAPI } from "@/services/api";
+import toast from "react-hot-toast";
 
 const StocksSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
     "israeli" | "world" | "logos" | "metadata"
-  >("logos");
+  >("israeli");
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportStocks = async () => {
+    if (!confirm("This will import all Israeli stocks from the CSV file. Existing stocks will be skipped. Continue?")) {
+      return;
+    }
+
+    setIsImporting(true);
+    const loadingToast = toast.loading("Importing Israeli stocks...");
+
+    try {
+      const result = await israeliStocksAPI.importStocksFromCSV();
+      toast.success(
+        `Successfully imported ${result.imported} stocks! (${result.skipped} already existed)`,
+        { id: loadingToast }
+      );
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.detail || "Failed to import stocks",
+        { id: loadingToast }
+      );
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const tabs = [
     { id: "israeli" as const, name: "Israeli Stocks", icon: TableCellsIcon },
@@ -55,7 +83,60 @@ const StocksSection: React.FC = () => {
 
       {/* Content */}
       <div>
-        {activeTab === "logos" && (
+        {activeTab === "israeli" && (
+          <div className="space-y-6">
+            {/* Import Israeli Stocks */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Import Israeli Stocks from CSV
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Import all Israeli stocks from the IsraeliStocks.csv file
+                  </p>
+                </div>
+                <ArrowDownTrayIcon className="w-5 h-5 text-blue-600" />
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-white rounded-lg p-4 border border-blue-100">
+                  <h4 className="font-medium text-gray-900 mb-2">What this does:</h4>
+                  <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+                    <li>Imports stocks with security numbers, symbols, and names</li>
+                    <li>Includes logo SVG and logo URL data when available</li>
+                    <li>Skips stocks that already exist in the database</li>
+                    <li>Safe to run multiple times</li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={handleImportStocks}
+                  disabled={isImporting}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isImporting ? (
+                    <>
+                      <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDownTrayIcon className="w-5 h-5" />
+                      Import Stocks from CSV
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "world" && (
+          <div className="text-center py-12 text-gray-500">
+            World stocks management interface coming soon
+          </div>
+        )}
           <div className="space-y-6">
             {/* Logo Crawler Section */}
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
@@ -195,13 +276,7 @@ const StocksSection: React.FC = () => {
           </div>
         )}
 
-        {activeTab === "world" && (
-          <div className="text-center py-12 text-gray-500">
-            World stocks management interface coming soon
-          </div>
-        )}
-
-        {activeTab === "metadata" && (
+        {activeTab === "logos" && (
           <div className="text-center py-12 text-gray-500">
             Metadata editor interface coming soon
           </div>
