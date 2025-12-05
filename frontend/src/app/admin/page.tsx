@@ -11,24 +11,23 @@ export const dynamic = "force-dynamic";
 
 export default function AdminPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { user, isInitialized } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
-    // Redirect if not authenticated
-    if (!isAuthenticated) {
-      router.push("/auth/login?redirect=/admin");
+    // Wait for auth initialization to complete
+    if (!isInitialized) {
       return;
     }
 
-    // Redirect if not admin
-    if (user && user.role?.toLowerCase() !== "admin") {
+    // If no user or user is not admin, redirect to home
+    if (!user || user.role?.toLowerCase() !== "admin") {
       router.push("/");
       return;
     }
-  }, [user, isAuthenticated, router]);
+  }, [user, isInitialized, router]);
 
-  // Show loading state while checking authentication
-  if (!isAuthenticated || !user) {
+  // Show loading state while auth is initializing
+  if (!isInitialized || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -39,16 +38,9 @@ export default function AdminPage() {
     );
   }
 
-  // Show unauthorized message if not admin
+  // If not admin, this will never render because useEffect will redirect
   if (user.role?.toLowerCase() !== "admin") {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600">You don't have permission to access this page.</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

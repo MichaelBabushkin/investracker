@@ -7,12 +7,12 @@ import LandingPage from "@/components/LandingPage";
 import Dashboard from "@/components/Dashboard";
 
 export default function HomePage() {
-  const { isAuthenticated, user, isLoading } = useSelector(
+  const { isAuthenticated, user, isInitialized } = useSelector(
     (state: RootState) => state.auth
   );
 
-  // Show loading state while checking authentication
-  if (isLoading) {
+  // Show loading state while auth is initializing
+  if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
