@@ -8,7 +8,7 @@ import {
   CurrencyDollarIcon,
   ChartBarIcon,
 } from "@heroicons/react/24/outline";
-import IsraeliStockUploader from "./IsraeliStockUploader";
+import BrokerUploader from "./BrokerUploader";
 import IsraeliStockHoldings from "./IsraeliStockHoldings";
 import IsraeliStockTransactions from "./IsraeliStockTransactions";
 import IsraeliStockDividends from "./IsraeliStockDividends";
@@ -131,12 +131,12 @@ export default function IsraeliStocksDashboard() {
                   Upload Investment Reports
                 </h2>
                 <p className="text-gray-600">
-                  Upload PDF reports from Israeli brokers to automatically
+                  Select your Israeli broker and upload PDF investment reports to automatically
                   extract and analyze your stock holdings, transactions, and
                   dividends. Supports both TA-125 and SME-60 index stocks.
                 </p>
               </div>
-              <IsraeliStockUploader onUploadComplete={handleUploadComplete} />
+              <BrokerUploader onUploadComplete={handleUploadComplete} />
             </div>
           )}
 
