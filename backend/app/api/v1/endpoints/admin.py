@@ -3,12 +3,13 @@ Admin API endpoints for user and system management
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import List, Optional
 from datetime import datetime
 import subprocess
 import os
 
-from app.core.database import get_db
+from app.core.database import get_db, engine
 from app.core.auth import get_admin_user
 from app.models.user import User
 from app.models.enums import UserRole
@@ -225,6 +226,83 @@ def get_system_stats(
             "viewer": viewer_users
         }
     }
+
+
+@router.delete("/users/{email}/stock-data")
+def reset_user_stock_data(
+    email: str,
+    current_admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete all Israeli stock data for a specific user by email (Admin only)
+    
+    This removes:
+    - Israeli stock holdings
+    - Israeli stock transactions
+    - Israeli dividends
+    
+    Does NOT remove:
+    - User account
+    - World stock data
+    - Portfolios
+    """
+    # Find user by email
+    user = db.query(User).filter(User.email == email).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with email '{email}' not found"
+        )
+    
+    user_id = str(user.id)
+    
+    try:
+        # Delete Israeli stock data using raw SQL for efficiency
+        with engine.connect() as conn:
+            # Delete holdings
+            holdings_result = conn.execute(
+                text('DELETE FROM "IsraeliStockHolding" WHERE user_id = :user_id'),
+                {"user_id": user_id}
+            )
+            holdings_deleted = holdings_result.rowcount
+            
+            # Delete transactions
+            transactions_result = conn.execute(
+                text('DELETE FROM "IsraeliStockTransaction" WHERE user_id = :user_id'),
+                {"user_id": user_id}
+            )
+            transactions_deleted = transactions_result.rowcount
+            
+            # Delete dividends
+            dividends_result = conn.execute(
+                text('DELETE FROM "IsraeliDividend" WHERE user_id = :user_id'),
+                {"user_id": user_id}
+            )
+            dividends_deleted = dividends_result.rowcount
+            
+            # Commit the transaction
+            conn.commit()
+        
+        return {
+            "success": True,
+            "message": f"Successfully deleted all Israeli stock data for user {email}",
+            "user_id": user_id,
+            "user_email": email,
+            "deleted": {
+                "holdings": holdings_deleted,
+                "transactions": transactions_deleted,
+                "dividends": dividends_deleted,
+                "total": holdings_deleted + transactions_deleted + dividends_deleted
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting stock data: {str(e)}"
+        )
 
 
 @router.post("/run-migrations")

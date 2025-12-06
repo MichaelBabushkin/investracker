@@ -534,4 +534,22 @@ export const worldStocksAPI = {
   },
 };
 
+// Admin API
+export const adminAPI = {
+  resetUserStockData: async (email: string) => {
+    const response = await api.delete(`/admin/users/${encodeURIComponent(email)}/stock-data`);
+    return response.data;
+  },
+
+  getUsers: async (skip = 0, limit = 100) => {
+    const response = await api.get(`/admin/users?skip=${skip}&limit=${limit}`);
+    return response.data;
+  },
+
+  getSystemStats: async () => {
+    const response = await api.get("/admin/stats");
+    return response.data;
+  },
+};
+
 export default api;
