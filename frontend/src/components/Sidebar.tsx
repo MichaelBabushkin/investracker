@@ -48,7 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(
-    new Set(["Portfolio"])
+    new Set([""])
   );
 
   const handleLogout = () => {
@@ -178,7 +178,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
             />
           </div>
         ) : (
-          <span className="text-xl font-bold">IT</span>
+          <Image
+            src="/images/small_logo.svg"
+            alt="Investracker"
+            width={32}
+            height={32}
+            className="w-8 h-8"
+          />
         )}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
