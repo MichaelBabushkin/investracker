@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import BrokerUploadCard from "./BrokerUploadCard";
 import { UploadResult } from "@/types/israeli-stocks";
+import { israeliStocksAPI } from "@/services/api";
 
 interface BrokerUploaderProps {
   onUploadComplete: (results: UploadResult[]) => void;
@@ -98,38 +99,20 @@ export default function BrokerUploader({
       return;
     }
 
-    const formData = new FormData();
-    Array.from(files).forEach((file) => {
-      formData.append("files", file);
-    });
-
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/israeli-stocks/upload`,
-        {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Upload failed");
-      }
-
-      const results: UploadResult[] = await response.json();
+      const filesArray = Array.from(files);
+      const results = await israeliStocksAPI.upload(filesArray, brokerId);
 
       const totalHoldings = results.reduce(
-        (sum, r) => sum + r.holdings_saved,
+        (sum: number, r: any) => sum + (r.holdings_saved || 0),
         0
       );
       const totalTransactions = results.reduce(
-        (sum, r) => sum + r.transactions_saved,
+        (sum: number, r: any) => sum + (r.transactions_saved || 0),
         0
       );
       const totalDividends = results.reduce(
-        (sum, r) => sum + r.dividends_saved,
+        (sum: number, r: any) => sum + (r.dividends_saved || 0),
         0
       );
 
@@ -138,9 +121,11 @@ export default function BrokerUploader({
       );
 
       onUploadComplete(results);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Upload error:", err);
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(
+        err.response?.data?.detail || err.message || "Upload failed"
+      );
     } finally {
       setUploading(null);
     }

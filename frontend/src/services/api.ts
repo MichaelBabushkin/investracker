@@ -267,6 +267,24 @@ export const reportsAPI = {
 
 // Israeli Stocks API
 export const israeliStocksAPI = {
+  upload: async (files: File[], brokerId: string = "excellence") => {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append("files", file);
+    });
+
+    const response = await api.post(
+      `/israeli-stocks/upload?broker_id=${brokerId}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    return response.data;
+  },
+
   uploadPDF: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);

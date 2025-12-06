@@ -3,7 +3,7 @@ Israeli Stocks API Endpoints
 Handles PDF upload, processing, and analysis for Israeli stock investment reports
 """
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks, Query
 from fastapi.responses import JSONResponse
 from typing import List, Dict, Optional
 import tempfile
@@ -21,6 +21,86 @@ from app.core.database import engine
 from app.models.user import User
 
 router = APIRouter()
+
+@router.get("/test")
+async def test_endpoint():
+    """Simple test endpoint to verify routing works"""
+    return {"status": "ok", "message": "Israeli stocks router is working"}
+
+@router.post("/upload")
+async def upload_reports(
+    files: List[UploadFile] = File(...),
+    broker_id: str = Query("excellence", description="Broker ID (excellence, meitav, ibi, etc.)"),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Unified upload endpoint for all Israeli brokers
+    Accepts multiple PDF files and processes them based on broker type
+    """
+    print(f"DEBUG: Upload endpoint called!")
+    print(f"DEBUG: broker_id = {broker_id}")
+    print(f"DEBUG: files = {[f.filename for f in files]}")
+    print(f"DEBUG: current_user = {current_user.email if current_user else 'None'}")
+    
+    # Validate broker support
+    supported_brokers = ["excellence"]
+    if broker_id not in supported_brokers:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Broker '{broker_id}' is not yet supported. Currently supported: {', '.join(supported_brokers)}"
+        )
+    
+    results = []
+    
+    for file in files:
+        if not file.filename.endswith('.pdf'):
+            raise HTTPException(
+                status_code=400,
+                detail=f"File '{file.filename}' must be a PDF"
+            )
+        
+        # Create temporary file
+        temp_dir = tempfile.mkdtemp()
+        temp_path = os.path.join(temp_dir, file.filename)
+        
+        try:
+            # Save uploaded file
+            with open(temp_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            
+            # Initialize service (currently only Excellence)
+            service = IsraeliStockService()
+            
+            # Process PDF
+            result = service.analyze_pdf_for_israeli_stocks(temp_path, current_user.id)
+            
+            results.append({
+                "message": "PDF processed successfully",
+                "filename": file.filename,
+                "status": "completed",
+                "broker": broker_id,
+                "holdings_found": result.get('holdings_found', 0),
+                "holdings_saved": result.get('holdings_saved', 0),
+                "transactions_found": result.get('transactions_found', 0),
+                "transactions_saved": result.get('transactions_saved', 0),
+                "dividends_found": result.get('dividends_found', 0),
+                "dividends_saved": result.get('dividends_saved', 0),
+                "holding_date": result.get('holding_date')
+            })
+            
+        except Exception as e:
+            results.append({
+                "message": f"Error processing {file.filename}",
+                "filename": file.filename,
+                "status": "failed",
+                "error": str(e)
+            })
+        finally:
+            # Clean up temp files
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+    
+    return results
 
 @router.post("/upload-pdf")
 async def upload_and_analyze_pdf(
