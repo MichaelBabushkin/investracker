@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store";
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
   UserPlusIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
+import { adminAPI } from "@/services/api";
 
 interface User {
   id: string;
@@ -19,10 +23,52 @@ interface User {
 }
 
 const UsersSection: React.FC = () => {
+  const { user: currentUser } = useSelector((state: RootState) => state.auth);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [resetEmail, setResetEmail] = useState(currentUser?.email || "");
+  const [resetting, setResetting] = useState(false);
+  const [resetResult, setResetResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+
+  const handleResetStockData = async () => {
+    if (!resetEmail || !resetEmail.includes("@")) {
+      setResetResult({
+        success: false,
+        message: "Please enter a valid email address",
+      });
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ALL Israeli stock data for ${resetEmail}?\n\nThis will delete:\n- All holdings\n- All transactions\n- All dividends\n\nThis action cannot be undone!`
+    );
+
+    if (!confirmed) return;
+
+    setResetting(true);
+    setResetResult(null);
+
+    try {
+      const result = await adminAPI.resetUserStockData(resetEmail);
+      setResetResult({
+        success: true,
+        message: `Successfully deleted ${result.deleted.total} records (${result.deleted.holdings} holdings, ${result.deleted.transactions} transactions, ${result.deleted.dividends} dividends)`,
+      });
+    } catch (error: any) {
+      setResetResult({
+        success: false,
+        message:
+          error.response?.data?.detail || "Failed to reset stock data",
+      });
+    } finally {
+      setResetting(false);
+    }
+  };
 
   return (
     <div className="p-6">
@@ -38,6 +84,66 @@ const UsersSection: React.FC = () => {
           <UserPlusIcon className="w-5 h-5" />
           Add User
         </button>
+      </div>
+
+      {/* Reset User Data Section */}
+      <div className="mb-8 bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-200 rounded-lg p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0">
+            <TrashIcon className="w-6 h-6 text-red-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Reset User Stock Data
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Delete all Israeli stock data (holdings, transactions, dividends) for a specific user. 
+              This is useful for development and testing. User account will NOT be deleted.
+            </p>
+            
+            <div className="flex gap-3 items-start">
+              <div className="flex-1">
+                <input
+                  type="email"
+                  placeholder="user@example.com"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className="w-full px-4 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  disabled={resetting}
+                />
+              </div>
+              <button
+                onClick={handleResetStockData}
+                disabled={resetting || !resetEmail}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {resetting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <TrashIcon className="w-4 h-4" />
+                    Reset Data
+                  </>
+                )}
+              </button>
+            </div>
+
+            {resetResult && (
+              <div
+                className={`mt-4 p-4 rounded-lg ${
+                  resetResult.success
+                    ? "bg-green-100 border border-green-300 text-green-800"
+                    : "bg-red-100 border border-red-300 text-red-800"
+                }`}
+              >
+                <p className="text-sm font-medium">{resetResult.message}</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Filters */}

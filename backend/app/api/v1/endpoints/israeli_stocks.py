@@ -3,9 +3,10 @@ Israeli Stocks API Endpoints
 Handles PDF upload, processing, and analysis for Israeli stock investment reports
 """
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks, Query
 from fastapi.responses import JSONResponse
 from typing import List, Dict, Optional
+from sqlalchemy.orm import Session
 import tempfile
 import os
 import shutil
@@ -17,10 +18,99 @@ from app.services.israeli_stock_service import IsraeliStockService
 from app.services.logo_crawler_service import LogoCrawlerService, crawl_all_logos, crawl_logo_for_stock
 from app.core.deps import get_current_user
 from app.core.auth import get_admin_user
-from app.core.database import engine
+from app.core.database import engine, get_db
 from app.models.user import User
+from app.models.pending_transaction import PendingIsraeliTransaction
 
 router = APIRouter()
+
+@router.get("/test")
+async def test_endpoint():
+    """Simple test endpoint to verify routing works"""
+    return {"status": "ok", "message": "Israeli stocks router is working"}
+
+@router.post("/upload")
+async def upload_reports(
+    files: List[UploadFile] = File(...),
+    broker_id: str = Query("excellence", description="Broker ID (excellence, meitav, ibi, etc.)"),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Unified upload endpoint for all Israeli brokers
+    Accepts multiple PDF files and processes them based on broker type
+    """
+    print(f"DEBUG: Upload endpoint called!")
+    print(f"DEBUG: broker_id = {broker_id}")
+    print(f"DEBUG: files = {[f.filename for f in files]}")
+    print(f"DEBUG: current_user = {current_user.email if current_user else 'None'}")
+    
+    # Validate broker support
+    supported_brokers = ["excellence"]
+    if broker_id not in supported_brokers:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Broker '{broker_id}' is not yet supported. Currently supported: {', '.join(supported_brokers)}"
+        )
+    
+    results = []
+    
+    for file in files:
+        if not file.filename.endswith('.pdf'):
+            raise HTTPException(
+                status_code=400,
+                detail=f"File '{file.filename}' must be a PDF"
+            )
+        
+        # Create temporary file
+        temp_dir = tempfile.mkdtemp()
+        temp_path = os.path.join(temp_dir, file.filename)
+        
+        try:
+            # Save uploaded file
+            with open(temp_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            
+            # Initialize service (currently only Excellence)
+            service = IsraeliStockService()
+            
+            # Process PDF
+            result = service.analyze_pdf_for_israeli_stocks(temp_path, current_user.id)
+            
+            if result.get('error'):
+                results.append({
+                    "message": f"Error: {result['error']}",
+                    "filename": file.filename,
+                    "status": "failed",
+                    "error": result['error']
+                })
+            else:
+                results.append({
+                    "message": result.get('message', 'PDF processed successfully'),
+                    "filename": file.filename,
+                    "status": "completed",
+                    "broker": broker_id,
+                    "batch_id": result.get('batch_id'),
+                    "total_extracted": result.get('total_extracted', 0),
+                    "holdings_found": result.get('holdings_found', 0),
+                    "transactions_found": result.get('transactions_found', 0),
+                    "dividends_found": result.get('dividends_found', 0),
+                    "pending_count": result.get('pending_count', 0),
+                    "holding_date": result.get('holding_date')
+                })
+            
+        except Exception as e:
+            results.append({
+                "message": f"Error processing {file.filename}",
+                "filename": file.filename,
+                "status": "failed",
+                "error": str(e)
+            })
+        finally:
+            # Clean up temp files
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+    
+    return results
 
 @router.post("/upload-pdf")
 async def upload_and_analyze_pdf(
@@ -815,3 +905,207 @@ async def import_stocks_from_csv(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error importing stocks: {str(e)}")
+
+
+# ===== PENDING TRANSACTIONS ENDPOINTS =====
+
+@router.get("/pending-transactions")
+async def get_pending_transactions(
+    batch_id: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get pending transactions for review"""
+    from sqlalchemy.orm import Session
+    from app.core.database import get_db
+    
+    query = db.query(PendingIsraeliTransaction).filter(
+        PendingIsraeliTransaction.user_id == str(current_user.id)
+    )
+    
+    if batch_id:
+        query = query.filter(PendingIsraeliTransaction.upload_batch_id == batch_id)
+    if status:
+        query = query.filter(PendingIsraeliTransaction.status == status)
+    
+    transactions = query.order_by(PendingIsraeliTransaction.created_at.desc()).all()
+    
+    return {
+        "transactions": [
+            {
+                "id": t.id,
+                "upload_batch_id": t.upload_batch_id,
+                "pdf_filename": t.pdf_filename,
+                "transaction_date": t.transaction_date,
+                "security_no": t.security_no,
+                "stock_name": t.stock_name,
+                "transaction_type": t.transaction_type,
+                "quantity": float(t.quantity) if t.quantity else None,
+                "price": float(t.price) if t.price else None,
+                "amount": float(t.amount) if t.amount else None,
+                "currency": t.currency,
+                "status": t.status,
+                "review_notes": t.review_notes,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+            }
+            for t in transactions
+        ],
+        "count": len(transactions)
+    }
+
+
+@router.post("/pending-transactions/{transaction_id}/approve")
+async def approve_pending_transaction(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Approve a pending transaction and process it"""
+    transaction = db.query(PendingIsraeliTransaction).filter(
+        PendingIsraeliTransaction.id == transaction_id,
+        PendingIsraeliTransaction.user_id == str(current_user.id)
+    ).first()
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    # Process transaction into final tables
+    service = IsraeliStockService()
+    try:
+        result = service.process_approved_transaction(transaction, str(current_user.id))
+        
+        # Update status after successful processing
+        transaction.status = "approved"
+        transaction.reviewed_at = datetime.now()
+        transaction.reviewed_by = str(current_user.id)
+        db.commit()
+        
+        return {
+            "success": True, 
+            "message": result.get('message', "Transaction approved and processed"),
+            "result": result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing transaction: {str(e)}")
+
+
+@router.post("/pending-transactions/batch/{batch_id}/approve-all")
+async def approve_all_in_batch(
+    batch_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Approve all pending transactions in a batch"""
+    transactions = db.query(PendingIsraeliTransaction).filter(
+        PendingIsraeliTransaction.upload_batch_id == batch_id,
+        PendingIsraeliTransaction.user_id == str(current_user.id),
+        PendingIsraeliTransaction.status == "pending"
+    ).all()
+    
+    service = IsraeliStockService()
+    approved_count = 0
+    errors = []
+    
+    for t in transactions:
+        try:
+            # Process each transaction
+            result = service.process_approved_transaction(t, str(current_user.id))
+            
+            # Update status after successful processing
+            t.status = "approved"
+            t.reviewed_at = datetime.now()
+            t.reviewed_by = str(current_user.id)
+            approved_count += 1
+        except Exception as e:
+            errors.append(f"Error processing transaction {t.id}: {str(e)}")
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Approved {approved_count} transactions",
+        "approved_count": approved_count,
+        "errors": errors if errors else None
+    }
+
+
+@router.post("/pending-transactions/batch/{batch_id}/reject-all")
+async def reject_all_in_batch(
+    batch_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Reject all pending transactions in a batch"""
+    transactions = db.query(PendingIsraeliTransaction).filter(
+        PendingIsraeliTransaction.upload_batch_id == batch_id,
+        PendingIsraeliTransaction.user_id == str(current_user.id),
+        PendingIsraeliTransaction.status == "pending"
+    ).all()
+    
+    rejected_count = len(transactions)
+    
+    for t in transactions:
+        db.delete(t)
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Rejected {rejected_count} transactions",
+        "rejected_count": rejected_count
+    }
+
+
+@router.delete("/pending-transactions/{transaction_id}")
+async def reject_pending_transaction(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Reject/delete a pending transaction"""
+    transaction = db.query(PendingIsraeliTransaction).filter(
+        PendingIsraeliTransaction.id == transaction_id,
+        PendingIsraeliTransaction.user_id == str(current_user.id)
+    ).first()
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    db.delete(transaction)
+    db.commit()
+    
+    return {"success": True, "message": "Transaction rejected"}
+
+
+@router.put("/pending-transactions/{transaction_id}")
+async def update_pending_transaction(
+    transaction_id: int,
+    update_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a pending transaction"""
+    transaction = db.query(PendingIsraeliTransaction).filter(
+        PendingIsraeliTransaction.id == transaction_id,
+        PendingIsraeliTransaction.user_id == str(current_user.id)
+    ).first()
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    # Update allowed fields
+    allowed_fields = [
+        "transaction_date", "security_no", "stock_name", "transaction_type",
+        "quantity", "price", "amount", "currency", "review_notes"
+    ]
+    
+    for field in allowed_fields:
+        if field in update_data:
+            setattr(transaction, field, update_data[field])
+    
+    transaction.status = "modified"
+    transaction.updated_at = datetime.now()
+    db.commit()
+    
+    return {"success": True, "message": "Transaction updated"}

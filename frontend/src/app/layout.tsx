@@ -12,6 +12,16 @@ export const metadata: Metadata = {
   title: "Investracker - Investment Portfolio Tracker",
   description:
     "Track and analyze your investment portfolio with comprehensive analytics",
+  icons: {
+    icon: [
+      { url: "/favicon.svg" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png" },
+    ],
+  },
 };
 
 export default function RootLayout({
