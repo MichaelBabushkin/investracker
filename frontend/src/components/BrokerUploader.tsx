@@ -103,22 +103,44 @@ export default function BrokerUploader({
       const filesArray = Array.from(files);
       const results = await israeliStocksAPI.upload(filesArray, brokerId);
 
-      const totalHoldings = results.reduce(
-        (sum: number, r: any) => sum + (r.holdings_saved || 0),
+      // Check if we have pending transactions
+      const hasPendingTransactions = results.some((r: any) => r.pending_count > 0);
+      const totalPending = results.reduce(
+        (sum: number, r: any) => sum + (r.pending_count || 0),
         0
       );
-      const totalTransactions = results.reduce(
-        (sum: number, r: any) => sum + (r.transactions_saved || 0),
-        0
-      );
-      const totalDividends = results.reduce(
-        (sum: number, r: any) => sum + (r.dividends_saved || 0),
-        0
-      );
+      const batchIds = results
+        .filter((r: any) => r.batch_id)
+        .map((r: any) => r.batch_id);
 
-      setSuccess(
-        `Successfully processed ${files.length} file(s): ${totalHoldings} holdings, ${totalTransactions} transactions, ${totalDividends} dividends`
-      );
+      if (hasPendingTransactions) {
+        setSuccess(
+          `Successfully extracted ${totalPending} transaction(s) from ${files.length} file(s). Please review and approve them.`
+        );
+        
+        // Store batch IDs for review
+        if (batchIds.length > 0) {
+          sessionStorage.setItem('pending_batch_ids', JSON.stringify(batchIds));
+        }
+      } else {
+        // Fallback for old response format
+        const totalHoldings = results.reduce(
+          (sum: number, r: any) => sum + (r.holdings_saved || 0),
+          0
+        );
+        const totalTransactions = results.reduce(
+          (sum: number, r: any) => sum + (r.transactions_saved || 0),
+          0
+        );
+        const totalDividends = results.reduce(
+          (sum: number, r: any) => sum + (r.dividends_saved || 0),
+          0
+        );
+
+        setSuccess(
+          `Successfully processed ${files.length} file(s): ${totalHoldings} holdings, ${totalTransactions} transactions, ${totalDividends} dividends`
+        );
+      }
 
       onUploadComplete(results);
     } catch (err: any) {

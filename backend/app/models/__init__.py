@@ -18,6 +18,7 @@ from .israeli_stock_models import (
     IsraeliDividend,
     IsraeliStockSummary
 )
+from .pending_transaction import PendingIsraeliTransaction
 
 # World Stock Analysis Models
 from .world_stock import (
@@ -46,6 +47,7 @@ __all__ = [
     "IsraeliStockTransaction", 
     "IsraeliDividend",
     "IsraeliStockSummary",
+    "PendingIsraeliTransaction",
     # World Stock Models
     "WorldStockAccount",
     "WorldStockHolding",

@@ -374,6 +374,55 @@ export const israeliStocksAPI = {
     return response.data;
   },
 
+  // Pending Transactions
+  getPendingTransactions: async (batchId?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (batchId) params.append("batch_id", batchId);
+    if (status) params.append("status", status);
+    
+    const paramString = params.toString();
+    const response = await api.get(
+      `/israeli-stocks/pending-transactions${paramString ? `?${paramString}` : ""}`
+    );
+    return response.data;
+  },
+
+  approvePendingTransaction: async (transactionId: number) => {
+    const response = await api.post(
+      `/israeli-stocks/pending-transactions/${transactionId}/approve`
+    );
+    return response.data;
+  },
+
+  approveAllInBatch: async (batchId: string) => {
+    const response = await api.post(
+      `/israeli-stocks/pending-transactions/batch/${batchId}/approve-all`
+    );
+    return response.data;
+  },
+
+  updatePendingTransaction: async (transactionId: number, data: any) => {
+    const response = await api.put(
+      `/israeli-stocks/pending-transactions/${transactionId}`,
+      data
+    );
+    return response.data;
+  },
+
+  rejectPendingTransaction: async (transactionId: number) => {
+    const response = await api.delete(
+      `/israeli-stocks/pending-transactions/${transactionId}`
+    );
+    return response.data;
+  },
+
+  rejectAllInBatch: async (batchId: string) => {
+    const response = await api.post(
+      `/israeli-stocks/pending-transactions/batch/${batchId}/reject-all`
+    );
+    return response.data;
+  },
+
   // Admin: list stocks by logo presence
   getStocksWithoutLogos: async () => {
     const response = await api.get("/israeli-stocks/stocks-without-logos");

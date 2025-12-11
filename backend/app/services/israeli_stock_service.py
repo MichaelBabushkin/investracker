@@ -7,6 +7,7 @@ import os
 import sys
 import json
 import glob
+import uuid
 import pandas as pd
 import pdfplumber
 import psycopg2
@@ -27,6 +28,7 @@ try:
         IsraeliDividend,
         IsraeliStockSummary
     )
+    from app.models.pending_transaction import PendingIsraeliTransaction
     from app.schemas.israeli_stock_schemas import (
         IsraeliStockHoldingResponse,
         IsraeliStockTransactionResponse,
@@ -210,8 +212,11 @@ class IsraeliStockService:
         return None
     
     def process_pdf_report(self, pdf_path: str, user_id: str) -> Dict:
-        """Main function to process a PDF investment report"""
+        """Main function to process a PDF investment report and save to pending transactions"""
         try:
+            # Generate unique batch ID for this upload
+            batch_id = str(uuid.uuid4())
+            
             # Extract PDF name and date
             pdf_name = os.path.basename(pdf_path)
             holding_date = self.extract_date_from_pdf(pdf_path)
@@ -227,7 +232,6 @@ class IsraeliStockService:
             
             try:
                 # Analyze CSV files
-                # Analyze CSV files with heading information
                 holdings, transactions = self.analyze_csv_files_with_headings(csv_files, tables, pdf_name, holding_date)
                 
                 # Separate dividends from transactions
@@ -236,10 +240,15 @@ class IsraeliStockService:
                 
                 print(f"DEBUG: Found {len(holdings)} holdings, {len(regular_transactions)} transactions, {len(dividends)} dividends")
                 
-                # Save to database
-                holdings_saved = self.save_holdings_to_database(holdings, user_id) if holdings else 0
-                transactions_saved = self.save_transactions_to_database(regular_transactions, user_id) if regular_transactions else 0
-                dividends_saved = self.save_dividends_to_database(dividends, user_id) if dividends else 0
+                # Save to pending transactions table for review
+                pending_count = self.save_to_pending_transactions(
+                    holdings=holdings,
+                    transactions=regular_transactions,
+                    dividends=dividends,
+                    user_id=user_id,
+                    batch_id=batch_id,
+                    pdf_filename=pdf_name
+                )
                 
                 # Clean up temporary files
                 import shutil
@@ -248,14 +257,15 @@ class IsraeliStockService:
                 
                 return {
                     'success': True,
+                    'batch_id': batch_id,
                     'pdf_name': pdf_name,
                     'holding_date': holding_date.isoformat() if holding_date else None,
+                    'total_extracted': len(holdings) + len(regular_transactions) + len(dividends),
                     'holdings_found': len(holdings),
                     'transactions_found': len(regular_transactions),
                     'dividends_found': len(dividends),
-                    'holdings_saved': holdings_saved,
-                    'transactions_saved': transactions_saved,
-                    'dividends_saved': dividends_saved
+                    'pending_count': pending_count,
+                    'message': f'Extracted {pending_count} transactions. Please review and approve them.'
                 }
                 
             except Exception as e:
@@ -882,6 +892,296 @@ class IsraeliStockService:
         except Exception as e:
             print(f"Error saving dividends: {e}")
             return 0
+    
+    def _serialize_for_json(self, obj):
+        """Helper to serialize objects for JSON, converting dates to strings"""
+        from datetime import date
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        elif isinstance(obj, dict):
+            return {k: self._serialize_for_json(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._serialize_for_json(item) for item in obj]
+        elif isinstance(obj, Decimal):
+            return float(obj)
+        return obj
+
+    def save_to_pending_transactions(
+        self, 
+        holdings: List[Dict], 
+        transactions: List[Dict], 
+        dividends: List[Dict],
+        user_id: str,
+        batch_id: str,
+        pdf_filename: str
+    ) -> int:
+        """Save all extracted data to pending transactions table for review"""
+        try:
+            conn = self.create_database_connection()
+            cursor = conn.cursor()
+            
+            pending_records = []
+            
+            print(f"DEBUG: Saving to pending - Holdings: {len(holdings)}, Transactions: {len(transactions)}, Dividends: {len(dividends)}")
+            
+            # Convert holdings to pending transactions (type: BUY)
+            for holding in holdings:
+                if holding.get('quantity') is None:
+                    continue
+                
+                transaction_date = holding.get('holding_date')
+                if isinstance(transaction_date, str):
+                    transaction_date = self.parse_date_string(transaction_date)
+                
+                # Serialize holding data properly for JSON
+                serialized_holding = self._serialize_for_json(holding)
+                raw_data = {
+                    'original_type': 'holding',
+                    'holding': serialized_holding
+                }
+                
+                pending_records.append((
+                    user_id,
+                    batch_id,
+                    pdf_filename,
+                    transaction_date.isoformat() if transaction_date else None,
+                    holding['security_no'],
+                    holding['name'],
+                    'BUY',  # Holdings are treated as BUY transactions
+                    holding.get('quantity'),
+                    holding.get('last_price'),
+                    holding.get('current_value'),
+                    holding.get('currency', 'ILS'),
+                    'pending',
+                    json.dumps(raw_data)
+                ))
+            
+            # Convert regular transactions to pending transactions
+            for transaction in transactions:
+                transaction_date = transaction.get('transaction_date')
+                if isinstance(transaction_date, str):
+                    transaction_date = self.parse_date_string(transaction_date)
+                
+                # Serialize transaction data properly for JSON
+                serialized_transaction = self._serialize_for_json(transaction)
+                raw_data = {
+                    'original_type': 'transaction',
+                    'transaction': serialized_transaction
+                }
+                
+                pending_records.append((
+                    user_id,
+                    batch_id,
+                    pdf_filename,
+                    transaction_date.isoformat() if transaction_date else None,
+                    transaction['security_no'],
+                    transaction['name'],
+                    transaction.get('transaction_type', 'BUY'),
+                    transaction.get('quantity'),
+                    transaction.get('price'),
+                    transaction.get('total_value'),
+                    transaction.get('currency', 'ILS'),
+                    'pending',
+                    json.dumps(raw_data)
+                ))
+            
+            # Convert dividends to pending transactions
+            for dividend in dividends:
+                payment_date = dividend.get('transaction_date')
+                if isinstance(payment_date, str):
+                    payment_date = self.parse_date_string(payment_date)
+                
+                # Serialize dividend data properly for JSON
+                serialized_dividend = self._serialize_for_json(dividend)
+                raw_data = {
+                    'original_type': 'dividend',
+                    'dividend': serialized_dividend
+                }
+                
+                pending_records.append((
+                    user_id,
+                    batch_id,
+                    pdf_filename,
+                    payment_date.isoformat() if payment_date else None,
+                    dividend['security_no'],
+                    dividend['name'],
+                    'DIVIDEND',
+                    None,  # No quantity for dividends
+                    None,  # No price for dividends
+                    dividend.get('total_value', 0),
+                    dividend.get('currency', 'ILS'),
+                    'pending',
+                    json.dumps(raw_data)
+                ))
+            
+            if pending_records:
+                insert_sql = """
+                INSERT INTO "PendingIsraeliTransaction" (
+                    user_id, upload_batch_id, pdf_filename, transaction_date,
+                    security_no, stock_name, transaction_type, quantity, price,
+                    amount, currency, status, raw_data
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                
+                cursor.executemany(insert_sql, pending_records)
+                conn.commit()
+                saved_count = len(pending_records)
+                print(f"DEBUG: Saved {saved_count} records to pending transactions")
+            else:
+                saved_count = 0
+            
+            cursor.close()
+            conn.close()
+            return saved_count
+            
+        except Exception as e:
+            print(f"Error saving to pending transactions: {e}")
+            raise e
+    
+    def process_approved_transaction(self, pending_transaction, user_id: str) -> Dict:
+        """Process an approved pending transaction and save to final tables"""
+        try:
+            transaction_type = pending_transaction.transaction_type
+            
+            # Prepare data from pending transaction
+            data = {
+                'security_no': pending_transaction.security_no,
+                'name': pending_transaction.stock_name,
+                'symbol': pending_transaction.stock_name,  # Will be looked up from IsraeliStocks
+                'source_pdf': pending_transaction.pdf_filename,
+                'currency': pending_transaction.currency or 'ILS'
+            }
+            
+            # Look up symbol from IsraeliStocks table
+            conn = self.create_database_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT symbol, name FROM "IsraeliStocks" WHERE security_no = %s',
+                (pending_transaction.security_no,)
+            )
+            stock_info = cursor.fetchone()
+            if stock_info:
+                data['symbol'] = stock_info[0]
+                data['name'] = stock_info[1]
+            
+            if transaction_type == 'DIVIDEND':
+                # Save to IsraeliDividend table
+                payment_date = pending_transaction.transaction_date
+                if isinstance(payment_date, str):
+                    payment_date = self.parse_date_string(payment_date)
+                
+                insert_sql = """
+                INSERT INTO "IsraeliDividend" (
+                    user_id, security_no, symbol, company_name, payment_date,
+                    amount, tax, currency, source_pdf
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (user_id, security_no, payment_date, source_pdf) DO NOTHING
+                """
+                
+                cursor.execute(insert_sql, (
+                    user_id,
+                    data['security_no'],
+                    data['symbol'],
+                    data['name'],
+                    payment_date,
+                    float(pending_transaction.amount) if pending_transaction.amount else 0,
+                    0,  # tax - not captured in pending transactions yet
+                    data['currency'],
+                    data['source_pdf']
+                ))
+                conn.commit()
+                
+                result = {
+                    'type': 'dividend',
+                    'message': f"Dividend processed for {data['name']}"
+                }
+                
+            elif transaction_type in ('BUY', 'SELL'):
+                # Save to IsraeliStockTransaction table
+                transaction_date = pending_transaction.transaction_date
+                if isinstance(transaction_date, str):
+                    transaction_date = self.parse_date_string(transaction_date)
+                
+                insert_sql = """
+                INSERT INTO "IsraeliStockTransaction" (
+                    user_id, security_no, symbol, company_name, transaction_type,
+                    transaction_date, quantity, price, total_value, currency, source_pdf
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (user_id, security_no, transaction_date, transaction_type, source_pdf) DO NOTHING
+                """
+                
+                cursor.execute(insert_sql, (
+                    user_id,
+                    data['security_no'],
+                    data['symbol'],
+                    data['name'],
+                    transaction_type,
+                    transaction_date,
+                    float(pending_transaction.quantity) if pending_transaction.quantity else 0,
+                    float(pending_transaction.price) if pending_transaction.price else 0,
+                    float(pending_transaction.amount) if pending_transaction.amount else 0,
+                    data['currency'],
+                    data['source_pdf']
+                ))
+                conn.commit()
+                
+                # For BUY transactions, also update/create holding
+                if transaction_type == 'BUY':
+                    # Check if holding already exists
+                    cursor.execute(
+                        'SELECT quantity FROM "IsraeliStockHolding" WHERE user_id = %s AND security_no = %s AND source_pdf = %s',
+                        (user_id, data['security_no'], data['source_pdf'])
+                    )
+                    existing_holding = cursor.fetchone()
+                    
+                    if existing_holding:
+                        # Update existing holding
+                        cursor.execute(
+                            'UPDATE "IsraeliStockHolding" SET quantity = quantity + %s WHERE user_id = %s AND security_no = %s AND source_pdf = %s',
+                            (float(pending_transaction.quantity), user_id, data['security_no'], data['source_pdf'])
+                        )
+                    else:
+                        # Create new holding
+                        insert_holding_sql = """
+                        INSERT INTO "IsraeliStockHolding" (
+                            user_id, security_no, symbol, company_name, quantity,
+                            last_price, purchase_cost, current_value, currency,
+                            holding_date, source_pdf
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """
+                        
+                        quantity = float(pending_transaction.quantity) if pending_transaction.quantity else 0
+                        price = float(pending_transaction.price) if pending_transaction.price else 0
+                        total_value = quantity * price if quantity and price else float(pending_transaction.amount) if pending_transaction.amount else 0
+                        
+                        cursor.execute(insert_holding_sql, (
+                            user_id,
+                            data['security_no'],
+                            data['symbol'],
+                            data['name'],
+                            quantity,
+                            price,
+                            total_value,
+                            total_value,
+                            data['currency'],
+                            transaction_date,
+                            data['source_pdf']
+                        ))
+                    conn.commit()
+                
+                result = {
+                    'type': 'transaction',
+                    'transaction_type': transaction_type,
+                    'message': f"{transaction_type} transaction processed for {data['name']}"
+                }
+            
+            cursor.close()
+            conn.close()
+            return result
+            
+        except Exception as e:
+            print(f"Error processing approved transaction: {e}")
+            raise e
     
     # REMOVED: Dynamic table creation methods to prevent duplicate tables
     # Tables are now managed by SQLAlchemy models only
