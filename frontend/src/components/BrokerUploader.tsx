@@ -247,7 +247,7 @@ export default function BrokerUploader({
         </h4>
         <p className="text-sm text-blue-800">
           Each broker and bank has its own PDF format. Currently, Excellence is fully
-          supported. We're actively working on adding support for Meitav, IBI,
+          supported. We&apos;re actively working on adding support for Meitav, IBI,
           Altshuler, Interactive Brokers, and major Israeli banks.
         </p>
       </div>
