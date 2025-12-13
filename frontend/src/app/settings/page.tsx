@@ -82,24 +82,39 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-          {/* Sidebar - Horizontal scroll on mobile */}
-          <div className="w-full lg:w-64 bg-white rounded-lg shadow p-2 sm:p-4">
-            <nav className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible gap-1 lg:space-y-1 pb-2 lg:pb-0 -mx-2 px-2 lg:mx-0 lg:px-0">
+        <div className="flex flex-col gap-4">
+          {/* Mobile Tab Selector */}
+          <div className="lg:hidden bg-white rounded-lg shadow p-2">
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+            >
+              {tabs.map((tab) => (
+                <option key={tab.id} value={tab.id}>
+                  {tab.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Desktop Sidebar */}
+          <div className="hidden lg:block w-64 bg-white rounded-lg shadow p-4 flex-shrink-0">
+            <nav className="space-y-1">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex-shrink-0 lg:w-full flex flex-col lg:flex-row items-center gap-1 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 rounded-lg text-left transition-colors whitespace-nowrap ${
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
                       activeTab === tab.id
                         ? "bg-blue-50 text-blue-700 font-medium"
                         : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
-                    <Icon className="h-4 w-4 lg:h-5 lg:w-5 flex-shrink-0" />
-                    <span className="text-xs lg:text-base">{tab.name}</span>
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    <span>{tab.name}</span>
                   </button>
                 );
               })}
@@ -120,7 +135,7 @@ export default function SettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     Color Theme
                   </label>
-                  <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                  <div className="grid grid-cols-3 gap-3 sm:gap-4">
                     {[
                       { value: "light", label: "Light", emoji: "☀️" },
                       { value: "dark", label: "Dark", emoji: "🌙" },
@@ -129,19 +144,19 @@ export default function SettingsPage() {
                       <button
                         key={option.value}
                         onClick={() => setTheme(option.value as Theme)}
-                        className={`p-3 sm:p-4 border-2 rounded-lg transition-all ${
+                        className={`p-4 border-2 rounded-lg transition-all ${
                           theme === option.value
                             ? "border-blue-500 bg-blue-50"
                             : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
-                        <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">{option.emoji}</div>
+                        <div className="text-3xl sm:text-4xl mb-2">{option.emoji}</div>
                         <div className="text-sm sm:text-base font-medium text-gray-900">
                           {option.label}
                         </div>
                         {option.value === "auto" && (
                           <div className="text-xs text-gray-500 mt-1">
-                            Matches system
+                            System
                           </div>
                         )}
                       </button>
@@ -154,12 +169,12 @@ export default function SettingsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     Accent Color
                   </label>
-                  <div className="flex gap-2 sm:gap-3">
+                  <div className="flex gap-3 sm:gap-4">
                     {["blue", "green", "purple", "red", "orange"].map(
                       (color) => (
                         <button
                           key={color}
-                          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 ${
+                          className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 ${
                             color === "blue"
                               ? "bg-blue-500 border-blue-700"
                               : color === "green"
