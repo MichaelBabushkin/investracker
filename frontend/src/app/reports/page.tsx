@@ -108,16 +108,16 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
             Investment Reports
           </h1>
           <button
             onClick={() => router.push("/israeli-stocks")}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap"
           >
             Upload New Report
           </button>
@@ -143,23 +143,23 @@ export default function ReportsPage() {
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Filename
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Broker
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Upload Date
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="hidden lg:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       File Size
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -167,41 +167,44 @@ export default function ReportsPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {reports.map((report) => (
                     <tr key={report.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 sm:px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">
                           {report.filename}
                         </div>
+                        <div className="sm:hidden text-xs text-gray-500 mt-1">
+                          {report.broker} • {formatFileSize(report.file_size)}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
                           {report.broker}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(report.upload_date)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="hidden lg:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatFileSize(report.file_size)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center gap-3">
+                      <td className="px-4 sm:px-6 py-4 text-center">
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
                           <button
                             onClick={() => handlePreview(report)}
-                            className="text-purple-600 hover:text-purple-900 inline-flex items-center"
+                            className="text-purple-600 hover:text-purple-900 inline-flex items-center text-sm"
                             title="Preview PDF"
                           >
-                            <EyeIcon className="h-5 w-5 mr-1" />
-                            Preview
+                            <EyeIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
+                            <span className="hidden sm:inline">Preview</span>
                           </button>
                           <button
                             onClick={() =>
                               handleDownload(report.id, report.filename)
                             }
-                            className="text-blue-600 hover:text-blue-900 inline-flex items-center"
+                            className="text-blue-600 hover:text-blue-900 inline-flex items-center text-sm"
                             title="Download PDF"
                           >
-                            <DocumentArrowDownIcon className="h-5 w-5 mr-1" />
-                            Download
+                            <DocumentArrowDownIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
+                            <span className="hidden sm:inline">Download</span>
                           </button>
                         </div>
                       </td>
@@ -223,7 +226,7 @@ export default function ReportsPage() {
         {/* Preview Modal */}
         {previewReport && previewUrl && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
               {/* Background overlay */}
               <div
                 className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
@@ -231,24 +234,24 @@ export default function ReportsPage() {
               ></div>
 
               {/* Modal panel */}
-              <div className="inline-block w-full max-w-6xl my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-lg">
+              <div className="inline-block w-full max-w-6xl my-4 sm:my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-lg">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate">
                       {previewReport.filename}
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-xs sm:text-sm text-gray-500">
                       {formatDate(previewReport.upload_date)} • {formatFileSize(previewReport.file_size)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
                     <button
                       onClick={() => handleDownload(previewReport.id, previewReport.filename)}
-                      className="text-blue-600 hover:text-blue-900 inline-flex items-center px-3 py-1.5 border border-blue-600 rounded-md"
+                      className="text-blue-600 hover:text-blue-900 inline-flex items-center px-2 sm:px-3 py-1.5 border border-blue-600 rounded-md text-sm"
                     >
-                      <DocumentArrowDownIcon className="h-4 w-4 mr-1" />
-                      Download
+                      <DocumentArrowDownIcon className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Download</span>
                     </button>
                     <button
                       onClick={closePreview}
@@ -260,7 +263,7 @@ export default function ReportsPage() {
                 </div>
 
                 {/* PDF Viewer */}
-                <div className="w-full" style={{ height: "80vh" }}>
+                <div className="w-full" style={{ height: "calc(100vh - 180px)", maxHeight: "80vh" }}>
                   <iframe
                     src={previewUrl}
                     className="w-full h-full border-0"

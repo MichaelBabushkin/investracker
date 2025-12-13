@@ -63,12 +63,12 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600 mt-2">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Settings</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-2">
             Manage your account settings and preferences
           </p>
         </div>
@@ -82,24 +82,24 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <div className="flex gap-6">
-          {/* Sidebar */}
-          <div className="w-64 bg-white rounded-lg shadow p-4">
-            <nav className="space-y-1">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+          {/* Sidebar - Horizontal scroll on mobile */}
+          <div className="w-full lg:w-64 bg-white rounded-lg shadow p-2 sm:p-4">
+            <nav className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible gap-1 lg:space-y-1 pb-2 lg:pb-0 -mx-2 px-2 lg:mx-0 lg:px-0">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                    className={`flex-shrink-0 lg:w-full flex flex-col lg:flex-row items-center gap-1 lg:gap-3 px-3 lg:px-4 py-2 lg:py-3 rounded-lg text-left transition-colors whitespace-nowrap ${
                       activeTab === tab.id
                         ? "bg-blue-50 text-blue-700 font-medium"
                         : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
-                    <Icon className="h-5 w-5" />
-                    {tab.name}
+                    <Icon className="h-4 w-4 lg:h-5 lg:w-5 flex-shrink-0" />
+                    <span className="text-xs lg:text-base">{tab.name}</span>
                   </button>
                 );
               })}
@@ -110,17 +110,17 @@ export default function SettingsPage() {
           <div className="flex-1 bg-white rounded-lg shadow">
             {/* Appearance Tab */}
             {activeTab === "appearance" && (
-              <div className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              <div className="p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">
                   Appearance
                 </h2>
 
                 {/* Theme Selection */}
-                <div className="mb-8">
+                <div className="mb-6 sm:mb-8">
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     Color Theme
                   </label>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4">
                     {[
                       { value: "light", label: "Light", emoji: "☀️" },
                       { value: "dark", label: "Dark", emoji: "🌙" },
@@ -129,14 +129,14 @@ export default function SettingsPage() {
                       <button
                         key={option.value}
                         onClick={() => setTheme(option.value as Theme)}
-                        className={`p-4 border-2 rounded-lg transition-all ${
+                        className={`p-3 sm:p-4 border-2 rounded-lg transition-all ${
                           theme === option.value
                             ? "border-blue-500 bg-blue-50"
                             : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
-                        <div className="text-3xl mb-2">{option.emoji}</div>
-                        <div className="font-medium text-gray-900">
+                        <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">{option.emoji}</div>
+                        <div className="text-sm sm:text-base font-medium text-gray-900">
                           {option.label}
                         </div>
                         {option.value === "auto" && (
@@ -150,16 +150,16 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Color Accent (Future Feature) */}
-                <div className="mb-8">
+                <div className="mb-6 sm:mb-8">
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     Accent Color
                   </label>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2 sm:gap-3">
                     {["blue", "green", "purple", "red", "orange"].map(
                       (color) => (
                         <button
                           key={color}
-                          className={`w-12 h-12 rounded-full border-2 ${
+                          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 ${
                             color === "blue"
                               ? "bg-blue-500 border-blue-700"
                               : color === "green"
@@ -184,8 +184,8 @@ export default function SettingsPage() {
 
             {/* Preferences Tab */}
             {activeTab === "preferences" && (
-              <div className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              <div className="p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">
                   Preferences
                 </h2>
 
@@ -239,8 +239,8 @@ export default function SettingsPage() {
 
             {/* Notifications Tab */}
             {activeTab === "notifications" && (
-              <div className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              <div className="p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">
                   Notifications
                 </h2>
 
@@ -308,8 +308,8 @@ export default function SettingsPage() {
 
             {/* Security Tab */}
             {activeTab === "security" && (
-              <div className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              <div className="p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">
                   Security
                 </h2>
 
@@ -355,8 +355,8 @@ export default function SettingsPage() {
 
             {/* Regional Tab */}
             {activeTab === "regional" && (
-              <div className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              <div className="p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">
                   Regional Settings
                 </h2>
 
@@ -402,11 +402,11 @@ export default function SettingsPage() {
             )}
 
             {/* Save Button */}
-            <div className="border-t border-gray-200 px-6 py-4">
+            <div className="border-t border-gray-200 px-4 sm:px-6 py-4">
               <div className="flex justify-end">
                 <button
                   onClick={handleSaveSettings}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                 >
                   Save Changes
                 </button>
