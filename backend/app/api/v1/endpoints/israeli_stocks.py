@@ -1112,3 +1112,59 @@ async def update_pending_transaction(
     db.commit()
     
     return {"success": True, "message": "Transaction updated"}
+
+
+# ===== REPORT MANAGEMENT ENDPOINTS =====
+
+@router.get("/reports")
+async def get_reports(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get list of uploaded PDF reports for the current user"""
+    from app.models.israeli_report import IsraeliReportUpload
+    
+    reports = db.query(IsraeliReportUpload).filter(
+        IsraeliReportUpload.user_id == str(current_user.id)
+    ).order_by(IsraeliReportUpload.upload_date.desc()).all()
+    
+    return {
+        "reports": [
+            {
+                "id": r.id,
+                "filename": r.filename,
+                "file_size": r.file_size,
+                "broker": r.broker,
+                "upload_batch_id": r.upload_batch_id,
+                "upload_date": r.upload_date.isoformat() if r.upload_date else None
+            }
+            for r in reports
+        ]
+    }
+
+
+@router.get("/reports/{report_id}/download")
+async def download_report(
+    report_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Download a PDF report by ID"""
+    from app.models.israeli_report import IsraeliReportUpload
+    from fastapi.responses import Response
+    
+    report = db.query(IsraeliReportUpload).filter(
+        IsraeliReportUpload.id == report_id,
+        IsraeliReportUpload.user_id == str(current_user.id)
+    ).first()
+    
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    return Response(
+        content=report.file_data,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={report.filename}"
+        }
+    )

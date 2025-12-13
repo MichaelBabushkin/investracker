@@ -211,7 +211,7 @@ class IsraeliStockService:
         
         return None
     
-    def process_pdf_report(self, pdf_path: str, user_id: str) -> Dict:
+    def process_pdf_report(self, pdf_path: str, user_id: str, broker: str = 'excellence') -> Dict:
         """Main function to process a PDF investment report and save to pending transactions"""
         try:
             # Generate unique batch ID for this upload
@@ -220,6 +220,21 @@ class IsraeliStockService:
             # Extract PDF name and date
             pdf_name = os.path.basename(pdf_path)
             holding_date = self.extract_date_from_pdf(pdf_path)
+            
+            # Read PDF file content for storage
+            with open(pdf_path, 'rb') as f:
+                pdf_content = f.read()
+            file_size = len(pdf_content)
+            
+            # Save PDF to database
+            self.save_pdf_to_database(
+                user_id=user_id,
+                filename=pdf_name,
+                file_data=pdf_content,
+                file_size=file_size,
+                broker=broker,
+                batch_id=batch_id
+            )
             
             # Extract tables from PDF
             tables = self.extract_tables_from_pdf(pdf_path)
@@ -912,6 +927,48 @@ class IsraeliStockService:
         elif isinstance(obj, Decimal):
             return float(obj)
         return obj
+
+    def save_pdf_to_database(
+        self,
+        user_id: str,
+        filename: str,
+        file_data: bytes,
+        file_size: int,
+        broker: str,
+        batch_id: str
+    ) -> int:
+        """Save uploaded PDF file to database"""
+        try:
+            conn = self.create_database_connection()
+            cursor = conn.cursor()
+            
+            insert_sql = """
+            INSERT INTO "IsraeliReportUpload" (
+                user_id, filename, file_data, file_size, broker, upload_batch_id
+            ) VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """
+            
+            cursor.execute(insert_sql, (
+                user_id,
+                filename,
+                psycopg2.Binary(file_data),
+                file_size,
+                broker,
+                batch_id
+            ))
+            
+            report_id = cursor.fetchone()[0]
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            print(f"DEBUG: Saved PDF to database - ID: {report_id}, Filename: {filename}, Size: {file_size} bytes")
+            return report_id
+            
+        except Exception as e:
+            print(f"ERROR: Failed to save PDF to database: {e}")
+            raise
 
     def save_to_pending_transactions(
         self, 
