@@ -20,12 +20,15 @@ class PendingIsraeliTransaction(Base):
     
     # Transaction details
     transaction_date = Column(String, nullable=True)
+    transaction_time = Column(String, nullable=True)  # Time of transaction (HH:MM)
     security_no = Column(String, nullable=True)
     stock_name = Column(String, nullable=True)
-    transaction_type = Column(String, nullable=False)  # BUY, SELL, DIVIDEND
+    transaction_type = Column(String, nullable=False)  # BUY, SELL, DIVIDEND, DEPOSIT, WITHDRAWAL
     quantity = Column(Numeric(15, 4), nullable=True)
     price = Column(Numeric(15, 4), nullable=True)
     amount = Column(Numeric(15, 4), nullable=True)
+    commission = Column(Numeric(15, 4), nullable=True)  # Transaction commission/fees
+    tax = Column(Numeric(15, 4), nullable=True)  # Transaction tax
     currency = Column(String, nullable=True)
     
     # Status tracking

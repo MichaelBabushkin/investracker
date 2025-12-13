@@ -9,12 +9,15 @@ interface PendingTransaction {
   upload_batch_id: string;
   pdf_filename: string;
   transaction_date: string;
+  transaction_time: string | null;
   security_no: string;
   stock_name: string;
   transaction_type: string;
   quantity: number | null;
   price: number | null;
   amount: number | null;
+  commission: number | null;
+  tax: number | null;
   currency: string;
   status: string;
   review_notes: string | null;
@@ -149,13 +152,16 @@ export default function PendingTransactionsReview({
     setEditingId(transaction.id);
     setEditData({
       transaction_date: transaction.transaction_date || "",
+      transaction_time: transaction.transaction_time || "",
       security_no: transaction.security_no,
       stock_name: transaction.stock_name || "",
       transaction_type: transaction.transaction_type || "BUY",
       quantity: transaction.quantity ?? "",
       price: transaction.price ?? "",
       amount: transaction.amount ?? "",
-      currency: transaction.currency || "ILS",
+      commission: transaction.commission ?? "",
+      tax: transaction.tax ?? "",
+      currency: transaction.currency || "₪",
       review_notes: transaction.review_notes || "",
     });
   };
@@ -190,6 +196,10 @@ export default function PendingTransactionsReview({
         return "text-red-700 bg-red-100";
       case "DIVIDEND":
         return "text-blue-700 bg-blue-100";
+      case "DEPOSIT":
+        return "text-purple-700 bg-purple-100";
+      case "WITHDRAWAL":
+        return "text-orange-700 bg-orange-100";
       default:
         return "text-gray-700 bg-gray-100";
     }
@@ -253,6 +263,9 @@ export default function PendingTransactionsReview({
                   Date
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Time
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Stock
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -266,6 +279,12 @@ export default function PendingTransactionsReview({
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Amount
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Commission
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tax
                 </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -290,6 +309,20 @@ export default function PendingTransactionsReview({
                           className="border rounded px-2 py-1 text-sm w-24 text-gray-900"
                         />
                       </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <input
+                          type="text"
+                          placeholder="HH:MM"
+                          value={editData.transaction_time || ""}
+                          onChange={(e) =>
+                            setEditData({
+                              ...editData,
+                              transaction_time: e.target.value,
+                            })
+                          }
+                          className="border rounded px-2 py-1 text-sm w-16 text-gray-900"
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
@@ -309,11 +342,13 @@ export default function PendingTransactionsReview({
                               transaction_type: e.target.value,
                             })
                           }
-                          className="border rounded px-2 py-1 text-sm w-16 text-gray-900"
+                          className="border rounded px-2 py-1 text-sm w-20 text-gray-900"
                         >
                           <option value="BUY">BUY</option>
                           <option value="SELL">SELL</option>
                           <option value="DIVIDEND">DIVIDEND</option>
+                          <option value="DEPOSIT">DEPOSIT</option>
+                          <option value="WITHDRAWAL">WITHDRAWAL</option>
                         </select>
                       </td>
                       <td className="px-6py-4">
@@ -357,6 +392,34 @@ export default function PendingTransactionsReview({
                           className="border rounded px-2 py-1 text-sm w-28 text-right text-gray-900"
                         />
                       </td>
+                      <td className="px-6 py-4">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editData.commission ?? ""}
+                          onChange={(e) =>
+                            setEditData({
+                              ...editData,
+                              commission: parseFloat(e.target.value) || null,
+                            })
+                          }
+                          className="border rounded px-2 py-1 text-sm w-20 text-right text-gray-900"
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editData.tax ?? ""}
+                          onChange={(e) =>
+                            setEditData({
+                              ...editData,
+                              tax: parseFloat(e.target.value) || null,
+                            })
+                          }
+                          className="border rounded px-2 py-1 text-sm w-20 text-right text-gray-900"
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <button
                           onClick={() => handleSaveEdit(transaction.id)}
@@ -377,6 +440,9 @@ export default function PendingTransactionsReview({
                     <>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {transaction.transaction_date || "N/A"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {transaction.transaction_time || "-"}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         <div className="font-medium">
@@ -402,12 +468,22 @@ export default function PendingTransactionsReview({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                         {transaction.price
-                          ? `${transaction.currency} ${transaction.price.toLocaleString()}`
+                          ? `₪${transaction.price.toLocaleString()}`
                           : "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                         {transaction.amount
-                          ? `${transaction.currency} ${transaction.amount.toLocaleString()}`
+                          ? `₪${transaction.amount.toLocaleString()}`
+                          : "-"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                        {transaction.commission
+                          ? `₪${transaction.commission.toLocaleString()}`
+                          : "-"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                        {transaction.tax
+                          ? `₪${transaction.tax.toLocaleString()}`
                           : "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">

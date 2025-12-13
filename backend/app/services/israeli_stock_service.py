@@ -536,7 +536,11 @@ class IsraeliStockService:
             'מיכור': 'SELL',
             'חסמ/': 'BUY',  # Assuming this is a buy transaction type from the debug output
             'buy': 'BUY',
-            'sell': 'SELL'
+            'sell': 'SELL',
+            'הפקדה': 'DEPOSIT',
+            'deposit': 'DEPOSIT',
+            'משיכה': 'WITHDRAWAL',
+            'withdrawal': 'WITHDRAWAL'
         }
         
         # Look for transaction type indicators in all row values
@@ -660,11 +664,13 @@ class IsraeliStockService:
 
                     used_positional = False
                     if len(row_values) >= 12:
+                        print(f"DEBUG: Row has {len(row_values)} columns for {symbol}")
                         qty = to_float(row_values[7])  # quantity
                         price_raw = to_float(row_values[6])  # price (often in agorot)
                         commission = to_float(row_values[4]) or 0.0
                         tax = to_float(row_values[3]) or 0.0
                         total = to_float(row_values[5])  # net/total
+                        print(f"DEBUG: Extracted - qty={qty}, price={price_raw}, commission={commission}, tax={tax}, total={total}")
 
                         if qty is not None or price_raw is not None or total is not None:
                             if qty is not None:
@@ -707,6 +713,7 @@ class IsraeliStockService:
             # Only return transaction if we found a transaction type or date
             if transaction_type or transaction_date:
                 print(f"DEBUG: Found transaction - {symbol}: {transaction_type} on {transaction_date}, value: {transaction.get('total_value', 'N/A')}")
+                print(f"DEBUG: Transaction details - time: {transaction.get('transaction_time')}, commission: {transaction.get('commission')}, tax: {transaction.get('tax')}")
                 return transaction
             else:
                 return None
@@ -945,12 +952,15 @@ class IsraeliStockService:
                     batch_id,
                     pdf_filename,
                     transaction_date.isoformat() if transaction_date else None,
+                    None,  # transaction_time - holdings don't have time
                     holding['security_no'],
                     holding['name'],
                     'BUY',  # Holdings are treated as BUY transactions
                     holding.get('quantity'),
                     holding.get('last_price'),
                     holding.get('current_value'),
+                    None,  # commission - not available for holdings
+                    None,  # tax - not available for holdings
                     holding.get('currency', 'ILS'),
                     'pending',
                     json.dumps(raw_data)
@@ -974,12 +984,15 @@ class IsraeliStockService:
                     batch_id,
                     pdf_filename,
                     transaction_date.isoformat() if transaction_date else None,
+                    transaction.get('transaction_time'),  # Include transaction time
                     transaction['security_no'],
                     transaction['name'],
                     transaction.get('transaction_type', 'BUY'),
                     transaction.get('quantity'),
                     transaction.get('price'),
                     transaction.get('total_value'),
+                    transaction.get('commission'),  # Include commission
+                    transaction.get('tax'),  # Include tax
                     transaction.get('currency', 'ILS'),
                     'pending',
                     json.dumps(raw_data)
@@ -1003,12 +1016,15 @@ class IsraeliStockService:
                     batch_id,
                     pdf_filename,
                     payment_date.isoformat() if payment_date else None,
+                    dividend.get('transaction_time'),  # Include transaction time if available
                     dividend['security_no'],
                     dividend['name'],
                     'DIVIDEND',
                     None,  # No quantity for dividends
                     None,  # No price for dividends
                     dividend.get('total_value', 0),
+                    None,  # commission - typically not relevant for dividends
+                    dividend.get('tax'),  # Include tax if available
                     dividend.get('currency', 'ILS'),
                     'pending',
                     json.dumps(raw_data)
@@ -1018,9 +1034,9 @@ class IsraeliStockService:
                 insert_sql = """
                 INSERT INTO "PendingIsraeliTransaction" (
                     user_id, upload_batch_id, pdf_filename, transaction_date,
-                    security_no, stock_name, transaction_type, quantity, price,
-                    amount, currency, status, raw_data
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    transaction_time, security_no, stock_name, transaction_type, quantity, price,
+                    amount, commission, tax, currency, status, raw_data
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 
                 cursor.executemany(insert_sql, pending_records)
