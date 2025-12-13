@@ -358,7 +358,7 @@ export default function SettingsPage() {
                       Active Sessions
                     </h3>
                     <p className="text-sm text-gray-600 mb-4">
-                      Manage devices where you're currently logged in
+                      Manage devices where you&apos;re currently logged in
                     </p>
                     <button className="px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50">
                       View Sessions
