@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { israeliStocksAPI } from "@/services/api";
-import { DocumentArrowDownIcon } from "@heroicons/react/24/outline";
+import { DocumentArrowDownIcon, EyeIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 interface Report {
   id: number;
@@ -18,6 +18,8 @@ export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [previewReport, setPreviewReport] = useState<Report | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -51,6 +53,26 @@ export default function ReportsPage() {
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to download report");
     }
+  };
+
+  const handlePreview = async (report: Report) => {
+    try {
+      setError(null);
+      const blob = await israeliStocksAPI.downloadReport(report.id);
+      const url = window.URL.createObjectURL(blob);
+      setPreviewUrl(url);
+      setPreviewReport(report);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to preview report");
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) {
+      window.URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setPreviewReport(null);
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -162,16 +184,26 @@ export default function ReportsPage() {
                         {formatFileSize(report.file_size)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <button
-                          onClick={() =>
-                            handleDownload(report.id, report.filename)
-                          }
-                          className="text-blue-600 hover:text-blue-900 inline-flex items-center"
-                          title="Download PDF"
-                        >
-                          <DocumentArrowDownIcon className="h-5 w-5 mr-1" />
-                          Download
-                        </button>
+                        <div className="flex items-center justify-center gap-3">
+                          <button
+                            onClick={() => handlePreview(report)}
+                            className="text-purple-600 hover:text-purple-900 inline-flex items-center"
+                            title="Preview PDF"
+                          >
+                            <EyeIcon className="h-5 w-5 mr-1" />
+                            Preview
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleDownload(report.id, report.filename)
+                            }
+                            className="text-blue-600 hover:text-blue-900 inline-flex items-center"
+                            title="Download PDF"
+                          >
+                            <DocumentArrowDownIcon className="h-5 w-5 mr-1" />
+                            Download
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -185,6 +217,58 @@ export default function ReportsPage() {
         {reports.length > 0 && (
           <div className="mt-6 text-sm text-gray-600">
             Total Reports: {reports.length}
+          </div>
+        )}
+
+        {/* Preview Modal */}
+        {previewReport && previewUrl && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+              {/* Background overlay */}
+              <div
+                className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+                onClick={closePreview}
+              ></div>
+
+              {/* Modal panel */}
+              <div className="inline-block w-full max-w-6xl my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-lg">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      {previewReport.filename}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {formatDate(previewReport.upload_date)} • {formatFileSize(previewReport.file_size)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleDownload(previewReport.id, previewReport.filename)}
+                      className="text-blue-600 hover:text-blue-900 inline-flex items-center px-3 py-1.5 border border-blue-600 rounded-md"
+                    >
+                      <DocumentArrowDownIcon className="h-4 w-4 mr-1" />
+                      Download
+                    </button>
+                    <button
+                      onClick={closePreview}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <XMarkIcon className="h-6 w-6" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* PDF Viewer */}
+                <div className="w-full" style={{ height: "80vh" }}>
+                  <iframe
+                    src={previewUrl}
+                    className="w-full h-full border-0"
+                    title="PDF Preview"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
