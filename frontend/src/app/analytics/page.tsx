@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import {
   ChartBarIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   CurrencyDollarIcon,
   ArrowUpIcon,
   ArrowDownIcon,
@@ -130,9 +130,9 @@ export default function AnalyticsPage() {
                 Total Gain/Loss
               </h3>
               {analytics.totalGain >= 0 ? (
-                <TrendingUpIcon className="h-5 w-5 text-green-500" />
+                <ArrowTrendingUpIcon className="h-5 w-5 text-green-500" />
               ) : (
-                <TrendingDownIcon className="h-5 w-5 text-red-500" />
+                <ArrowTrendingDownIcon className="h-5 w-5 text-red-500" />
               )}
             </div>
             <div
@@ -321,7 +321,7 @@ export default function AnalyticsPage() {
           <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
-                <TrendingUpIcon className="h-6 w-6 text-white" />
+                <ArrowTrendingUpIcon className="h-6 w-6 text-white" />
               </div>
               <div>
                 <h4 className="font-semibold text-gray-900 mb-1">
