@@ -226,8 +226,8 @@ class IsraeliStockService:
                 pdf_content = f.read()
             file_size = len(pdf_content)
             
-            # Save PDF to database
-            self.save_pdf_to_database(
+            # Save PDF to database (check for duplicates)
+            save_result = self.save_pdf_to_database(
                 user_id=user_id,
                 filename=pdf_name,
                 file_data=pdf_content,
@@ -235,6 +235,10 @@ class IsraeliStockService:
                 broker=broker,
                 batch_id=batch_id
             )
+            
+            # Check if duplicate was detected
+            if 'error' in save_result:
+                return save_result  # Return error to caller
             
             # Extract tables from PDF
             tables = self.extract_tables_from_pdf(pdf_path)
@@ -936,12 +940,36 @@ class IsraeliStockService:
         file_size: int,
         broker: str,
         batch_id: str
-    ) -> int:
-        """Save uploaded PDF file to database"""
+    ) -> dict:
+        """
+        Save uploaded PDF file to database
+        Returns: dict with either {'report_id': int} or {'error': str, 'message': str}
+        """
         try:
             conn = self.create_database_connection()
             cursor = conn.cursor()
             
+            # Check if this PDF was already uploaded by this user
+            check_sql = """
+            SELECT id, upload_date 
+            FROM "IsraeliReportUpload" 
+            WHERE user_id = %s AND filename = %s
+            LIMIT 1
+            """
+            
+            cursor.execute(check_sql, (user_id, filename))
+            existing = cursor.fetchone()
+            
+            if existing:
+                cursor.close()
+                conn.close()
+                print(f"DEBUG: Duplicate PDF detected - Filename: {filename}, Existing ID: {existing[0]}")
+                return {
+                    'error': 'duplicate',
+                    'message': f'This PDF file "{filename}" has already been uploaded on {existing[1].strftime("%Y-%m-%d %H:%M") if existing[1] else "unknown date"}'
+                }
+            
+            # No duplicate, proceed with insert
             insert_sql = """
             INSERT INTO "IsraeliReportUpload" (
                 user_id, filename, file_data, file_size, broker, upload_batch_id
@@ -964,7 +992,7 @@ class IsraeliStockService:
             conn.close()
             
             print(f"DEBUG: Saved PDF to database - ID: {report_id}, Filename: {filename}, Size: {file_size} bytes")
-            return report_id
+            return {'report_id': report_id}
             
         except Exception as e:
             print(f"ERROR: Failed to save PDF to database: {e}")

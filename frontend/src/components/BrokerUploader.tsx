@@ -103,43 +103,69 @@ export default function BrokerUploader({
       const filesArray = Array.from(files);
       const results = await israeliStocksAPI.upload(filesArray, brokerId);
 
-      // Check if we have pending transactions
-      const hasPendingTransactions = results.some((r: any) => r.pending_count > 0);
-      const totalPending = results.reduce(
-        (sum: number, r: any) => sum + (r.pending_count || 0),
-        0
-      );
-      const batchIds = results
-        .filter((r: any) => r.batch_id)
-        .map((r: any) => r.batch_id);
+      // Check for any failed uploads
+      const failedUploads = results.filter((r: any) => r.status === "failed");
+      const successfulUploads = results.filter((r: any) => r.status !== "failed");
 
-      if (hasPendingTransactions) {
-        setSuccess(
-          `Successfully extracted ${totalPending} transaction(s) from ${files.length} file(s). Please review and approve them.`
-        );
+      // If there are failed uploads, show error messages
+      if (failedUploads.length > 0) {
+        const errorMessages = failedUploads
+          .map((r: any) => `${r.filename}: ${r.message}`)
+          .join("\n");
+        setError(errorMessages);
         
-        // Store batch IDs for review
-        if (batchIds.length > 0) {
-          sessionStorage.setItem('pending_batch_ids', JSON.stringify(batchIds));
+        // If ALL uploads failed, don't show success message
+        if (successfulUploads.length === 0) {
+          onUploadComplete(results);
+          return;
         }
-      } else {
-        // Fallback for old response format
-        const totalHoldings = results.reduce(
-          (sum: number, r: any) => sum + (r.holdings_saved || 0),
-          0
-        );
-        const totalTransactions = results.reduce(
-          (sum: number, r: any) => sum + (r.transactions_saved || 0),
-          0
-        );
-        const totalDividends = results.reduce(
-          (sum: number, r: any) => sum + (r.dividends_saved || 0),
-          0
-        );
+      }
 
-        setSuccess(
-          `Successfully processed ${files.length} file(s): ${totalHoldings} holdings, ${totalTransactions} transactions, ${totalDividends} dividends`
+      // Process successful uploads
+      if (successfulUploads.length > 0) {
+        // Check if we have pending transactions
+        const hasPendingTransactions = successfulUploads.some(
+          (r: any) => r.pending_count > 0
         );
+        const totalPending = successfulUploads.reduce(
+          (sum: number, r: any) => sum + (r.pending_count || 0),
+          0
+        );
+        const batchIds = successfulUploads
+          .filter((r: any) => r.batch_id)
+          .map((r: any) => r.batch_id);
+
+        if (hasPendingTransactions) {
+          setSuccess(
+            `Successfully extracted ${totalPending} transaction(s) from ${successfulUploads.length} file(s). Please review and approve them.`
+          );
+
+          // Store batch IDs for review
+          if (batchIds.length > 0) {
+            sessionStorage.setItem(
+              "pending_batch_ids",
+              JSON.stringify(batchIds)
+            );
+          }
+        } else {
+          // Fallback for old response format
+          const totalHoldings = successfulUploads.reduce(
+            (sum: number, r: any) => sum + (r.holdings_saved || 0),
+            0
+          );
+          const totalTransactions = successfulUploads.reduce(
+            (sum: number, r: any) => sum + (r.transactions_saved || 0),
+            0
+          );
+          const totalDividends = successfulUploads.reduce(
+            (sum: number, r: any) => sum + (r.dividends_saved || 0),
+            0
+          );
+
+          setSuccess(
+            `Successfully processed ${successfulUploads.length} file(s): ${totalHoldings} holdings, ${totalTransactions} transactions, ${totalDividends} dividends`
+          );
+        }
       }
 
       onUploadComplete(results);

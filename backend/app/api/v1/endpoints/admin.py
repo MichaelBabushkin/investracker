@@ -241,6 +241,8 @@ def reset_user_stock_data(
     - Israeli stock holdings
     - Israeli stock transactions
     - Israeli dividends
+    - Pending transactions (for review)
+    - Uploaded PDF reports
     
     Does NOT remove:
     - User account
@@ -261,6 +263,20 @@ def reset_user_stock_data(
     try:
         # Delete Israeli stock data using raw SQL for efficiency
         with engine.connect() as conn:
+            # Delete pending transactions first (foreign key to upload_batch_id)
+            pending_result = conn.execute(
+                text('DELETE FROM "PendingIsraeliTransaction" WHERE user_id = :user_id'),
+                {"user_id": user_id}
+            )
+            pending_deleted = pending_result.rowcount
+            
+            # Delete uploaded PDF reports (will cascade delete due to foreign key, but doing explicitly for count)
+            reports_result = conn.execute(
+                text('DELETE FROM "IsraeliReportUpload" WHERE user_id = :user_id'),
+                {"user_id": user_id}
+            )
+            reports_deleted = reports_result.rowcount
+            
             # Delete holdings
             holdings_result = conn.execute(
                 text('DELETE FROM "IsraeliStockHolding" WHERE user_id = :user_id'),
@@ -294,7 +310,9 @@ def reset_user_stock_data(
                 "holdings": holdings_deleted,
                 "transactions": transactions_deleted,
                 "dividends": dividends_deleted,
-                "total": holdings_deleted + transactions_deleted + dividends_deleted
+                "pending_transactions": pending_deleted,
+                "uploaded_reports": reports_deleted,
+                "total": holdings_deleted + transactions_deleted + dividends_deleted + pending_deleted + reports_deleted
             }
         }
         

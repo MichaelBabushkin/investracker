@@ -21,6 +21,7 @@ from app.core.auth import get_admin_user
 from app.core.database import engine, get_db
 from app.models.user import User
 from app.models.pending_transaction import PendingIsraeliTransaction
+from app.models.israeli_report import IsraeliReportUpload
 
 router = APIRouter()
 
@@ -78,7 +79,7 @@ async def upload_reports(
             
             if result.get('error'):
                 results.append({
-                    "message": f"Error: {result['error']}",
+                    "message": result.get('message', f"Error: {result['error']}"),
                     "filename": file.filename,
                     "status": "failed",
                     "error": result['error']
@@ -140,6 +141,10 @@ async def upload_and_analyze_pdf(
         target_user_id = user_id or current_user.id
         result = service.analyze_pdf_for_israeli_stocks(temp_path, target_user_id)
         
+        # Check if duplicate was detected
+        if 'error' in result and result['error'] == 'duplicate':
+            raise HTTPException(status_code=409, detail=result['message'])
+        
         return {
             "message": "PDF processed successfully",
             "filename": file.filename,
@@ -151,6 +156,8 @@ async def upload_and_analyze_pdf(
             "holding_date": result.get('holding_date')
         }
         
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions (including our 409 duplicate error)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
     finally:
@@ -1039,7 +1046,7 @@ async def reject_all_in_batch(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Reject all pending transactions in a batch"""
+    """Reject all pending transactions in a batch and delete the associated PDF"""
     transactions = db.query(PendingIsraeliTransaction).filter(
         PendingIsraeliTransaction.upload_batch_id == batch_id,
         PendingIsraeliTransaction.user_id == str(current_user.id),
@@ -1048,15 +1055,28 @@ async def reject_all_in_batch(
     
     rejected_count = len(transactions)
     
+    # Delete all pending transactions
     for t in transactions:
         db.delete(t)
+    
+    # Delete the associated PDF report
+    pdf_report = db.query(IsraeliReportUpload).filter(
+        IsraeliReportUpload.upload_batch_id == batch_id,
+        IsraeliReportUpload.user_id == str(current_user.id)
+    ).first()
+    
+    pdf_deleted = False
+    if pdf_report:
+        db.delete(pdf_report)
+        pdf_deleted = True
     
     db.commit()
     
     return {
         "success": True,
-        "message": f"Rejected {rejected_count} transactions",
-        "rejected_count": rejected_count
+        "message": f"Rejected {rejected_count} transactions" + (" and deleted PDF report" if pdf_deleted else ""),
+        "rejected_count": rejected_count,
+        "pdf_deleted": pdf_deleted
     }
 
 
