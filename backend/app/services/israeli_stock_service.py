@@ -19,6 +19,10 @@ from typing import List, Dict, Tuple, Optional
 # Add the project root to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
+# Import broker parsers
+from app.brokers import get_broker_parser
+from app.brokers.base_broker import BaseBrokerParser
+
 # Import SQLAlchemy models for type hints and future ORM usage
 try:
     from app.models.israeli_stock_models import (
@@ -42,7 +46,7 @@ except ImportError:
 class IsraeliStockService:
     """Service for processing Israeli stock data from PDF reports"""
     
-    def __init__(self):
+    def __init__(self, broker: str = 'excellence'):
         load_dotenv()
         # Prefer DATABASE_URL if provided; otherwise use discrete env vars with defaults
         self.db_url = os.getenv('DATABASE_URL')
@@ -53,6 +57,10 @@ class IsraeliStockService:
             'user': os.getenv('DB_USER', 'postgres'),
             'password': os.getenv('DB_PASSWORD', 'postgres')
         }
+        
+        # Get broker-specific parser
+        self.broker_name = broker
+        self.broker_parser: BaseBrokerParser = get_broker_parser(broker)
         
     def create_database_connection(self):
         """Create and return a database connection"""
@@ -94,15 +102,20 @@ class IsraeliStockService:
         """Extract all tables from PDF with Hebrew heading context"""
         all_tables = []
         
+        # Get broker-specific Hebrew headings
+        hebrew_headings = self.broker_parser.get_hebrew_headings()
+        holdings_heading = hebrew_headings.get('holdings', '')
+        transactions_heading = hebrew_headings.get('transactions', '')
+        
         try:
             with pdfplumber.open(pdf_path) as pdf:
                 for page_num, page in enumerate(pdf.pages):
                     # Extract text to find Hebrew headings
                     page_text = page.extract_text() or ""
                     
-                    # Determine page-level heading hints (a page may contain both types!)
-                    has_holdings_heading = "תורתי טוריפ" in page_text  # Holdings details
-                    has_transactions_heading = "תועונת טוריפ" in page_text  # Transactions details
+                    # Determine page-level heading hints
+                    has_holdings_heading = holdings_heading in page_text if holdings_heading else False
+                    has_transactions_heading = transactions_heading in page_text if transactions_heading else False
                     
                     # Extract tables from this page
                     tables = page.extract_tables()
@@ -115,7 +128,7 @@ class IsraeliStockService:
                                     cleaned_row = [str(cell).strip() if cell is not None else "" for cell in row]
                                     cleaned_table.append(cleaned_row)
                                 
-                                # Decide table type: if page has only one heading type, use it; if both/none, leave None (to be inferred later)
+                                # Decide table type based on headings
                                 inferred_table_type = None
                                 if has_holdings_heading and not has_transactions_heading:
                                     inferred_table_type = "holdings"
@@ -126,11 +139,11 @@ class IsraeliStockService:
                                     'page': page_num + 1,
                                     'table_number': table_num + 1,
                                     'data': cleaned_table,
-                                    'hebrew_heading_type': inferred_table_type  # Page-level hint only
+                                    'hebrew_heading_type': inferred_table_type
                                 }
                                 all_tables.append(table_info)
                                 hint_dbg = inferred_table_type if inferred_table_type else "ambiguous/none"
-                                print(f"DEBUG: Page {page_num + 1}, Table {table_num + 1} - Hebrew heading hint: {hint_dbg}")
+                                print(f"DEBUG: [{self.broker_name}] Page {page_num + 1}, Table {table_num + 1} - Hebrew heading hint: {hint_dbg}")
             
             return all_tables
             
@@ -166,7 +179,7 @@ class IsraeliStockService:
         return csv_files
     
     def extract_date_from_pdf(self, pdf_path: str) -> Optional[datetime]:
-        """Extract the holding date from the PDF header"""
+        """Extract the holding date from the PDF header using broker-specific logic"""
         if not os.path.exists(pdf_path):
             return None
         
@@ -177,39 +190,16 @@ class IsraeliStockService:
                     text = first_page.extract_text()
                     
                     if text:
-                        lines = text.split('\n')[:10]  # Check first 10 lines
-                        
-                        import re
-                        for line in lines:
-                            # Accept dates with '/', '-', or '.' as separators
-                            date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{4})', line)
-                            if date_match:
-                                date_str = date_match.group(1)
-                                return self.parse_date_string(date_str)
+                        # Use broker-specific date extraction
+                        return self.broker_parser.extract_date_from_pdf_text(text)
         except Exception:
             pass
         
         return None
     
     def parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse a date string into a date object"""
-        if not date_str:
-            return None
-        
-        date_str = date_str.strip()
-        date_formats = [
-            '%d/%m/%Y', '%d/%m/%y', '%d-%m-%Y', '%d-%m-%y',
-            '%d.%m.%Y', '%d.%m.%y', '%Y/%m/%d', '%Y-%m-%d',
-            '%m/%d/%Y', '%m/%d/%y'
-        ]
-        
-        for fmt in date_formats:
-            try:
-                return datetime.strptime(date_str, fmt).date()
-            except ValueError:
-                continue
-        
-        return None
+        """Parse a date string into a date object (delegates to broker parser)"""
+        return self.broker_parser.parse_date_string(date_str)
     
     def process_pdf_report(self, pdf_path: str, user_id: str, broker: str = 'excellence') -> Dict:
         """Main function to process a PDF investment report and save to pending transactions"""
@@ -387,54 +377,8 @@ class IsraeliStockService:
         return all_holdings, all_transactions
     
     def determine_csv_type(self, df: pd.DataFrame, csv_file: str) -> str:
-        """Determine if a CSV contains holdings or transactions data"""
-        filename_lower = os.path.basename(csv_file).lower()
-        
-        # Analyze content first to make a smarter decision
-        columns_str = ' '.join([str(col).lower() for col in df.columns])
-        sample_data = ' '.join([str(val).lower() for val in df.iloc[:10].values.flatten() if pd.notna(val)])
-        all_content = columns_str + ' ' + sample_data
-        
-        holdings_indicators = [
-            'current', 'holding', 'position', 'portfolio', 'balance',
-            'market value', 'זוחא', 'יווש', 'יחכונ רעש', 'השיכרה תולע', 'קיתהמ',
-            'תומכ', 'ריינ םש', 'ריינ רפסמ'
-        ]
-        
-        transaction_indicators = [
-            'buy', 'sell', 'transaction', 'trade', 'date', 'activity',
-            'קנייה', 'מכירה', 'עסקה', 'ךיראת', 'דנדביד', 'ףיצר', 'גוס הקסע',
-            'divid', 'div/', 'ביד/', 'חסמ/', '/05/', '/04/', '/03/', '/02/', '/01/',
-            'הקסע', 'תועונת', 'םוי ךרע', 'גוס\nהעונת', 'ךיראת\nעוציב', 'םוי\nךרע'
-        ]
-        
-        holdings_score = sum(1 for indicator in holdings_indicators if indicator in all_content)
-        transaction_score = sum(1 for indicator in transaction_indicators if indicator in all_content)
-        
-        # Look for date patterns which are strong indicators of transactions
-        import re
-        date_patterns = [r'\d{2}/\d{2}/\d{2}', r'\d{1,2}/\d{1,2}/\d{2,4}']
-        for pattern in date_patterns:
-            if re.search(pattern, sample_data):
-                transaction_score += 2
-        
-        # Check for multi-line headers which are common in transaction tables
-        if any('\\n' in str(col) for col in df.columns):
-            transaction_score += 2
-        
-        # Check for transaction type columns in Hebrew
-        transaction_type_keywords = ['גוס העונת', 'גוס\nהעונת', 'ביד/', 'חסמ/', 'הדקפה', 'הכישמ']
-        if any(keyword in all_content for keyword in transaction_type_keywords):
-            transaction_score += 3
-        
-        # Special case: If it's page_1_table_1 and has very strong holdings indicators, force holdings
-        if 'page_1_table_1' in filename_lower and holdings_score >= 4:
-            print(f"DEBUG: {os.path.basename(csv_file)} - Forced to HOLDINGS (Page 1 Table 1 with strong indicators)")
-            return "holdings"
-        
-        result = "transactions" if transaction_score > holdings_score else "holdings"
-        print(f"DEBUG: {os.path.basename(csv_file)} - Content analysis: Holdings={holdings_score}, Transactions={transaction_score}, Result={result}")
-        return result
+        """Determine if a CSV contains holdings or transactions data (delegates to broker parser)"""
+        return self.broker_parser.determine_table_type(df, csv_file)
     
     def find_israeli_stocks_in_csv(self, df: pd.DataFrame, israeli_stocks: Dict, csv_file: str, 
                                  csv_type: str, pdf_name: str, holding_date: Optional[datetime]) -> List[Dict]:
@@ -481,34 +425,8 @@ class IsraeliStockService:
     
     def parse_holding_row(self, row, security_no: str, symbol: str, name: str, 
                          pdf_name: str, holding_date: Optional[datetime]) -> Optional[Dict]:
-        """Parse a single row into holding data"""
-        row_values = [str(val).replace(',', '') if pd.notna(val) else '' for val in row.values]
-        
-        holding = {
-            'security_no': security_no,
-            'symbol': symbol,
-            'name': name,
-            'source_pdf': pdf_name,
-            'holding_date': holding_date,
-            'currency': 'ILS'
-        }
-        
-        try:
-            # Based on CSV structure: portfolio_percentage, current_value, purchase_cost, last_price, quantity
-            if len(row_values) > 0 and row_values[0]:
-                holding['portfolio_percentage'] = float(row_values[0])
-            if len(row_values) > 1 and row_values[1]:
-                holding['current_value'] = float(row_values[1])
-            if len(row_values) > 2 and row_values[2]:
-                holding['purchase_cost'] = float(row_values[2])
-            if len(row_values) > 3 and row_values[3]:
-                holding['last_price'] = float(row_values[3])
-            if len(row_values) > 4 and row_values[4]:
-                holding['quantity'] = float(row_values[4])
-        except (ValueError, TypeError):
-            pass
-        
-        return holding
+        """Parse a single row into holding data (delegates to broker parser)"""
+        return self.broker_parser.parse_holding_row(row, security_no, symbol, name, pdf_name, holding_date)
     
     
     
@@ -527,219 +445,8 @@ class IsraeliStockService:
         return transactions
     
     def parse_transaction_row(self, row, security_no: str, symbol: str, name: str, pdf_name: str) -> Optional[Dict]:
-        """Parse a single row into transaction data with Hebrew mappings"""
-        # Normalize all cells to strings and strip thousand separators for numeric parsing
-        row_values = [str(val).strip() if pd.notna(val) else '' for val in row.values]
-        row_values_no_commas = [s.replace(',', '') for s in row_values]
-        
-        transaction = {
-            'security_no': security_no,
-            'symbol': symbol,
-            'name': name,
-            'source_pdf': pdf_name,
-            'currency': 'ILS'
-        }
-        
-        # Enhanced Hebrew to English transaction type mapping
-        hebrew_mappings = {
-            'דנדביד': 'DIVIDEND',
-            'דיבידנד': 'DIVIDEND',
-            'ביד/': 'DIVIDEND',
-            'div/': 'DIVIDEND',
-            'dividend': 'DIVIDEND',
-            'ףיצר/ק': 'BUY',
-            'ךיצר': 'BUY',
-            'קנייה': 'BUY',
-            'מכירה': 'SELL',
-            'ףיצר/מ': 'SELL',
-            'מיכור': 'SELL',
-            'חסמ/': 'BUY',  # Assuming this is a buy transaction type from the debug output
-            'buy': 'BUY',
-            'sell': 'SELL',
-            'הפקדה': 'DEPOSIT',
-            'deposit': 'DEPOSIT',
-            'משיכה': 'WITHDRAWAL',
-            'withdrawal': 'WITHDRAWAL'
-        }
-        
-        # Look for transaction type indicators in all row values
-        transaction_type = None
-        for value in row_values:
-            value_str = str(value).strip().lower()
-            for hebrew_key, english_type in hebrew_mappings.items():
-                if hebrew_key.lower() in value_str:
-                    transaction_type = english_type
-                    break
-            if transaction_type:
-                break
-        
-        # Look for date patterns (prefer a dedicated date column if present)
-        transaction_date = None
-        transaction_time = None
-        import re
-        # Try column-based date/time first if columns present
-        if len(row_values) >= 12:
-            # Common layouts show date at index 1 and time at index 11
-            date_candidate = row_values[1]
-            time_candidate = row_values[11]
-            m = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', date_candidate or '')
-            if m:
-                transaction_date = m.group(1)
-            tm = re.search(r'\b(\d{1,2}:\d{2})\b', time_candidate or '')
-            if tm:
-                transaction_time = tm.group(1)
-        # Fallback: scan entire row for date/time
-        if not transaction_date:
-            for value in row_values:
-                value_str = str(value).strip()
-                date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', value_str)
-                if date_match:
-                    transaction_date = date_match.group(1)
-                    break
-        if not transaction_time:
-            for value in row_values:
-                value_str = str(value).strip()
-                time_match = re.search(r'\b(\d{1,2}:\d{2})\b', value_str)
-                if time_match:
-                    transaction_time = time_match.group(1)
-                    break
-        
-        # Try to extract numeric values (amounts, prices, quantities) for fallback logic
-        numeric_values = []
-        for value in row_values_no_commas:
-            try:
-                # Clean the value and try to convert to float
-                clean_value = str(value).replace('₪', '').replace(' ', '').replace('+', '').strip()
-                if clean_value and clean_value.replace('.', '').replace('-', '').isdigit():
-                    numeric_values.append(float(clean_value))
-            except (ValueError, AttributeError):
-                continue
-        
-        try:
-            # Set transaction type if found
-            if transaction_type:
-                transaction['transaction_type'] = transaction_type
-            else:
-                transaction['transaction_type'] = 'BUY'  # Default
-            
-            # Set transaction date/time if found
-            if transaction_date:
-                transaction['transaction_date'] = transaction_date
-            if transaction_time:
-                transaction['transaction_time'] = transaction_time
-            
-            # Assign numeric values to appropriate fields based on transaction type
-            if numeric_values:
-                if transaction_type == 'DIVIDEND':
-                    # For dividends in transaction tables, the structure is:
-                    # [remaining_qty, date, cash_balance, tax, commission, net_amount, price, quantity, type, name, security_no, hour, value_date]
-                    # Column 5 = net_amount (25.35), Column 3 = tax (12.68)
-                    # We need to calculate gross_amount = net_amount + tax
-                    
-                    # Try to extract from specific columns first
-                    try:
-                        net_amount = 0
-                        tax_amount = 0
-                        
-                        # Column 5: Net dividend amount
-                        if len(row_values) >= 6 and row_values[5]:
-                            net_amount = float(str(row_values[5]).replace('₪', '').replace(',', '').strip())
-                        
-                        # Column 3: Tax withheld
-                        if len(row_values) >= 4 and row_values[3]:
-                            tax_amount = float(str(row_values[3]).replace('₪', '').replace(',', '').strip())
-                            transaction['tax'] = abs(tax_amount)
-                        
-                        # Calculate gross amount (total before tax)
-                        if net_amount > 0 and tax_amount > 0:
-                            gross_amount = abs(net_amount) + abs(tax_amount)
-                            transaction['total_value'] = gross_amount
-                            print(f"DEBUG: Dividend calculation - Net: {abs(net_amount)}, Tax: {abs(tax_amount)}, Gross: {gross_amount}")
-                        elif net_amount > 0:
-                            transaction['total_value'] = abs(net_amount)
-                        
-                        # Column 0: Remaining quantity (might be relevant)
-                        if len(row_values) >= 1 and row_values[0]:
-                            qty = float(str(row_values[0]).replace('₪', '').replace(',', '').strip())
-                            if qty > 0:
-                                transaction['quantity'] = abs(qty)
-                        
-                    except (ValueError, IndexError):
-                        # Fallback to old logic if specific column parsing fails
-                        if len(numeric_values) >= 1:
-                            transaction['total_value'] = abs(numeric_values[0])
-                        if len(numeric_values) >= 2:
-                            transaction['tax'] = abs(numeric_values[1]) if numeric_values[1] > 0 else 0
-                else:
-                    # For buy/sell transactions: prefer column-positioned parsing when available
-                    def to_float(val: str) -> Optional[float]:
-                        try:
-                            s = (val or '').replace('₪', '').replace(',', '').replace(' ', '').strip()
-                            if not s:
-                                return None
-                            return float(s)
-                        except Exception:
-                            return None
-
-                    used_positional = False
-                    if len(row_values) >= 12:
-                        print(f"DEBUG: Row has {len(row_values)} columns for {symbol}")
-                        qty = to_float(row_values[7])  # quantity
-                        price_raw = to_float(row_values[6])  # price (often in agorot)
-                        commission = to_float(row_values[4]) or 0.0
-                        tax = to_float(row_values[3]) or 0.0
-                        total = to_float(row_values[5])  # net/total
-                        print(f"DEBUG: Extracted - qty={qty}, price={price_raw}, commission={commission}, tax={tax}, total={total}")
-
-                        if qty is not None or price_raw is not None or total is not None:
-                            if qty is not None:
-                                transaction['quantity'] = abs(qty)
-                            if price_raw is not None:
-                                # Convert from agorot to shekels if looks like agorot (>= 1000)
-                                price = price_raw / 100.0 
-                                transaction['price'] = abs(price)
-                            if commission is not None:
-                                transaction['commission'] = abs(commission)
-                            if tax is not None:
-                                transaction['tax'] = abs(tax)
-                            if total is not None:
-                                transaction['total_value'] = abs(total)
-                            else:
-                                # Compute total if not provided
-                                if transaction.get('quantity') is not None and transaction.get('price') is not None:
-                                    base = float(transaction['quantity']) * float(transaction['price'])
-                                    if transaction['transaction_type'] == 'SELL':
-                                        transaction['total_value'] = abs(base - commission - tax)
-                                    else:
-                                        transaction['total_value'] = abs(base + commission + tax)
-                            used_positional = True
-
-                    if not used_positional:
-                        # Fallback heuristic based on ordered numeric values
-                        if len(numeric_values) >= 1:
-                            transaction['total_value'] = abs(numeric_values[0])
-                        if len(numeric_values) >= 2:
-                            transaction['quantity'] = abs(numeric_values[1])
-                        if len(numeric_values) >= 3:
-                            price_candidate = abs(numeric_values[2])
-                            # Convert if looks like agorot
-                            transaction['price'] = price_candidate / 100.0 if price_candidate >= 1000 else price_candidate
-                        if len(numeric_values) >= 4:
-                            transaction['commission'] = abs(numeric_values[3]) if numeric_values[3] > 0 else 0
-                        if len(numeric_values) >= 5:
-                            transaction['tax'] = abs(numeric_values[4]) if numeric_values[4] > 0 else 0
-            
-            # Only return transaction if we found a transaction type or date
-            if transaction_type or transaction_date:
-                print(f"DEBUG: Found transaction - {symbol}: {transaction_type} on {transaction_date}, value: {transaction.get('total_value', 'N/A')}")
-                print(f"DEBUG: Transaction details - time: {transaction.get('transaction_time')}, commission: {transaction.get('commission')}, tax: {transaction.get('tax')}")
-                return transaction
-            else:
-                return None
-                
-        except Exception as e:
-            print(f"DEBUG: Error parsing transaction row for {symbol}: {e}")
-            return None
+        """Parse a single row into transaction data (delegates to broker parser)"""
+        return self.broker_parser.parse_transaction_row(row, security_no, symbol, name, pdf_name)
     
     def save_holdings_to_database(self, holdings: List[Dict], user_id: str) -> int:
         """Save holdings to database using bulk insert"""
