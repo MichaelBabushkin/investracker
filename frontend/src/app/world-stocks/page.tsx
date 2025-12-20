@@ -1,5 +1,10 @@
 import WorldStocksDashboard from "@/components/WorldStocksDashboard";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function WorldStocksPage() {
-  return <WorldStocksDashboard />;
+  return (
+    <ProtectedRoute>
+      <WorldStocksDashboard />
+    </ProtectedRoute>
+  );
 }

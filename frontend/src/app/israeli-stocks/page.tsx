@@ -1,5 +1,10 @@
 import IsraeliStocksDashboard from "@/components/IsraeliStocksDashboard";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function IsraeliStocksPage() {
-  return <IsraeliStocksDashboard />;
+  return (
+    <ProtectedRoute>
+      <IsraeliStocksDashboard />
+    </ProtectedRoute>
+  );
 }

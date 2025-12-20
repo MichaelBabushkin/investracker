@@ -9,6 +9,7 @@ import {
   ShieldCheckIcon,
   GlobeAltIcon,
 } from "@heroicons/react/24/outline";
+import ProtectedRoute from "@/components/ProtectedRoute" ;
 
 type Theme = "light" | "dark" | "auto";
 type Currency = "USD" | "ILS" | "EUR" | "GBP";
@@ -63,10 +64,11 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Settings</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-2">
             Manage your account settings and preferences
@@ -430,6 +432,7 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

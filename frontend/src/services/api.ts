@@ -27,13 +27,28 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle token refresh
+// Response interceptor to handle token refresh and auth errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Handle authentication errors (401 Unauthorized, 403 Forbidden)
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Don't retry if it's already a retry or if it's a login/register request
+      if (originalRequest._retry || originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/register')) {
+        // Clear tokens and redirect to login
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+        
+        // Only redirect if not already on login page
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth/')) {
+          window.location.href = "/auth/login?session_expired=true";
+        }
+        return Promise.reject(error);
+      }
+
       originalRequest._retry = true;
 
       try {
@@ -50,12 +65,24 @@ api.interceptors.response.use(
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
           return api(originalRequest);
+        } else {
+          // No refresh token available, redirect to login
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          
+          if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth/')) {
+            window.location.href = "/auth/login?session_expired=true";
+          }
         }
       } catch (refreshError) {
         // Refresh failed, redirect to login
         localStorage.removeItem("token");
         localStorage.removeItem("refreshToken");
-        window.location.href = "/auth/login";
+        localStorage.removeItem("user");
+        
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth/')) {
+          window.location.href = "/auth/login?session_expired=true";
+        }
       }
     }
 
