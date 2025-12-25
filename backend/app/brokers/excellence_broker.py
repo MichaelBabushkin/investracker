@@ -14,93 +14,65 @@ from .base_broker import BaseBrokerParser
 class ExcellenceBrokerParser(BaseBrokerParser):
     """Parser for Excellence/Meitav broker PDFs"""
     
+    # Column indices for transaction parsing (Excellence format)
+    COL_BALANCE = 0          # Remaining balance after transaction
+    COL_DATE = 1             # Transaction date (DD/MM/YY)
+    COL_AMOUNT = 2           # Transaction amount (ILS)
+    COL_TAX = 3              # Tax amount (ILS)
+    COL_COMMISSION = 4       # Commission/fees (ILS)
+    COL_TOTAL = 5            # Net total (ILS)
+    COL_PRICE = 6            # Price per share (in agorot)
+    COL_QUANTITY = 7         # Number of shares
+    COL_TYPE = 8             # Transaction type (Hebrew)
+    COL_DESCRIPTION = 9      # Transaction description
+    COL_SECURITY_ID = 10     # Security/Stock ID
+    COL_EXECUTION_DATE = 11  # Execution date (rightmost column)
+    
     def get_hebrew_headings(self) -> Dict[str, str]:
         """Hebrew heading patterns for Excellence broker"""
         return {
-            'holdings': 'תורתי טוריפ',  # Holdings details
             'transactions': 'תועונת טוריפ'  # Transactions details
         }
     
     def determine_table_type(self, df: pd.DataFrame, csv_file: str) -> str:
-        """Determine if a CSV contains holdings or transactions data for Excellence"""
+        """Determine if a CSV contains transactions data for Excellence"""
         import os
-        filename_lower = os.path.basename(csv_file).lower()
         
         # Analyze content
         columns_str = ' '.join([str(col).lower() for col in df.columns])
         sample_data = ' '.join([str(val).lower() for val in df.iloc[:10].values.flatten() if pd.notna(val)])
         all_content = columns_str + ' ' + sample_data
         
-        holdings_indicators = [
-            'current', 'holding', 'position', 'portfolio', 'balance',
-            'market value', 'זוחא', 'יווש', 'יחכונ רעש', 'השיכרה תולע', 'קיתהמ',
-            'תומכ', 'ריינ םש', 'ריינ רפסמ'
-        ]
-        
+        # Transaction indicators
         transaction_indicators = [
             'buy', 'sell', 'transaction', 'trade', 'date', 'activity',
-            'קנייה', 'מכירה', 'עסקה', 'ךיראת', 'דנדביד', 'ףיצר', 'גוס הקסע',
-            'divid', 'div/', 'ביד/', 'חסמ/', '/05/', '/04/', '/03/', '/02/', '/01/',
-            'הקסע', 'תועונת', 'םוי ךרע', 'גוס\nהעונת', 'ךיראת\nעוציב', 'םוי\nךרע'
+            'קנייה', 'מכירה', 'עסקה', 'ךיראת', 'דנדביד', 'העברה', 'הפקדה', 'משיכה',
+            'divid', 'div/', 'ביד/', 'חסמ/', '/01/25', '/02/25', 'תועונת',
+            'גוס העונת', 'גוס\nהעונת', 'ךיראת\nעוציב', 'םוי\nךרע'
         ]
         
-        holdings_score = sum(1 for indicator in holdings_indicators if indicator in all_content)
-        transaction_score = sum(1 for indicator in transaction_indicators if indicator in all_content)
+        # Count matches
+        score = sum(1 for indicator in transaction_indicators if indicator in all_content)
         
         # Look for date patterns (strong transaction indicator)
         date_patterns = [r'\d{2}/\d{2}/\d{2}', r'\d{1,2}/\d{1,2}/\d{2,4}']
         for pattern in date_patterns:
             if re.search(pattern, sample_data):
-                transaction_score += 2
+                score += 3
         
-        # Multi-line headers (common in transaction tables)
-        if any('\\n' in str(col) for col in df.columns):
-            transaction_score += 2
+        # Look for transaction IDs (900 for deposits, 99028 for stocks, etc.)
+        if re.search(r'\b(900|99\d{3}|60\d{5})\b', all_content):
+            score += 2
         
-        # Transaction type columns in Hebrew
-        transaction_type_keywords = ['גוס העונת', 'גוס\nהעונת', 'ביד/', 'חסמ/', 'הדקפה', 'הכישמ']
-        if any(keyword in all_content for keyword in transaction_type_keywords):
-            transaction_score += 3
-        
-        # Special case: Page 1 Table 1 with strong holdings indicators
-        if 'page_1_table_1' in filename_lower and holdings_score >= 4:
-            print(f"DEBUG: {os.path.basename(csv_file)} - Forced to HOLDINGS (Page 1 Table 1 with strong indicators)")
-            return "holdings"
-        
-        result = "transactions" if transaction_score > holdings_score else "holdings"
-        print(f"DEBUG: {os.path.basename(csv_file)} - Excellence analysis: Holdings={holdings_score}, Transactions={transaction_score}, Result={result}")
+        # If score is high enough, it's transactions
+        result = "transactions" if score >= 3 else "unknown"
+        print(f"DEBUG: {os.path.basename(csv_file)} - Transaction score: {score}, Result: {result}")
         return result
     
     def parse_holding_row(self, row: pd.Series, security_no: str, symbol: str,
                          name: str, pdf_name: str, holding_date: Optional[datetime]) -> Optional[Dict]:
-        """Parse Excellence holding row format"""
-        row_values = [str(val).replace(',', '') if pd.notna(val) else '' for val in row.values]
-        
-        holding = {
-            'security_no': security_no,
-            'symbol': symbol,
-            'name': name,
-            'source_pdf': pdf_name,
-            'holding_date': holding_date,
-            'currency': 'ILS'
-        }
-        
-        try:
-            # Excellence format: portfolio_percentage, current_value, purchase_cost, last_price, quantity
-            if len(row_values) > 0 and row_values[0]:
-                holding['portfolio_percentage'] = float(row_values[0])
-            if len(row_values) > 1 and row_values[1]:
-                holding['current_value'] = float(row_values[1])
-            if len(row_values) > 2 and row_values[2]:
-                holding['purchase_cost'] = float(row_values[2])
-            if len(row_values) > 3 and row_values[3]:
-                holding['last_price'] = float(row_values[3])
-            if len(row_values) > 4 and row_values[4]:
-                holding['quantity'] = float(row_values[4])
-        except (ValueError, TypeError):
-            pass
-        
-        return holding
+        """Holdings are no longer extracted - all data comes from transactions"""
+        return None
     
     def parse_transaction_row(self, row: pd.Series, security_no: str, symbol: str,
                             name: str, pdf_name: str) -> Optional[Dict]:
@@ -126,59 +98,68 @@ class ExcellenceBrokerParser(BaseBrokerParser):
             'ףיצר/ק': 'BUY',
             'ךיצר': 'BUY',
             'קנייה': 'BUY',
+            'חסמ/': 'BUY',
+            'buy': 'BUY',
             'מכירה': 'SELL',
             'ףיצר/מ': 'SELL',
             'מיכור': 'SELL',
-            'חסמ/': 'BUY',
-            'buy': 'BUY',
+            'מכ/שמטל': 'SELL',
             'sell': 'SELL',
+            'העברה': 'DEPOSIT',
             'הפקדה': 'DEPOSIT',
             'deposit': 'DEPOSIT',
             'משיכה': 'WITHDRAWAL',
             'withdrawal': 'WITHDRAWAL'
         }
         
-        # Detect transaction type
+        # Check for security ID 900 (deposits) or description containing העברה
+        is_deposit = False
         transaction_type = None
-        for value in row_values:
-            value_str = str(value).strip().lower()
-            for hebrew_key, english_type in hebrew_mappings.items():
-                if hebrew_key.lower() in value_str:
-                    transaction_type = english_type
-                    break
-            if transaction_type:
-                break
+        if len(row_values) >= 11:
+            security_id = str(row_values[self.COL_SECURITY_ID]).strip()
+            description = str(row_values[self.COL_DESCRIPTION]).strip() if len(row_values) > 9 else ''
+            if security_id == '900' or 'העברה' in description.lower() or 'הפקדה' in description.lower():
+                is_deposit = True
+                transaction_type = 'DEPOSIT'
         
-        # Extract date and time
+        # Detect transaction type (if not already identified as deposit)
+        if not is_deposit:
+            for value in row_values:
+                value_str = str(value).strip().lower()
+                for hebrew_key, english_type in hebrew_mappings.items():
+                    if hebrew_key.lower() in value_str:
+                        transaction_type = english_type
+                        break
+                if transaction_type:
+                    break
+        
+        # Extract date and time using column positions
         transaction_date = None
         transaction_time = None
         
-        # Try column-based extraction first (Excellence format has 12+ columns)
-        if len(row_values) >= 12:
-            date_candidate = row_values[1]
-            time_candidate = row_values[11]
-            m = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', date_candidate or '')
-            if m:
-                transaction_date = m.group(1)
-            tm = re.search(r'\b(\d{1,2}:\d{2})\b', time_candidate or '')
-            if tm:
-                transaction_time = tm.group(1)
+        # Column 1: Transaction date (DD/MM/YY format)
+        if len(row_values) > self.COL_DATE:
+            date_candidate = str(row_values[self.COL_DATE]).strip()
+            date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', date_candidate)
+            if date_match:
+                transaction_date = date_match.group(1)
         
-        # Fallback: scan entire row
+        # Column 11 or rightmost: Execution date (also DD/MM/YY)
+        if len(row_values) >= 12:
+            exec_date = str(row_values[self.COL_EXECUTION_DATE]).strip()
+            # Use execution date if no transaction date found
+            if not transaction_date:
+                date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', exec_date)
+                if date_match:
+                    transaction_date = date_match.group(1)
+        
+        # Fallback: scan all columns for date
         if not transaction_date:
             for value in row_values:
                 value_str = str(value).strip()
                 date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', value_str)
                 if date_match:
                     transaction_date = date_match.group(1)
-                    break
-        
-        if not transaction_time:
-            for value in row_values:
-                value_str = str(value).strip()
-                time_match = re.search(r'\b(\d{1,2}:\d{2})\b', value_str)
-                if time_match:
-                    transaction_time = time_match.group(1)
                     break
         
         # Extract numeric values
@@ -196,7 +177,9 @@ class ExcellenceBrokerParser(BaseBrokerParser):
             if numeric_values:
                 if transaction_type == 'DIVIDEND':
                     transaction = self._parse_excellence_dividend(transaction, row_values, numeric_values)
-                else:
+                elif transaction_type in ('DEPOSIT', 'WITHDRAWAL'):
+                    transaction = self._parse_excellence_deposit_withdrawal(transaction, row_values, numeric_values)
+                else:  # BUY or SELL
                     transaction = self._parse_excellence_buy_sell(transaction, row_values, row_values_no_commas, numeric_values, symbol)
             
             # Only return if we have essential data
@@ -298,6 +281,39 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                 transaction['commission'] = abs(numeric_values[3]) if numeric_values[3] > 0 else 0
             if len(numeric_values) >= 5:
                 transaction['tax'] = abs(numeric_values[4]) if numeric_values[4] > 0 else 0
+        
+        return transaction
+    
+    def _parse_excellence_deposit_withdrawal(self, transaction: Dict, row_values: List[str],
+                                            numeric_values: List[float]) -> Dict:
+        """Parse deposit/withdrawal transaction fields for Excellence format"""
+        try:
+            # Column 2: Transaction amount (main value)
+            if len(row_values) > self.COL_AMOUNT:
+                amount = self.clean_numeric_value(row_values[self.COL_AMOUNT])
+                if amount is not None:
+                    transaction['total_value'] = abs(amount)
+            
+            # Column 0: Balance after transaction
+            if len(row_values) > self.COL_BALANCE:
+                balance = self.clean_numeric_value(row_values[self.COL_BALANCE])
+                if balance is not None:
+                    # Store as quantity for consistency (represents cash balance)
+                    transaction['quantity'] = abs(balance)
+            
+            # Column 9: Description (optional)
+            if len(row_values) > self.COL_DESCRIPTION:
+                description = str(row_values[self.COL_DESCRIPTION]).strip()
+                if description:
+                    transaction['description'] = description
+            
+            print(f"DEBUG: Excellence deposit/withdrawal - Amount: {transaction.get('total_value', 'N/A')}, Balance: {transaction.get('quantity', 'N/A')}")
+            
+        except (ValueError, IndexError) as e:
+            print(f"DEBUG: Error parsing deposit/withdrawal: {e}")
+            # Fallback to numeric values
+            if len(numeric_values) >= 1:
+                transaction['total_value'] = abs(numeric_values[0])
         
         return transaction
     
