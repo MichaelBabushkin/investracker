@@ -29,6 +29,9 @@ from .world_stock import (
     WorldStockPerformance
 )
 
+# Calendar Events
+from .calendar_event import CalendarEvent, EventType
+
 __all__ = [
     "User",
     "Portfolio", 
