@@ -18,14 +18,18 @@ depends_on = None
 
 
 def upgrade():
-    # Create enum for event types if it doesn't exist
-    event_type_enum = ENUM('MARKET_CLOSED', 'EARLY_CLOSE', 'EARNINGS', 'ECONOMIC_DATA', 'FOMC', 'HOLIDAY', name='event_type', create_type=False)
-    
-    # Try to create the enum type first
+    # Create enum for event types
     conn = op.get_bind()
+    
+    # Check if the enum type already exists
     result = conn.execute(sa.text("SELECT 1 FROM pg_type WHERE typname = 'event_type'"))
-    if not result.scalar():
-        event_type_enum.create(conn, checkfirst=True)
+    type_exists = result.scalar()
+    
+    if not type_exists:
+        # Create the enum type
+        op.execute("CREATE TYPE event_type AS ENUM ('MARKET_CLOSED', 'EARLY_CLOSE', 'EARNINGS', 'ECONOMIC_DATA', 'FOMC', 'HOLIDAY')")
+    
+    event_type_enum = ENUM('MARKET_CLOSED', 'EARLY_CLOSE', 'EARNINGS', 'ECONOMIC_DATA', 'FOMC', 'HOLIDAY', name='event_type', create_type=False)
     
     # Create calendar_events table
     op.create_table(
