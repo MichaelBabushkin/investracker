@@ -6,12 +6,50 @@ import {
   ClockIcon,
   TrashIcon,
   ArrowPathIcon,
+  CalendarIcon,
 } from "@heroicons/react/24/outline";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const JobsSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
     "scheduled" | "manual" | "cache" | "history"
   >("manual");
+  const [selectedMarket, setSelectedMarket] = useState<string>("US");
+  const [seedingCalendar, setSeedingCalendar] = useState<boolean>(false);
+  const [seedMessage, setSeedMessage] = useState<string>("");
+
+  const handleSeedCalendar = async () => {
+    setSeedingCalendar(true);
+    setSeedMessage("");
+    
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/admin/seed-calendar-events?market=${selectedMarket}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSeedMessage(
+          `✓ Successfully seeded ${data.events_created} events for ${data.market} market (${data.years.join(", ")})`
+        );
+      } else {
+        setSeedMessage(`✗ Error: ${data.message || "Failed to seed calendar"}`);
+      }
+    } catch (error) {
+      setSeedMessage(`✗ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setSeedingCalendar(false);
+    }
+  };
 
   const tabs = [
     { id: "scheduled" as const, name: "Scheduled Jobs" },
@@ -156,6 +194,56 @@ const JobsSection: React.FC = () => {
                 <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
                   <PlayIcon className="w-4 h-4" />
                   Run Now
+                </button>
+              </div>
+
+              {/* Seed Calendar Events */}
+              <div className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-100 rounded-lg">
+                      <CalendarIcon className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        Seed Calendar Events
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Market holidays & closures
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Populate calendar with market holidays and closures
+                </p>
+                <select
+                  value={selectedMarket}
+                  onChange={(e) => setSelectedMarket(e.target.value)}
+                  className="w-full mb-3 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  disabled={seedingCalendar}
+                >
+                  <option value="US">US Market</option>
+                  <option value="IL">Israeli Market</option>
+                </select>
+                {seedMessage && (
+                  <div
+                    className={`mb-3 p-2 rounded text-xs ${
+                      seedMessage.startsWith("✓")
+                        ? "bg-green-50 text-green-700"
+                        : "bg-red-50 text-red-700"
+                    }`}
+                  >
+                    {seedMessage}
+                  </div>
+                )}
+                <button
+                  onClick={handleSeedCalendar}
+                  disabled={seedingCalendar}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  <PlayIcon className="w-4 h-4" />
+                  {seedingCalendar ? "Seeding..." : "Seed Calendar"}
                 </button>
               </div>
             </div>

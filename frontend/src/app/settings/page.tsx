@@ -9,10 +9,18 @@ import {
   ShieldCheckIcon,
   GlobeAltIcon,
 } from "@heroicons/react/24/outline";
-import ProtectedRoute from "@/components/ProtectedRoute" ;
+import ProtectedRoute from "@/components/ProtectedRoute";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type Theme = "light" | "dark" | "auto";
 type Currency = "USD" | "ILS" | "EUR" | "GBP";
+
+interface CalendarPreferences {
+  notify_markets: string[];
+  notify_event_types: string[];
+  notify_days_before: number;
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string>("appearance");
@@ -24,6 +32,19 @@ export default function SettingsPage() {
     portfolio: false,
     reports: true,
   });
+  const [calendarPreferences, setCalendarPreferences] = useState<CalendarPreferences>({
+    notify_markets: ["US", "IL"],
+    notify_event_types: [
+      "MARKET_CLOSED",
+      "EARLY_CLOSE",
+      "EARNINGS",
+      "ECONOMIC_DATA",
+      "FOMC",
+      "HOLIDAY"
+    ],
+    notify_days_before: 1,
+  });
+  const [loadingCalendarPrefs, setLoadingCalendarPrefs] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
@@ -33,7 +54,87 @@ export default function SettingsPage() {
     
     if (savedTheme) setTheme(savedTheme);
     if (savedCurrency) setBaseCurrency(savedCurrency);
+
+    // Load calendar notification preferences
+    loadCalendarPreferences();
   }, []);
+
+  const loadCalendarPreferences = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/user-settings/notification-preferences`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setCalendarPreferences({
+          notify_markets: data.notify_markets || ["US", "IL"],
+          notify_event_types: data.notify_event_types || [
+            "MARKET_CLOSED",
+            "EARLY_CLOSE",
+            "EARNINGS",
+            "ECONOMIC_DATA",
+            "FOMC",
+            "HOLIDAY"
+          ],
+          notify_days_before: data.notify_days_before || 1,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load calendar preferences:", error);
+    }
+  };
+
+  const handleSaveCalendarPreferences = async () => {
+    setLoadingCalendarPrefs(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/user-settings/notification-preferences`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(calendarPreferences),
+        }
+      );
+
+      if (response.ok) {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
+    } catch (error) {
+      console.error("Failed to save calendar preferences:", error);
+    } finally {
+      setLoadingCalendarPrefs(false);
+    }
+  };
+
+  const toggleMarket = (market: string) => {
+    setCalendarPreferences((prev) => ({
+      ...prev,
+      notify_markets: prev.notify_markets.includes(market)
+        ? prev.notify_markets.filter((m) => m !== market)
+        : [...prev.notify_markets, market],
+    }));
+  };
+
+  const toggleEventType = (eventType: string) => {
+    setCalendarPreferences((prev) => ({
+      ...prev,
+      notify_event_types: prev.notify_event_types.includes(eventType)
+        ? prev.notify_event_types.filter((e) => e !== eventType)
+        : [...prev.notify_event_types, eventType],
+    }));
+  };
 
   const handleSaveSettings = () => {
     // Save to localStorage (in a real app, this would sync to backend)
@@ -261,64 +362,168 @@ export default function SettingsPage() {
                   Notifications
                 </h2>
 
-                <div className="space-y-4">
-                  {[
-                    {
-                      key: "email",
-                      label: "Email Notifications",
-                      description: "Receive updates via email",
-                    },
-                    {
-                      key: "transactions",
-                      label: "Transaction Alerts",
-                      description: "Get notified when transactions are processed",
-                    },
-                    {
-                      key: "portfolio",
-                      label: "Portfolio Updates",
-                      description: "Daily portfolio performance summaries",
-                    },
-                    {
-                      key: "reports",
-                      label: "Report Processing",
-                      description: "Alerts when PDF reports are processed",
-                    },
-                  ].map((item) => (
-                    <div
-                      key={item.key}
-                      className="flex items-center justify-between py-4 border-b border-gray-200"
-                    >
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {item.label}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {item.description}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() =>
-                          setNotifications({
-                            ...notifications,
-                            [item.key]: !notifications[item.key as keyof typeof notifications],
-                          })
-                        }
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          notifications[item.key as keyof typeof notifications]
-                            ? "bg-blue-600"
-                            : "bg-gray-200"
-                        }`}
+                {/* General Notifications */}
+                <div className="mb-8">
+                  <h3 className="text-base font-medium text-gray-900 mb-4">
+                    General Notifications
+                  </h3>
+                  <div className="space-y-4">
+                    {[
+                      {
+                        key: "email",
+                        label: "Email Notifications",
+                        description: "Receive updates via email",
+                      },
+                      {
+                        key: "transactions",
+                        label: "Transaction Alerts",
+                        description: "Get notified when transactions are processed",
+                      },
+                      {
+                        key: "portfolio",
+                        label: "Portfolio Updates",
+                        description: "Daily portfolio performance summaries",
+                      },
+                      {
+                        key: "reports",
+                        label: "Report Processing",
+                        description: "Alerts when PDF reports are processed",
+                      },
+                    ].map((item) => (
+                      <div
+                        key={item.key}
+                        className="flex items-center justify-between py-4 border-b border-gray-200"
                       >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {item.label}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {item.description}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() =>
+                            setNotifications({
+                              ...notifications,
+                              [item.key]: !notifications[item.key as keyof typeof notifications],
+                            })
+                          }
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                             notifications[item.key as keyof typeof notifications]
-                              ? "translate-x-6"
-                              : "translate-x-1"
+                              ? "bg-blue-600"
+                              : "bg-gray-200"
                           }`}
-                        />
-                      </button>
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              notifications[item.key as keyof typeof notifications]
+                                ? "translate-x-6"
+                                : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Calendar Event Notifications */}
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-base font-medium text-gray-900 mb-4">
+                    Calendar Event Notifications
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Choose which market events you want to be notified about
+                  </p>
+
+                  {/* Markets Selection */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Markets
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      {[
+                        { value: "US", label: "US Market" },
+                        { value: "IL", label: "Israeli Market" },
+                      ].map((market) => (
+                        <button
+                          key={market.value}
+                          onClick={() => toggleMarket(market.value)}
+                          className={`px-4 py-2 rounded-lg border-2 transition-colors ${
+                            calendarPreferences.notify_markets.includes(market.value)
+                              ? "border-blue-500 bg-blue-50 text-blue-700 font-medium"
+                              : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                          }`}
+                        >
+                          {calendarPreferences.notify_markets.includes(market.value) && "✓ "}
+                          {market.label}
+                        </button>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Event Types Selection */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Event Types
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[
+                        { value: "MARKET_CLOSED", label: "Market Closures" },
+                        { value: "EARLY_CLOSE", label: "Early Close" },
+                        { value: "EARNINGS", label: "Earnings Reports" },
+                        { value: "ECONOMIC_DATA", label: "Economic Data" },
+                        { value: "FOMC", label: "FOMC Meetings" },
+                        { value: "HOLIDAY", label: "Holidays" },
+                      ].map((eventType) => (
+                        <button
+                          key={eventType.value}
+                          onClick={() => toggleEventType(eventType.value)}
+                          className={`px-4 py-2 rounded-lg border-2 text-left transition-colors ${
+                            calendarPreferences.notify_event_types.includes(eventType.value)
+                              ? "border-blue-500 bg-blue-50 text-blue-700 font-medium"
+                              : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                          }`}
+                        >
+                          {calendarPreferences.notify_event_types.includes(eventType.value) && "✓ "}
+                          {eventType.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Days Before Notification */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Notify me this many days before events
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="30"
+                      value={calendarPreferences.notify_days_before}
+                      onChange={(e) =>
+                        setCalendarPreferences((prev) => ({
+                          ...prev,
+                          notify_days_before: Math.max(0, Math.min(30, parseInt(e.target.value) || 1)),
+                        }))
+                      }
+                      className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Between 0-30 days (1 = notify one day before)
+                    </p>
+                  </div>
+
+                  {/* Save Calendar Preferences Button */}
+                  <button
+                    onClick={handleSaveCalendarPreferences}
+                    disabled={loadingCalendarPrefs}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {loadingCalendarPrefs ? "Saving..." : "Save Calendar Preferences"}
+                  </button>
                 </div>
               </div>
             )}

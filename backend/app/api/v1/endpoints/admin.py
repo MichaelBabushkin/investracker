@@ -359,3 +359,96 @@ async def run_migrations(current_admin: User = Depends(get_admin_user)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error running migrations: {str(e)}"
         )
+
+
+@router.post("/seed-calendar-events")
+async def seed_calendar_events(
+    market: str = Query("US", description="Market to seed (US, IL, etc.)"),
+    current_admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Seed calendar events for specified market
+    Admin only endpoint - populates calendar_events table with market holidays
+    """
+    try:
+        from app.models.calendar_event import CalendarEvent, EventType
+        from datetime import date, time
+        
+        market = market.upper()
+        
+        # Check if events already exist for this market
+        existing_count = db.query(CalendarEvent).filter(CalendarEvent.market == market).count()
+        if existing_count > 0:
+            return {
+                "success": False,
+                "message": f"Calendar already has {existing_count} events for {market} market. Delete existing events first if you want to re-seed.",
+                "existing_count": existing_count
+            }
+        
+        events_created = 0
+        
+        if market == "US":
+            # 2025 US Market Holidays
+            us_holidays_2025 = [
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "New Year's Day", "event_date": date(2025, 1, 1), "description": "Market closed for New Year's Day holiday"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Martin Luther King Jr. Day", "event_date": date(2025, 1, 20), "description": "Market closed for MLK Jr. Day"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Presidents Day", "event_date": date(2025, 2, 17), "description": "Market closed for Presidents Day"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Good Friday", "event_date": date(2025, 4, 18), "description": "Market closed for Good Friday"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Memorial Day", "event_date": date(2025, 5, 26), "description": "Market closed for Memorial Day"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Juneteenth", "event_date": date(2025, 6, 19), "description": "Market closed for Juneteenth National Independence Day"},
+                {"event_type": EventType.EARLY_CLOSE, "event_name": "Early Close - Independence Day", "event_date": date(2025, 7, 3), "early_close_time": time(13, 0), "description": "Early close at 1:00 PM ET before Independence Day"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Independence Day", "event_date": date(2025, 7, 4), "description": "Market closed for Independence Day"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Labor Day", "event_date": date(2025, 9, 1), "description": "Market closed for Labor Day"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Thanksgiving", "event_date": date(2025, 11, 27), "description": "Market closed for Thanksgiving"},
+                {"event_type": EventType.EARLY_CLOSE, "event_name": "Early Close - Day After Thanksgiving", "event_date": date(2025, 11, 28), "early_close_time": time(13, 0), "description": "Early close at 1:00 PM ET on Black Friday"},
+                {"event_type": EventType.EARLY_CLOSE, "event_name": "Early Close - Christmas Eve", "event_date": date(2025, 12, 24), "early_close_time": time(13, 0), "description": "Early close at 1:00 PM ET on Christmas Eve"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Christmas", "event_date": date(2025, 12, 25), "description": "Market closed for Christmas Day"},
+            ]
+            
+            # 2026 US Market Holidays
+            us_holidays_2026 = [
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "New Year's Day", "event_date": date(2026, 1, 1), "description": "Market closed for New Year's Day holiday"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Martin Luther King Jr. Day", "event_date": date(2026, 1, 19), "description": "Market closed for MLK Jr. Day"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Presidents Day", "event_date": date(2026, 2, 16), "description": "Market closed for Presidents Day"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Good Friday", "event_date": date(2026, 4, 3), "description": "Market closed for Good Friday"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Memorial Day", "event_date": date(2026, 5, 25), "description": "Market closed for Memorial Day"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Juneteenth", "event_date": date(2026, 6, 19), "description": "Market closed for Juneteenth National Independence Day"},
+                {"event_type": EventType.EARLY_CLOSE, "event_name": "Early Close - Independence Day Observed", "event_date": date(2026, 7, 3), "early_close_time": time(13, 0), "description": "Early close at 1:00 PM ET, Independence Day observed"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Labor Day", "event_date": date(2026, 9, 7), "description": "Market closed for Labor Day"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Thanksgiving", "event_date": date(2026, 11, 26), "description": "Market closed for Thanksgiving"},
+                {"event_type": EventType.EARLY_CLOSE, "event_name": "Early Close - Day After Thanksgiving", "event_date": date(2026, 11, 27), "early_close_time": time(13, 0), "description": "Early close at 1:00 PM ET on Black Friday"},
+                {"event_type": EventType.EARLY_CLOSE, "event_name": "Early Close - Christmas Eve", "event_date": date(2026, 12, 24), "early_close_time": time(13, 0), "description": "Early close at 1:00 PM ET on Christmas Eve"},
+                {"event_type": EventType.MARKET_CLOSED, "event_name": "Christmas", "event_date": date(2026, 12, 25), "description": "Market closed for Christmas Day"},
+            ]
+            
+            all_holidays = us_holidays_2025 + us_holidays_2026
+            
+            for holiday_data in all_holidays:
+                event = CalendarEvent(market=market, **holiday_data)
+                db.add(event)
+                events_created += 1
+            
+            db.commit()
+            
+            return {
+                "success": True,
+                "message": f"Successfully seeded {events_created} events for {market} market (2025-2026)",
+                "events_created": events_created,
+                "market": market,
+                "years": "2025-2026"
+            }
+        
+        else:
+            return {
+                "success": False,
+                "message": f"Market '{market}' is not yet supported. Currently supported: US",
+                "supported_markets": ["US"]
+            }
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error seeding calendar events: {str(e)}"
+        )

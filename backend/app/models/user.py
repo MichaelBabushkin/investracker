@@ -41,6 +41,7 @@ class User(Base):
     # Relationships
     portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")
     report_uploads = relationship("ReportUpload", back_populates="user", cascade="all, delete-orphan")
+    event_notification_preferences = relationship("UserEventNotificationPreferences", back_populates="user", uselist=False, cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}')>"

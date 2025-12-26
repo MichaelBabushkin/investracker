@@ -32,6 +32,9 @@ from .world_stock import (
 # Calendar Events
 from .calendar_event import CalendarEvent, EventType
 
+# User Notification Preferences
+from .user_event_notification_preferences import UserEventNotificationPreferences
+
 __all__ = [
     "User",
     "Portfolio", 
@@ -56,5 +59,9 @@ __all__ = [
     "WorldStockHolding",
     "WorldStockTransaction",
     "WorldStockDividend",
-    "WorldStockPerformance"
+    "WorldStockPerformance",
+    # Calendar & Notifications
+    "CalendarEvent",
+    "EventType",
+    "UserEventNotificationPreferences"
 ]

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import Sidebar from "./Sidebar";
+import EventBanner from "./EventBanner";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -31,13 +32,18 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         isCollapsed={isSidebarCollapsed} 
         setIsCollapsed={setIsSidebarCollapsed} 
       />
-      <main 
-        className={`flex-1 transition-all duration-300 ${
-          isSidebarCollapsed ? "ml-20" : "ml-64"
-        }`}
-      >
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className={`transition-all duration-300 ${isSidebarCollapsed ? "ml-20" : "ml-64"}`}>
+          <EventBanner />
+        </div>
+        <main 
+          className={`flex-1 transition-all duration-300 ${
+            isSidebarCollapsed ? "ml-20" : "ml-64"
+          }`}
+        >
+          {children}
+        </main>
+      </div>
     </div>
   );
 };
