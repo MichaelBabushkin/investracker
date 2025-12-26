@@ -6,11 +6,11 @@ import os
 from dotenv import load_dotenv
 
 from app.core.config import settings
-from app.core.database import engine, create_tables
+from app.core.database import engine
 from app.api.v1.api import api_router
 from app.core.auth import verify_token
 
-# Import all models so SQLAlchemy can find them for table creation
+# Import all models so SQLAlchemy can find them for migrations
 from app import models
 
 # Load environment variables
@@ -18,8 +18,8 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    create_tables()
+    # Startup - tables are created by Alembic migrations
+    # Railway runs: alembic upgrade head && uvicorn ...
     yield
     # Shutdown
     pass
