@@ -250,7 +250,7 @@ class IsraeliStockService:
                 print(f"DEBUG: Found {len(holdings)} holdings, {len(regular_transactions)} transactions, {len(dividends)} dividends")
                 
                 # Save to pending transactions table for review
-                pending_count = self.save_to_pending_transactions(
+                save_result = self.save_to_pending_transactions(
                     holdings=holdings,
                     transactions=regular_transactions,
                     dividends=dividends,
@@ -273,8 +273,14 @@ class IsraeliStockService:
                     'holdings_found': len(holdings),
                     'transactions_found': len(regular_transactions),
                     'dividends_found': len(dividends),
-                    'pending_count': pending_count,
-                    'message': f'Extracted {pending_count} transactions. Please review and approve them.'
+                    'pending_count': save_result['saved_count'],
+                    'valid_count': save_result['valid_count'],
+                    'invalid_count': save_result['invalid_count'],
+                    'validation_warnings': save_result['warnings'],
+                    'validation_errors': save_result['errors'],
+                    'message': f"Extracted {save_result['saved_count']} transactions. " +
+                              (f"{save_result['invalid_count']} have validation issues. " if save_result['invalid_count'] > 0 else "") +
+                              "Please review and approve them."
                 }
                 
             except Exception as e:
@@ -713,13 +719,28 @@ class IsraeliStockService:
         user_id: str,
         batch_id: str,
         pdf_filename: str
-    ) -> int:
-        """Save all extracted data to pending transactions table for review"""
+    ) -> Dict:
+        """
+        Save all extracted data to pending transactions table for review
+        
+        Returns: {
+            'saved_count': int,
+            'valid_count': int,
+            'invalid_count': int,
+            'warnings': List[str],
+            'errors': List[str]
+        }
+        """
         try:
+            from app.services.transaction_validator import TransactionValidator
+            
             conn = self.create_database_connection()
             cursor = conn.cursor()
             
             pending_records = []
+            validation_warnings = []
+            validation_errors = []
+            validator = TransactionValidator()
             
             print(f"DEBUG: Saving to pending - Holdings: {len(holdings)}, Transactions: {len(transactions)}, Dividends: {len(dividends)}")
             
@@ -732,11 +753,36 @@ class IsraeliStockService:
                 if isinstance(transaction_date, str):
                     transaction_date = self.parse_date_string(transaction_date)
                 
+                # Create transaction dict for validation
+                trans_for_validation = {
+                    'transaction_type': 'BUY',
+                    'transaction_date': transaction_date,
+                    'security_no': holding.get('security_no'),
+                    'name': holding.get('name'),
+                    'quantity': holding.get('quantity'),
+                    'price': holding.get('last_price'),
+                    'total_value': holding.get('current_value'),
+                    'currency': holding.get('currency', 'ILS')
+                }
+                
+                # Validate transaction
+                is_valid, errors, warnings = validator.validate_transaction(trans_for_validation)
+                
+                if warnings:
+                    validation_warnings.extend([f"Holding {holding.get('name', 'Unknown')}: {w}" for w in warnings])
+                
+                if not is_valid:
+                    # Log errors but still save with 'pending' status for user review
+                    validation_errors.extend([f"Holding {holding.get('name', 'Unknown')}: {e}" for e in errors])
+                    print(f"WARNING: Invalid holding {holding.get('name')}: {errors}")
+                
                 # Serialize holding data properly for JSON
                 serialized_holding = self._serialize_for_json(holding)
                 raw_data = {
                     'original_type': 'holding',
-                    'holding': serialized_holding
+                    'holding': serialized_holding,
+                    'validation_errors': errors if not is_valid else [],
+                    'validation_warnings': warnings
                 }
                 
                 pending_records.append((
@@ -764,11 +810,29 @@ class IsraeliStockService:
                 if isinstance(transaction_date, str):
                     transaction_date = self.parse_date_string(transaction_date)
                 
+                # Create transaction dict for validation
+                trans_for_validation = {
+                    **transaction,
+                    'transaction_date': transaction_date
+                }
+                
+                # Validate transaction
+                is_valid, errors, warnings = validator.validate_transaction(trans_for_validation)
+                
+                if warnings:
+                    validation_warnings.extend([f"Transaction {transaction.get('name', 'Unknown')}: {w}" for w in warnings])
+                
+                if not is_valid:
+                    validation_errors.extend([f"Transaction {transaction.get('name', 'Unknown')}: {e}" for e in errors])
+                    print(f"WARNING: Invalid transaction {transaction.get('name')}: {errors}")
+                
                 # Serialize transaction data properly for JSON
                 serialized_transaction = self._serialize_for_json(transaction)
                 raw_data = {
                     'original_type': 'transaction',
-                    'transaction': serialized_transaction
+                    'transaction': serialized_transaction,
+                    'validation_errors': errors if not is_valid else [],
+                    'validation_warnings': warnings
                 }
                 
                 pending_records.append((
@@ -796,11 +860,34 @@ class IsraeliStockService:
                 if isinstance(payment_date, str):
                     payment_date = self.parse_date_string(payment_date)
                 
+                # Create transaction dict for validation
+                div_for_validation = {
+                    'transaction_type': 'DIVIDEND',
+                    'transaction_date': payment_date,
+                    'security_no': dividend.get('security_no'),
+                    'name': dividend.get('name'),
+                    'total_value': dividend.get('total_value', 0),
+                    'tax': dividend.get('tax'),
+                    'currency': dividend.get('currency', 'ILS')
+                }
+                
+                # Validate dividend
+                is_valid, errors, warnings = validator.validate_transaction(div_for_validation)
+                
+                if warnings:
+                    validation_warnings.extend([f"Dividend {dividend.get('name', 'Unknown')}: {w}" for w in warnings])
+                
+                if not is_valid:
+                    validation_errors.extend([f"Dividend {dividend.get('name', 'Unknown')}: {e}" for e in errors])
+                    print(f"WARNING: Invalid dividend {dividend.get('name')}: {errors}")
+                
                 # Serialize dividend data properly for JSON
                 serialized_dividend = self._serialize_for_json(dividend)
                 raw_data = {
                     'original_type': 'dividend',
-                    'dividend': serialized_dividend
+                    'dividend': serialized_dividend,
+                    'validation_errors': errors if not is_valid else [],
+                    'validation_warnings': warnings
                 }
                 
                 pending_records.append((
@@ -835,12 +922,24 @@ class IsraeliStockService:
                 conn.commit()
                 saved_count = len(pending_records)
                 print(f"DEBUG: Saved {saved_count} records to pending transactions")
+                
+                if validation_errors:
+                    print(f"VALIDATION ERRORS ({len(validation_errors)}): {validation_errors}")
+                if validation_warnings:
+                    print(f"VALIDATION WARNINGS ({len(validation_warnings)}): {validation_warnings}")
             else:
                 saved_count = 0
             
             cursor.close()
             conn.close()
-            return saved_count
+            
+            return {
+                'saved_count': saved_count,
+                'valid_count': saved_count - len([e for e in validation_errors if e]),
+                'invalid_count': len([e for e in validation_errors if e]),
+                'warnings': validation_warnings,
+                'errors': validation_errors
+            }
             
         except Exception as e:
             print(f"Error saving to pending transactions: {e}")
