@@ -8,6 +8,7 @@ import sys
 import json
 import glob
 import uuid
+import logging
 import pandas as pd
 import pdfplumber
 import psycopg2
@@ -15,6 +16,9 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from dotenv import load_dotenv
 from typing import List, Dict, Tuple, Optional
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 # Add the project root to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -390,7 +394,17 @@ class IsraeliStockService:
                                  csv_type: str, pdf_name: str, holding_date: Optional[datetime]) -> List[Dict]:
         """Find Israeli stocks in a CSV DataFrame"""
         results = []
-        # Avoid relying on df.to_string() gate; directly search per security across columns
+        
+        # First, check for deposits/withdrawals using broker-specific logic
+        if csv_type == "transactions" and hasattr(self.broker_parser, 'extract_deposits_withdrawals'):
+            logger.info(f"Calling extract_deposits_withdrawals for {pdf_name}")
+            deposits = self.broker_parser.extract_deposits_withdrawals(df, pdf_name)
+            logger.info(f"Extracted {len(deposits)} deposits/withdrawals")
+            results.extend(deposits)
+        elif csv_type == "transactions":
+            logger.warning(f"Broker parser {type(self.broker_parser).__name__} does not have extract_deposits_withdrawals method")
+        
+        # Then search for regular stocks
         for security_no, (symbol, name, index_name) in israeli_stocks.items():
             mask = df.astype(str).apply(lambda x: x.str.contains(security_no, na=False)).any(axis=1)
             if not mask.any():

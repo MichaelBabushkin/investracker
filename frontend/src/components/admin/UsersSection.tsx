@@ -108,7 +108,7 @@ const UsersSection: React.FC = () => {
                   placeholder="user@example.com"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-black"
                   disabled={resetting}
                 />
               </div>

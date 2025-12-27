@@ -82,6 +82,8 @@ export default function ReportsPage() {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -105,8 +107,6 @@ export default function ReportsPage() {
     } finally {
       setDeleting(false);
     }
-  };  minute: "2-digit",
-    });
   };
 
   return (
