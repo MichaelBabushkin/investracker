@@ -40,14 +40,10 @@ class ExcellenceBrokerParser(BaseBrokerParser):
     
     def extract_deposits_withdrawals(self, df: pd.DataFrame, pdf_name: str) -> List[Dict]:
         """Extract deposits and withdrawals (security_no = 900) from Excellence format"""
-        logger.info(f"Excellence extract_deposits_withdrawals: {pdf_name}, rows={len(df)}, cols={len(df.columns)}")
         results = []
         
         # Look for rows with security ID 900 in column 10
-        rows_checked = 0
-        rows_with_900 = 0
         for idx, row in df.iterrows():
-            rows_checked += 1
             row_values = [str(val).strip() if pd.notna(val) else '' for val in row.values]
             
             # Check column 10 (COL_SECURITY_ID) for '900'
@@ -55,10 +51,8 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                 security_id = str(row_values[self.COL_SECURITY_ID]).strip()
                 
                 if security_id == '900':
-                    rows_with_900 += 1
                     # Verify it's actually a deposit/withdrawal by checking for Hebrew keywords
                     row_str = ' '.join(row_values).lower()
-                    logger.info(f"Found row with 900: row_str preview = {row_str[:100]}")
                     
                     # Check for keywords in both directions (Hebrew text can be reversed in CSV)
                     keywords = [
@@ -71,14 +65,7 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                         # Parse the transaction using the standard parser
                         transaction = self.parse_transaction_row(row, '900', 'CASH', 'Cash Transaction', pdf_name)
                         if transaction:
-                            logger.info(f"Excellence found deposit/withdrawal: {transaction.get('transaction_type')} - {transaction.get('total_value')} ILS on {transaction.get('transaction_date')}")
                             results.append(transaction)
-                        else:
-                            logger.warning(f"Failed to parse deposit/withdrawal transaction")
-                    else:
-                        logger.info(f"Row with 900 but no Hebrew keywords found")
-        
-        logger.info(f"Checked {rows_checked} rows, found {rows_with_900} rows with '900'")
         
         if results:
             logger.info(f"Excellence extracted {len(results)} deposit/withdrawal transaction(s)")
@@ -194,7 +181,6 @@ class ExcellenceBrokerParser(BaseBrokerParser):
             date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', exec_date)
             if date_match:
                 transaction_date = date_match.group(1)
-                logger.info(f"Using execution date for deposit: {transaction_date}")
         
         # If no date found yet, check Column 1: Transaction date (DD/MM/YY format)
         if not transaction_date and len(row_values) > self.COL_DATE:
@@ -352,7 +338,6 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                 amount = self.clean_numeric_value(row_values[self.COL_TOTAL])
                 if amount is not None:
                     transaction['total_value'] = abs(amount)
-                    logger.info(f"Deposit amount from column 5: {amount}")
             
             # Column 0: Balance after transaction
             if len(row_values) > self.COL_BALANCE:

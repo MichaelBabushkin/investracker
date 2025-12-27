@@ -397,12 +397,8 @@ class IsraeliStockService:
         
         # First, check for deposits/withdrawals using broker-specific logic
         if csv_type == "transactions" and hasattr(self.broker_parser, 'extract_deposits_withdrawals'):
-            logger.info(f"Calling extract_deposits_withdrawals for {pdf_name}")
             deposits = self.broker_parser.extract_deposits_withdrawals(df, pdf_name)
-            logger.info(f"Extracted {len(deposits)} deposits/withdrawals")
             results.extend(deposits)
-        elif csv_type == "transactions":
-            logger.warning(f"Broker parser {type(self.broker_parser).__name__} does not have extract_deposits_withdrawals method")
         
         # Then search for regular stocks
         for security_no, (symbol, name, index_name) in israeli_stocks.items():
@@ -1094,6 +1090,49 @@ class IsraeliStockService:
                     'type': 'transaction',
                     'transaction_type': transaction_type,
                     'message': f"{transaction_type} transaction processed for {data['name']}"
+                }
+            
+            elif transaction_type in ('DEPOSIT', 'WITHDRAWAL'):
+                # Save deposits/withdrawals to IsraeliStockTransaction table
+                transaction_date = pending_transaction.transaction_date
+                if isinstance(transaction_date, str):
+                    transaction_date = self.parse_date_string(transaction_date)
+                
+                insert_sql = """
+                INSERT INTO "IsraeliStockTransaction" (
+                    user_id, security_no, symbol, company_name, transaction_type,
+                    transaction_date, quantity, price, total_value, commission, tax, 
+                    currency, source_pdf
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                
+                cursor.execute(insert_sql, (
+                    user_id,
+                    pending_transaction.security_no,
+                    'CASH',  # Symbol for cash transactions
+                    'Cash Transaction',  # Company name
+                    transaction_type,
+                    transaction_date,
+                    float(pending_transaction.quantity) if pending_transaction.quantity else 0,  # Balance after
+                    0,  # No price for deposits
+                    float(pending_transaction.amount) if pending_transaction.amount else 0,  # Deposit/withdrawal amount
+                    float(pending_transaction.commission) if pending_transaction.commission else 0,
+                    float(pending_transaction.tax) if pending_transaction.tax else 0,
+                    data['currency'],
+                    data['source_pdf']
+                ))
+                conn.commit()
+                
+                result = {
+                    'type': 'cash_transaction',
+                    'transaction_type': transaction_type,
+                    'message': f"{transaction_type} processed: {pending_transaction.amount} {data['currency']}"
+                }
+            
+            else:
+                result = {
+                    'type': 'unknown',
+                    'message': f"Unknown transaction type: {transaction_type}"
                 }
             
             cursor.close()
