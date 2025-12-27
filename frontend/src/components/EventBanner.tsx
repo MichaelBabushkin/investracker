@@ -5,14 +5,13 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
+import { apiGet } from "@/utils/api";
 import {
   XMarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CalendarIcon,
 } from "@heroicons/react/24/outline";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 interface CalendarEvent {
   id: number;
@@ -41,52 +40,12 @@ const EventBanner: React.FC = () => {
 
   const fetchUpcomingEvents = async () => {
     try {
-      const authToken = token || localStorage.getItem("access_token");
-      
-
-      if (!authToken) {
-        setLoading(false);
-        return;
-      }
-
-      // First, get user's notification preferences
-      const prefsResponse = await fetch(
-        `${API_BASE_URL}/user-settings/notification-preferences`,
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        }
-      );
-
-
-      if (!prefsResponse.ok) {
-        console.error("Failed to fetch preferences:", await prefsResponse.text());
-        setLoading(false);
-        return;
-      }
-
-      const prefs = await prefsResponse.json();
+      // Get user's notification preferences
+      const prefs = await apiGet("/user-settings/notification-preferences");
       const daysAhead = prefs.notify_days_before || 1;
 
       // Fetch upcoming events
-      const eventsResponse = await fetch(
-        `${API_BASE_URL}/calendar/upcoming?days_ahead=${daysAhead}`,
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        }
-      );
-
-
-      if (!eventsResponse.ok) {
-        console.error("Failed to fetch events:", await eventsResponse.text());
-        setLoading(false);
-        return;
-      }
-
-      const allEvents = await eventsResponse.json();
+      const allEvents = await apiGet(`/calendar/upcoming?days_ahead=${daysAhead}`);
 
       // Filter by user's preferences
       const filteredEvents = allEvents.filter((event: CalendarEvent) => {
@@ -95,13 +54,11 @@ const EventBanner: React.FC = () => {
         return marketMatch && typeMatch;
       });
 
-
       // Filter out already viewed events
       const viewedEvents = getViewedEvents();
       const unseenEvents = filteredEvents.filter(
         (event: CalendarEvent) => !viewedEvents.includes(event.id)
       );
-
 
       setEvents(unseenEvents);
       setVisible(unseenEvents.length > 0);

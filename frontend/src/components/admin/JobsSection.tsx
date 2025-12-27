@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { apiPost } from "@/utils/api";
 import {
   PlayIcon,
   ClockIcon,
@@ -8,8 +9,6 @@ import {
   ArrowPathIcon,
   CalendarIcon,
 } from "@heroicons/react/24/outline";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const JobsSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
@@ -26,26 +25,10 @@ const JobsSection: React.FC = () => {
     setSeedMessage("");
     
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(
-        `${API_BASE_URL}/api/v1/admin/seed-calendar-events?market=${selectedMarket}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const data = await apiPost(`/admin/seed-calendar-events?market=${selectedMarket}`);
+      setSeedMessage(
+        `✓ Successfully seeded ${data.events_created} events for ${data.market} market (${data.years.join(", ")})`
       );
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setSeedMessage(
-          `✓ Successfully seeded ${data.events_created} events for ${data.market} market (${data.years.join(", ")})`
-        );
-      } else {
-        setSeedMessage(`✗ Error: ${data.message || "Failed to seed calendar"}`);
-      }
     } catch (error) {
       setSeedMessage(`✗ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
@@ -58,20 +41,8 @@ const JobsSection: React.FC = () => {
     setMigrationMessage("");
     
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(
-        `${API_BASE_URL}/admin/run-migrations`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      const data = await apiPost("/admin/run-migrations");
+      if (data.success) {
         setMigrationMessage(`✓ Migrations completed successfully`);
       } else {
         setMigrationMessage(`✗ Error: ${data.message || "Failed to run migrations"}\n${data.stderr || ""}`);
