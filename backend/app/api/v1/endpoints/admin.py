@@ -452,3 +452,44 @@ async def seed_calendar_events(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error seeding calendar events: {str(e)}"
         )
+
+
+@router.post("/run-migrations")
+def run_migrations(
+    current_admin: User = Depends(get_admin_user)
+):
+    """
+    Manually trigger Alembic migrations (Admin only)
+    Useful for Railway deployments where migrations don't auto-run
+    """
+    try:
+        # Get the backend directory
+        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        
+        # Run alembic upgrade head
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            cwd=backend_dir,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        return {
+            "success": result.returncode == 0,
+            "return_code": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "message": "Migrations completed successfully" if result.returncode == 0 else "Migrations failed"
+        }
+    
+    except subprocess.TimeoutExpired:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Migration command timed out after 60 seconds"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error running migrations: {str(e)}"
+        )

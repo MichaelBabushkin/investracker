@@ -18,6 +18,8 @@ const JobsSection: React.FC = () => {
   const [selectedMarket, setSelectedMarket] = useState<string>("US");
   const [seedingCalendar, setSeedingCalendar] = useState<boolean>(false);
   const [seedMessage, setSeedMessage] = useState<string>("");
+  const [runningMigrations, setRunningMigrations] = useState<boolean>(false);
+  const [migrationMessage, setMigrationMessage] = useState<string>("");
 
   const handleSeedCalendar = async () => {
     setSeedingCalendar(true);
@@ -48,6 +50,36 @@ const JobsSection: React.FC = () => {
       setSeedMessage(`✗ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setSeedingCalendar(false);
+    }
+  };
+
+  const handleRunMigrations = async () => {
+    setRunningMigrations(true);
+    setMigrationMessage("");
+    
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/admin/run-migrations`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setMigrationMessage(`✓ Migrations completed successfully`);
+      } else {
+        setMigrationMessage(`✗ Error: ${data.message || "Failed to run migrations"}\n${data.stderr || ""}`);
+      }
+    } catch (error) {
+      setMigrationMessage(`✗ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setRunningMigrations(false);
     }
   };
 
@@ -244,6 +276,47 @@ const JobsSection: React.FC = () => {
                 >
                   <PlayIcon className="w-4 h-4" />
                   {seedingCalendar ? "Seeding..." : "Seed Calendar"}
+                </button>
+              </div>
+
+              {/* Run Migrations */}
+              <div className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <ArrowPathIcon className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        Run Database Migrations
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Apply pending migrations
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  Manually trigger Alembic migrations to create/update database tables
+                </p>
+                {migrationMessage && (
+                  <div
+                    className={`mb-3 p-2 rounded text-xs font-mono whitespace-pre-wrap ${
+                      migrationMessage.startsWith("✓")
+                        ? "bg-green-50 text-green-700"
+                        : "bg-red-50 text-red-700"
+                    }`}
+                  >
+                    {migrationMessage}
+                  </div>
+                )}
+                <button
+                  onClick={handleRunMigrations}
+                  disabled={runningMigrations}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  <PlayIcon className="w-4 h-4" />
+                  {runningMigrations ? "Running..." : "Run Migrations"}
                 </button>
               </div>
             </div>
