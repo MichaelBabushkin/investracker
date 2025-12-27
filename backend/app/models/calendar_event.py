@@ -25,7 +25,9 @@ class CalendarEvent(Base):
     __tablename__ = "calendar_events"
 
     id = Column(Integer, primary_key=True, index=True)
-    event_type = Column(ENUM('MARKET_CLOSED', 'EARLY_CLOSE', 'EARNINGS', 'ECONOMIC_DATA', 'FOMC', 'HOLIDAY', name='event_type', create_type=False), nullable=False, index=True)
+    # Use String for event_type in model - the actual ENUM is created by migration
+    # This prevents SQLAlchemy from trying to create the type during metadata operations
+    event_type = Column(String(50), nullable=False, index=True)
     market = Column(String(10), nullable=False, index=True)  # 'US', 'IL', etc.
     event_name = Column(String(255), nullable=False)
     event_date = Column(Date, nullable=False, index=True)
