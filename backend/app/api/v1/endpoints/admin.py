@@ -463,10 +463,15 @@ def run_migrations(
     Useful for Railway deployments where migrations don't auto-run
     """
     try:
-        # Get the backend directory
-        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        # Get the backend directory (where alembic.ini is located)
+        # Go up from app/api/v1/endpoints to the backend root
+        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         
-        # Run alembic upgrade head
+        # Log the directory for debugging
+        print(f"Backend directory: {backend_dir}")
+        print(f"Files in backend dir: {os.listdir(backend_dir)}")
+        
+        # Run alembic upgrade head from the backend directory
         result = subprocess.run(
             ["alembic", "upgrade", "head"],
             cwd=backend_dir,
@@ -480,6 +485,7 @@ def run_migrations(
             "return_code": result.returncode,
             "stdout": result.stdout,
             "stderr": result.stderr,
+            "backend_dir": backend_dir,
             "message": "Migrations completed successfully" if result.returncode == 0 else "Migrations failed"
         }
     
