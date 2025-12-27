@@ -1188,3 +1188,54 @@ async def download_report(
             "Content-Disposition": f"attachment; filename={report.filename}"
         }
     )
+
+
+@router.delete("/reports/{report_id}")
+async def delete_report(
+    report_id: int,
+    delete_transactions: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a PDF report by ID
+    
+    Args:
+        report_id: The ID of the report to delete
+        delete_transactions: If True, also delete all pending transactions associated with this report
+    """
+    from app.models.israeli_report import IsraeliReportUpload
+    
+    # Find the report
+    report = db.query(IsraeliReportUpload).filter(
+        IsraeliReportUpload.id == report_id,
+        IsraeliReportUpload.user_id == str(current_user.id)
+    ).first()
+    
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    batch_id = report.upload_batch_id
+    filename = report.filename
+    
+    # Optionally delete associated pending transactions
+    transactions_deleted = 0
+    if delete_transactions:
+        pending_transactions = db.query(PendingIsraeliTransaction).filter(
+            PendingIsraeliTransaction.upload_batch_id == batch_id,
+            PendingIsraeliTransaction.user_id == str(current_user.id)
+        ).all()
+        
+        transactions_deleted = len(pending_transactions)
+        for transaction in pending_transactions:
+            db.delete(transaction)
+    
+    # Delete the report
+    db.delete(report)
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Report '{filename}' deleted successfully",
+        "transactions_deleted": transactions_deleted
+    }

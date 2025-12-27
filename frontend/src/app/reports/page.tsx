@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { israeliStocksAPI } from "@/services/api";
-import { DocumentArrowDownIcon, EyeIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { DocumentArrowDownIcon, EyeIcon, XMarkIcon, TrashIcon } from "@heroicons/react/24/outline";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 interface Report {
@@ -21,6 +21,8 @@ export default function ReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [previewReport, setPreviewReport] = useState<Report | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Report | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -80,8 +82,6 @@ export default function ReportsPage() {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -90,6 +90,22 @@ export default function ReportsPage() {
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+    });
+  };
+
+  const handleDelete = async (report: Report, deleteTransactions: boolean) => {
+    try {
+      setDeleting(true);
+      setError(null);
+      await israeliStocksAPI.deleteReport(report.id, deleteTransactions);
+      setDeleteConfirm(null);
+      await loadReports(); // Reload the list
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to delete report");
+    } finally {
+      setDeleting(false);
+    }
+  };  minute: "2-digit",
     });
   };
 
@@ -206,6 +222,14 @@ export default function ReportsPage() {
                             <DocumentArrowDownIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
                             <span className="hidden sm:inline">Download</span>
                           </button>
+                          <button
+                            onClick={() => setDeleteConfirm(report)}
+                            className="text-red-600 hover:text-red-900 inline-flex items-center text-sm"
+                            title="Delete Report"
+                          >
+                            <TrashIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
+                            <span className="hidden sm:inline">Delete</span>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -220,6 +244,62 @@ export default function ReportsPage() {
         {reports.length > 0 && (
           <div className="mt-6 text-sm text-gray-600">
             Total Reports: {reports.length}
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {deleteConfirm && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen p-4">
+              <div
+                className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+                onClick={() => !deleting && setDeleteConfirm(null)}
+              ></div>
+
+              <div className="inline-block w-full max-w-md p-6 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-lg relative z-10">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Delete Report
+                </h3>
+                
+                <p className="text-sm text-gray-600 mb-4">
+                  Are you sure you want to delete <strong>{deleteConfirm.filename}</strong>?
+                </p>
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+                  <p className="text-sm text-yellow-800">
+                    This will also delete all pending transactions extracted from this report.
+                    Approved transactions will not be affected.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setDeleteConfirm(null)}
+                    disabled={deleting}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDelete(deleteConfirm, true)}
+                    disabled={deleting}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 inline-flex items-center"
+                  >
+                    {deleting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <TrashIcon className="h-4 w-4 mr-2" />
+                        Delete Report
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

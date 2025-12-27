@@ -546,6 +546,13 @@ export const israeliStocksAPI = {
     );
     return response.data;
   },
+
+  deleteReport: async (reportId: number, deleteTransactions: boolean = false) => {
+    const response = await api.delete(
+      `/israeli-stocks/reports/${reportId}?delete_transactions=${deleteTransactions}`
+    );
+    return response.data;
+  },
 };
 
 // World Stocks API
