@@ -18,10 +18,24 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup - tables are created by Alembic migrations
-    # Railway runs: alembic upgrade head && uvicorn ...
+    # Startup
+    print("🚀 Starting Investracker API...")
+    
+    # Import here to avoid circular imports
+    from app.core.database import ensure_tables_exist
+    
+    # Ensure all required tables exist
+    # This provides a robust fallback if migrations didn't run
+    try:
+        ensure_tables_exist()
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
+        # Don't crash the app - let it try to start anyway
+        # The health check will catch if DB is truly broken
+    
     yield
     # Shutdown
+    print("👋 Shutting down Investracker API...")
     pass
 
 app = FastAPI(
