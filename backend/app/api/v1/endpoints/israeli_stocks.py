@@ -385,6 +385,83 @@ async def get_user_summary(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving summary: {str(e)}")
 
+
+@router.get("/cash-balance")
+async def get_cash_balance(
+    user_id: Optional[str] = None,
+    as_of_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get cash balance for Israeli stock investments
+    
+    Shows deposits, withdrawals, purchases, sales, and available cash
+    """
+    try:
+        from app.services.cash_balance_service import CashBalanceService
+        from app.services.israeli_stock_service import IsraeliStockService
+        from datetime import datetime
+        
+        target_user_id = user_id or current_user.id
+        
+        # Parse date if provided
+        parsed_date = None
+        if as_of_date:
+            try:
+                parsed_date = datetime.fromisoformat(as_of_date).date()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+        
+        # Get database connection
+        israeli_service = IsraeliStockService()
+        conn = israeli_service.create_database_connection()
+        
+        try:
+            cash_service = CashBalanceService(conn)
+            balance_data = cash_service.calculate_cash_balance(target_user_id, parsed_date)
+            
+            return {
+                "user_id": target_user_id,
+                "balance": balance_data
+            }
+        finally:
+            conn.close()
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error calculating cash balance: {str(e)}")
+
+
+@router.get("/cash-flow")
+async def get_cash_flow_summary(
+    user_id: Optional[str] = None,
+    period: str = Query("all", description="Period: all, year, month"),
+    current_user: User = Depends(get_current_user)
+):
+    """Get cash flow summary"""
+    try:
+        from app.services.cash_balance_service import CashBalanceService
+        from app.services.israeli_stock_service import IsraeliStockService
+        
+        target_user_id = user_id or current_user.id
+        
+        israeli_service = IsraeliStockService()
+        conn = israeli_service.create_database_connection()
+        
+        try:
+            cash_service = CashBalanceService(conn)
+            summary = cash_service.get_cash_flow_summary(target_user_id, period)
+            
+            return {
+                "user_id": target_user_id,
+                "cash_flow": summary
+            }
+        finally:
+            conn.close()
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error calculating cash flow: {str(e)}")
+
+
 @router.post("/upload-csv")
 async def upload_and_analyze_csv(
     background_tasks: BackgroundTasks,
