@@ -15,8 +15,8 @@ interface RequestOptions extends RequestInit {
 export async function apiFetch(endpoint: string, options: RequestOptions = {}) {
   const { skipAuth = false, headers = {}, ...restOptions } = options;
 
-  // Get token from localStorage
-  const token = localStorage.getItem("access_token");
+  // Get token from localStorage - check both "token" and "access_token" for compatibility
+  const token = localStorage.getItem("token") || localStorage.getItem("access_token");
 
   // Build headers
   const requestHeaders: HeadersInit = {
@@ -39,7 +39,8 @@ export async function apiFetch(endpoint: string, options: RequestOptions = {}) {
 
   // Handle 401 Unauthorized - token might be expired
   if (response.status === 401 && !skipAuth) {
-    // Clear invalid token
+    // Clear invalid tokens - check both keys
+    localStorage.removeItem("token");
     localStorage.removeItem("access_token");
     localStorage.removeItem("user");
     
