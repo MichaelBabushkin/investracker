@@ -12,6 +12,9 @@ import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  ChevronUpDownIcon,
 } from "@heroicons/react/24/outline";
 import { israeliStocksAPI } from "@/services/api";
 import { IsraeliStockTransaction } from "@/types/israeli-stocks";
@@ -42,6 +45,12 @@ export default function IsraeliStockTransactions({
   const [editingTransaction, setEditingTransaction] =
     useState<IsraeliStockTransaction | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
+  const [filterType, setFilterType] = useState<string>("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState<string>("transaction_date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   const fetchTransactions = async () => {
     try {
@@ -64,6 +73,11 @@ export default function IsraeliStockTransactions({
   useEffect(() => {
     fetchTransactions();
   }, [refreshTrigger]);
+
+  // Reset to page 1 when filters or sorting change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType, searchTerm, sortField, sortDirection]);
 
   const handleDeleteTransaction = async (transactionId: number) => {
     if (!confirm("Are you sure you want to delete this transaction?")) return;
@@ -132,16 +146,21 @@ export default function IsraeliStockTransactions({
     return timeStr;
   };
 
-  const getTransactionIcon = (type: string) => {
+  const getTransactionIcon = (type: string, size: "sm" | "md" = "md") => {
+    const sizeClass = size === "sm" ? "h-4 w-4" : "h-5 w-5";
     switch (type) {
       case "BUY":
-        return <ArrowTrendingUpIcon className="h-5 w-5 text-green-600" />;
+        return <ArrowTrendingUpIcon className={`${sizeClass} text-green-600`} />;
       case "SELL":
-        return <ArrowTrendingDownIcon className="h-5 w-5 text-red-600" />;
+        return <ArrowTrendingDownIcon className={`${sizeClass} text-red-600`} />;
       case "DIVIDEND":
-        return <CurrencyDollarIcon className="h-5 w-5 text-blue-600" />;
+        return <CurrencyDollarIcon className={`${sizeClass} text-blue-600`} />;
+      case "DEPOSIT":
+        return <BanknotesIcon className={`${sizeClass} text-purple-600`} />;
+      case "WITHDRAWAL":
+        return <BanknotesIcon className={`${sizeClass} text-orange-600`} />;
       default:
-        return <ArrowRightIcon className="h-5 w-5 text-gray-600" />;
+        return <ArrowRightIcon className={`${sizeClass} text-gray-600`} />;
     }
   };
 
@@ -153,9 +172,35 @@ export default function IsraeliStockTransactions({
         return "text-red-600 bg-red-50 border-red-200";
       case "DIVIDEND":
         return "text-blue-600 bg-blue-50 border-blue-200";
+      case "DEPOSIT":
+        return "text-purple-600 bg-purple-50 border-purple-200";
+      case "WITHDRAWAL":
+        return "text-orange-600 bg-orange-50 border-orange-200";
       default:
         return "text-gray-600 bg-gray-50 border-gray-200";
     }
+  };
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Toggle direction if clicking the same field
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Default to descending for new field
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  };
+
+  const getSortIcon = (field: string) => {
+    if (sortField !== field) {
+      return <ChevronUpDownIcon className="h-4 w-4 text-gray-400" />;
+    }
+    return sortDirection === "asc" ? (
+      <ChevronUpIcon className="h-4 w-4 text-blue-600" />
+    ) : (
+      <ChevronDownIcon className="h-4 w-4 text-blue-600" />
+    );
   };
 
   const totalBought = transactions
@@ -406,7 +451,42 @@ export default function IsraeliStockTransactions({
         </div>
       )}
 
-      {/* Transactions List */}
+      {/* Filter Controls */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Search Symbol or Company
+            </label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-700"
+            />
+          </div>
+          <div className="md:w-48">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Transaction Type
+            </label>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-700"
+            >
+              <option value="ALL">All Types</option>
+              <option value="BUY">Buy</option>
+              <option value="SELL">Sell</option>
+              <option value="DIVIDEND">Dividend</option>
+              <option value="DEPOSIT">Deposit</option>
+              <option value="WITHDRAWAL">Withdrawal</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Transactions Table */}
       {transactions.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <ArrowRightIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -418,120 +498,277 @@ export default function IsraeliStockTransactions({
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {transactions.map((transaction) => (
-            <div key={transaction.id} className="investment-card">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-2">
-                      <StockLogo
-                        symbol={transaction.symbol}
-                        logoSvg={transaction.logo_svg}
-                        size="sm"
-                        className="flex-shrink-0"
-                      />
-                      {getTransactionIcon(transaction.transaction_type)}
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {transaction.symbol}
-                        </h3>
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full border ${getTransactionColor(
-                            transaction.transaction_type
-                          )}`}
-                        >
-                          {transaction.transaction_type}
-                        </span>
+        <>
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      onClick={() => handleSort("transaction_date")}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Date & Time</span>
+                        {getSortIcon("transaction_date")}
                       </div>
-                      <p className="text-sm text-gray-600">
-                        {transaction.company_name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Security: {transaction.security_no}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-500">Date</p>
-                      <p className="text-sm font-medium">
-                        {formatDate(transaction.transaction_date)}
-                      </p>
-                      {transaction.transaction_time && (
-                        <p className="text-xs text-gray-400">
-                          {formatTime(transaction.transaction_time)}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-gray-500">Quantity</p>
-                      <p className="text-sm font-medium">
-                        {formatNumber(transaction.quantity)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-gray-500">Price</p>
-                      <p className="text-sm font-medium">
-                        {formatCurrency(transaction.price)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-gray-500">Total Value</p>
-                      <p className="text-sm font-medium">
-                        {formatCurrency(transaction.total_value)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-gray-500">Fees & Tax</p>
-                      <div className="text-sm">
-                        {transaction.commission && (
-                          <p className="text-gray-600">
-                            Fee: {formatCurrency(transaction.commission)}
-                          </p>
-                        )}
-                        {transaction.tax && (
-                          <p className="text-gray-600">
-                            Tax: {formatCurrency(transaction.tax)}
-                          </p>
-                        )}
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      onClick={() => handleSort("symbol")}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Symbol</span>
+                        {getSortIcon("symbol")}
                       </div>
-                    </div>
-                  </div>
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      onClick={() => handleSort("transaction_type")}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Type</span>
+                        {getSortIcon("transaction_type")}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      onClick={() => handleSort("quantity")}
+                    >
+                      <div className="flex items-center justify-end space-x-1">
+                        <span>Quantity</span>
+                        {getSortIcon("quantity")}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      onClick={() => handleSort("price")}
+                    >
+                      <div className="flex items-center justify-end space-x-1">
+                        <span>Price</span>
+                        {getSortIcon("price")}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      onClick={() => handleSort("total_value")}
+                    >
+                      <div className="flex items-center justify-end space-x-1">
+                        <span>Total Value</span>
+                        {getSortIcon("total_value")}
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Fees
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {(() => {
+                    // Apply filters
+                    let filteredTransactions = transactions.filter((t) => {
+                      const matchesType = filterType === "ALL" || t.transaction_type === filterType;
+                      const matchesSearch = !searchTerm || 
+                        t.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        t.company_name.toLowerCase().includes(searchTerm.toLowerCase());
+                      return matchesType && matchesSearch;
+                    });
 
-                  <div className="mt-3 flex items-center space-x-4 text-xs text-gray-500">
-                    <span>Added: {formatDate(transaction.created_at)}</span>
-                  </div>
+                    // Apply sorting
+                    filteredTransactions.sort((a, b) => {
+                      let aValue: any = a[sortField as keyof IsraeliStockTransaction];
+                      let bValue: any = b[sortField as keyof IsraeliStockTransaction];
+
+                      // Handle date sorting specially
+                      if (sortField === "transaction_date") {
+                        aValue = new Date(aValue || 0).getTime();
+                        bValue = new Date(bValue || 0).getTime();
+                      }
+                      // Handle numeric fields
+                      else if (["quantity", "price", "total_value"].includes(sortField)) {
+                        aValue = Number(aValue) || 0;
+                        bValue = Number(bValue) || 0;
+                      }
+                      // Handle string fields
+                      else {
+                        aValue = String(aValue || "").toLowerCase();
+                        bValue = String(bValue || "").toLowerCase();
+                      }
+
+                      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+                      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+                      return 0;
+                    });
+
+                    // Apply pagination
+                    const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+                    const startIdx = (currentPage - 1) * itemsPerPage;
+                    const endIdx = startIdx + itemsPerPage;
+                    const paginatedTransactions = filteredTransactions.slice(startIdx, endIdx);
+
+                    return paginatedTransactions.map((transaction) => {
+                      const isDeposit = transaction.transaction_type === "DEPOSIT" || transaction.transaction_type === "WITHDRAWAL";
+                      
+                      return (
+                        <tr key={transaction.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {formatDate(transaction.transaction_date)}
+                            </div>
+                            {transaction.transaction_time && (
+                              <div className="text-xs text-gray-500">
+                                {formatTime(transaction.transaction_time)}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center space-x-2">
+                              <StockLogo
+                                symbol={transaction.symbol}
+                                logoSvg={transaction.logo_svg}
+                                size="sm"
+                                className="flex-shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                  {transaction.symbol}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">
+                                  {transaction.company_name}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border ${getTransactionColor(
+                                transaction.transaction_type
+                              )}`}
+                            >
+                              {getTransactionIcon(transaction.transaction_type, "sm")}
+                              <span className="ml-1">{transaction.transaction_type}</span>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm text-gray-900">
+                            {isDeposit ? "-" : formatNumber(transaction.quantity)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm text-gray-900">
+                            {isDeposit ? "-" : formatCurrency(transaction.price)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
+                            {formatCurrency(transaction.total_value)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-xs text-gray-600">
+                            {transaction.commission || transaction.tax ? (
+                              <div>
+                                {transaction.commission && (
+                                  <div>Fee: {formatCurrency(transaction.commission)}</div>
+                                )}
+                                {transaction.tax && (
+                                  <div>Tax: {formatCurrency(transaction.tax)}</div>
+                                )}
+                              </div>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                onClick={() => setEditingTransaction(transaction)}
+                                className="text-blue-600 hover:text-blue-800 p-1 rounded"
+                                title="Edit transaction"
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTransaction(transaction.id)}
+                                className="text-red-600 hover:text-red-800 p-1 rounded"
+                                title="Delete transaction"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Pagination Controls */}
+          {(() => {
+            const filteredTransactions = transactions.filter((t) => {
+              const matchesType = filterType === "ALL" || t.transaction_type === filterType;
+              const matchesSearch = !searchTerm || 
+                t.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                t.company_name.toLowerCase().includes(searchTerm.toLowerCase());
+              return matchesType && matchesSearch;
+            });
+            const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+            
+            if (totalPages <= 1) return null;
+
+            return (
+              <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex items-center justify-between">
+                <div className="text-sm text-gray-700">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+                  {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of{" "}
+                  {filteredTransactions.length} transactions
                 </div>
-
-                <div className="flex-shrink-0 ml-4 flex space-x-2">
+                <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => setEditingTransaction(transaction)}
-                    className="text-blue-600 hover:text-blue-800 p-1 rounded"
-                    title="Edit transaction"
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <PencilIcon className="h-4 w-4" />
+                    Previous
                   </button>
+                  <div className="flex items-center space-x-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                      // Show first, last, current, and surrounding pages
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3 py-1 border rounded-md text-sm font-medium ${
+                              currentPage === page
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      } else if (page === currentPage - 2 || page === currentPage + 2) {
+                        return <span key={page} className="px-2 text-gray-500">...</span>;
+                      }
+                      return null;
+                    })}
+                  </div>
                   <button
-                    onClick={() => handleDeleteTransaction(transaction.id)}
-                    className="text-red-600 hover:text-red-800 p-1 rounded"
-                    title="Delete transaction"
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <TrashIcon className="h-4 w-4" />
+                    Next
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            );
+          })()}
+        </>
       )}
     </div>
   );

@@ -1019,11 +1019,15 @@ class IsraeliStockService:
                 if isinstance(transaction_date, str):
                     transaction_date = self.parse_date_string(transaction_date)
                 
+                # Get transaction time if available
+                transaction_time = pending_transaction.transaction_time if hasattr(pending_transaction, 'transaction_time') else None
+                
                 insert_sql = """
                 INSERT INTO "IsraeliStockTransaction" (
                     user_id, security_no, symbol, company_name, transaction_type,
-                    transaction_date, quantity, price, total_value, currency, source_pdf
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    transaction_date, transaction_time, quantity, price, total_value, 
+                    commission, tax, currency, source_pdf, created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                 ON CONFLICT (user_id, security_no, transaction_date, transaction_type, source_pdf) DO NOTHING
                 """
                 
@@ -1034,9 +1038,12 @@ class IsraeliStockService:
                     data['name'],
                     transaction_type,
                     transaction_date,
+                    transaction_time,
                     float(pending_transaction.quantity) if pending_transaction.quantity else 0,
                     float(pending_transaction.price) if pending_transaction.price else 0,
                     float(pending_transaction.amount) if pending_transaction.amount else 0,
+                    float(pending_transaction.commission) if pending_transaction.commission else 0,
+                    float(pending_transaction.tax) if pending_transaction.tax else 0,
                     data['currency'],
                     data['source_pdf']
                 ))
@@ -1098,12 +1105,15 @@ class IsraeliStockService:
                 if isinstance(transaction_date, str):
                     transaction_date = self.parse_date_string(transaction_date)
                 
+                # Get transaction time if available
+                transaction_time = pending_transaction.transaction_time if hasattr(pending_transaction, 'transaction_time') else None
+                
                 insert_sql = """
                 INSERT INTO "IsraeliStockTransaction" (
                     user_id, security_no, symbol, company_name, transaction_type,
-                    transaction_date, quantity, price, total_value, commission, tax, 
-                    currency, source_pdf
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    transaction_date, transaction_time, quantity, price, total_value, 
+                    commission, tax, currency, source_pdf, created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                 """
                 
                 cursor.execute(insert_sql, (
@@ -1113,6 +1123,7 @@ class IsraeliStockService:
                     'Cash Transaction',  # Company name
                     transaction_type,
                     transaction_date,
+                    transaction_time,
                     float(pending_transaction.quantity) if pending_transaction.quantity else 0,  # Balance after
                     0,  # No price for deposits
                     float(pending_transaction.amount) if pending_transaction.amount else 0,  # Deposit/withdrawal amount
@@ -1262,7 +1273,7 @@ class IsraeliStockService:
             
             query = '''
                 SELECT t.id, t.security_no, t.symbol, t.company_name, t.transaction_type,
-                       t.transaction_date, t.quantity, t.price, t.total_value,
+                       t.transaction_date, t.transaction_time, t.quantity, t.price, t.total_value,
                        t.commission, t.tax, t.currency, t.created_at, s.logo_svg
                 FROM "IsraeliStockTransaction" t
                 LEFT JOIN "IsraeliStocks" s ON t.security_no = s.security_no
@@ -1285,14 +1296,15 @@ class IsraeliStockService:
                     'company_name': row[3],
                     'transaction_type': row[4],
                     'transaction_date': row[5].isoformat() if row[5] else None,
-                    'quantity': float(row[6]) if row[6] else 0,
-                    'price': float(row[7]) if row[7] else 0,
-                    'total_value': float(row[8]) if row[8] else 0,
-                    'commission': float(row[9]) if row[9] else 0,
-                    'tax': float(row[10]) if row[10] else 0,
-                    'currency': row[11],
-                    'created_at': row[12].isoformat() if row[12] else None,
-                    'logo_svg': row[13] if len(row) > 13 else None
+                    'transaction_time': str(row[6]) if row[6] else None,
+                    'quantity': float(row[7]) if row[7] else 0,
+                    'price': float(row[8]) if row[8] else 0,
+                    'total_value': float(row[9]) if row[9] else 0,
+                    'commission': float(row[10]) if row[10] else 0,
+                    'tax': float(row[11]) if row[11] else 0,
+                    'currency': row[12],
+                    'created_at': row[13].isoformat() if row[13] else None,
+                    'logo_svg': row[14] if len(row) > 14 else None
                 })
             
             cursor.close()
