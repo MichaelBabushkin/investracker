@@ -1117,6 +1117,44 @@ async def approve_all_in_batch(
     }
 
 
+@router.post("/pending-transactions/approve-all-batches")
+async def approve_all_batches(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Approve ALL pending transactions for the current user across all batches"""
+    transactions = db.query(PendingIsraeliTransaction).filter(
+        PendingIsraeliTransaction.user_id == str(current_user.id),
+        PendingIsraeliTransaction.status == "pending"
+    ).all()
+    
+    service = IsraeliStockService()
+    approved_count = 0
+    errors = []
+    
+    for t in transactions:
+        try:
+            # Process each transaction
+            result = service.process_approved_transaction(t, str(current_user.id))
+            
+            # Update status after successful processing
+            t.status = "approved"
+            t.reviewed_at = datetime.now()
+            t.reviewed_by = str(current_user.id)
+            approved_count += 1
+        except Exception as e:
+            errors.append(f"Error processing transaction {t.id}: {str(e)}")
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Approved {approved_count} transactions across all batches",
+        "approved_count": approved_count,
+        "errors": errors if errors else None
+    }
+
+
 @router.post("/pending-transactions/batch/{batch_id}/reject-all")
 async def reject_all_in_batch(
     batch_id: str,

@@ -428,6 +428,13 @@ export const israeliStocksAPI = {
     return response.data;
   },
 
+  approveAllBatches: async () => {
+    const response = await api.post(
+      `/israeli-stocks/pending-transactions/approve-all-batches`
+    );
+    return response.data;
+  },
+
   updatePendingTransaction: async (transactionId: number, data: any) => {
     const response = await api.put(
       `/israeli-stocks/pending-transactions/${transactionId}`,

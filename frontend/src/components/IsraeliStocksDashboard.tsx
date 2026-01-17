@@ -15,6 +15,7 @@ import IsraeliStockTransactions from "./IsraeliStockTransactions";
 import IsraeliStockDividends from "./IsraeliStockDividends";
 import PendingTransactionsReview from "./PendingTransactionsReview";
 import { UploadResult } from "@/types/israeli-stocks";
+import { israeliStocksAPI } from "@/services/api";
 
 type TabType = "upload" | "review" | "holdings" | "transactions" | "dividends";
 
@@ -22,6 +23,7 @@ export default function IsraeliStocksDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>("upload");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [pendingBatchIds, setPendingBatchIds] = useState<string[]>([]);
+  const [approvingAll, setApprovingAll] = useState(false);
 
   // Check for pending batch IDs on mount
   useEffect(() => {
@@ -87,6 +89,29 @@ export default function IsraeliStocksDashboard() {
       setPendingBatchIds([]);
       setRefreshTrigger((prev) => prev + 1);
       setActiveTab("holdings");
+    }
+  };
+
+  const handleApproveAllBatches = async () => {
+    if (!confirm(
+      `Are you sure you want to approve ALL pending transactions from all ${pendingBatchIds.length} reports?`
+    )) {
+      return;
+    }
+
+    try {
+      setApprovingAll(true);
+      await israeliStocksAPI.approveAllBatches();
+      
+      // Clear all batch IDs and switch to holdings
+      sessionStorage.removeItem('pending_batch_ids');
+      setPendingBatchIds([]);
+      setRefreshTrigger((prev) => prev + 1);
+      setActiveTab("holdings");
+    } catch (error: any) {
+      alert(error.response?.data?.detail || "Failed to approve all transactions");
+    } finally {
+      setApprovingAll(false);
     }
   };
 
@@ -208,13 +233,35 @@ export default function IsraeliStocksDashboard() {
           {activeTab === "review" && (
             <div>
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                  Review Pending Transactions
-                </h2>
-                <p className="text-gray-600">
-                  Review, edit, and approve transactions extracted from your PDF reports.
-                  Only approved transactions will be added to your portfolio.
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                      Review Pending Transactions
+                    </h2>
+                    <p className="text-gray-600">
+                      Review, edit, and approve transactions extracted from your PDF reports.
+                      Only approved transactions will be added to your portfolio.
+                    </p>
+                  </div>
+                  {pendingBatchIds.length > 1 && (
+                    <button
+                      onClick={handleApproveAllBatches}
+                      disabled={approvingAll}
+                      className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-md flex items-center space-x-2"
+                    >
+                      {approvingAll ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Approving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>✓ Approve All Reports</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
               {pendingBatchIds.length > 0 ? (
                 pendingBatchIds.map((batchId) => (
