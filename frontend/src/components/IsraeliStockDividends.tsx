@@ -96,7 +96,7 @@ export default function IsraeliStockDividends({
       acc[key].logo_svg = dividend.logo_svg;
     }
     acc[key].total_amount += dividend.amount;
-    acc[key].total_tax += dividend.tax || 0;
+    acc[key].total_tax += Number(dividend.tax) || 0;
     acc[key].count += 1;
     acc[key].dividends.push(dividend);
     return acc;
