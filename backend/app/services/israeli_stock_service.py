@@ -350,31 +350,36 @@ class IsraeliStockService:
                 df = pd.read_csv(csv_file)
                 filename = os.path.basename(csv_file)
                 
-                # Determine table type: prefer unambiguous Hebrew heading; else fall back to content-based detection
+                # Always use content-based detection first (more reliable than page-level hints)
+                # Multiple table types can appear on the same page
                 csv_type = None
-                if filename in table_info_map:
-                    heading_type = table_info_map[filename].get('hebrew_heading_type')
-                    if heading_type in ("holdings", "transactions"):
-                        csv_type = heading_type
-                        print(f"DEBUG: {filename} - Using Hebrew heading hint: {csv_type}")
-                    else:
-                        print(f"DEBUG: {filename} - Ambiguous/none heading hint; using content-based detection")
-                else:
-                    print(f"DEBUG: {filename} - Not found in table info map; using content-based detection")
-
-                if csv_type is None:
-                    # Use content-based detection on the DataFrame itself
-                    try:
-                        csv_type = self.determine_csv_type(df, csv_file)
-                    except Exception:
-                        csv_type = "holdings"  # safe default
+                try:
+                    csv_type = self.determine_csv_type(df, csv_file)
                     print(f"DEBUG: {filename} - Content-based type: {csv_type}")
+                except Exception as e:
+                    print(f"DEBUG: {filename} - Content detection failed: {e}, checking heading hint")
+                    # Fall back to heading hint only if content detection fails
+                    if filename in table_info_map:
+                        heading_type = table_info_map[filename].get('hebrew_heading_type')
+                        if heading_type in ("holdings", "transactions"):
+                            csv_type = heading_type
+                            print(f"DEBUG: {filename} - Using Hebrew heading hint: {csv_type}")
+                    
+                    # Last resort default
+                    if csv_type is None:
+                        csv_type = "holdings"
+                        print(f"DEBUG: {filename} - Using default: holdings")
                 
                 if csv_type == "holdings":
-                    holdings = self.find_israeli_stocks_in_csv(df, israeli_stocks, csv_file, "holdings", pdf_name, holding_date)
-                    if holdings:
-                        all_holdings.extend(holdings)
-                    print(f"DEBUG: {filename} - Found {len(holdings)} holdings")
+                    results = self.find_israeli_stocks_in_csv(df, israeli_stocks, csv_file, "holdings", pdf_name, holding_date)
+                    # Separate dividends from actual holdings
+                    # Dividends can appear in holdings tables but should be treated as transactions
+                    for item in results:
+                        if item.get('transaction_type') == 'DIVIDEND':
+                            all_transactions.append(item)
+                        else:
+                            all_holdings.append(item)
+                    print(f"DEBUG: {filename} - Found {len([i for i in results if i.get('transaction_type') != 'DIVIDEND'])} holdings, {len([i for i in results if i.get('transaction_type') == 'DIVIDEND'])} dividends")
                 elif csv_type == "transactions":
                     transactions = self.find_israeli_stocks_in_csv(df, israeli_stocks, csv_file, "transactions", pdf_name, holding_date)
                     all_transactions.extend(transactions)
@@ -407,18 +412,20 @@ class IsraeliStockService:
                 continue
             relevant_rows = df[mask]
             if csv_type == "holdings":
-                # For holdings tables, check if this row contains dividend data
+                # Holdings tables show historical data from previous months - skip dividends entirely
                 for idx, row in relevant_rows.iterrows():
                     row_str = ' '.join(str(val) for val in row.values).lower()
+                    
                     # Skip any rows that look like dividends; dividends are parsed only from transactions tables
-                    if any(dividend_kw in row_str for dividend_kw in ['דנדביד', 'דיבידנד', 'dividend', 'div/']):
-                        print(f"DEBUG: Skipping dividend-like row in holdings table for {symbol}")
+                    if any(dividend_kw in row_str for dividend_kw in ['דנדביד', 'דיבידנד', 'dividend', 'div/', 'ביד/']):
+                        print(f"DEBUG: Skipping dividend row in holdings table for {symbol} (historical data)")
                         continue
+                    
                     holding_data = self.parse_holding_row(row, security_no, symbol, name, pdf_name, holding_date)
                     if holding_data:
                         results.append(holding_data)
             else:
-                # Transaction tables
+                # Transaction tables - extract all transaction types including dividends
                 transaction_data = self.extract_transaction_from_csv(df, security_no, symbol, name, pdf_name)
                 if transaction_data:
                     results.extend(transaction_data)

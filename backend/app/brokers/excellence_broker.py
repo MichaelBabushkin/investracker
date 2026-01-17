@@ -73,7 +73,7 @@ class ExcellenceBrokerParser(BaseBrokerParser):
         return results
     
     def determine_table_type(self, df: pd.DataFrame, csv_file: str) -> str:
-        """Determine if a CSV contains transactions data for Excellence"""
+        """Determine if a CSV contains transactions or holdings data for Excellence"""
         import os
         
         # Analyze content
@@ -81,29 +81,45 @@ class ExcellenceBrokerParser(BaseBrokerParser):
         sample_data = ' '.join([str(val).lower() for val in df.iloc[:10].values.flatten() if pd.notna(val)])
         all_content = columns_str + ' ' + sample_data
         
-        # Transaction indicators
+        # Holdings table indicators (specific column structure)
+        # Holdings tables have columns like: 'רפסמ ריינ', 'םש ריינ', 'תומכ', 'רעש יחכונ', 'תולע השיכרה', 'יווש ריינ', 'זוחא קיתהמ'
+        holdings_indicators = [
+            'יחכונ רעש',  # Current price
+            'השיכרה תולע',  # Purchase cost
+            'קיתהמ זוחא',  # Portfolio percentage
+            'ריינ יווש',  # Security value
+        ]
+        
+        holdings_score = sum(1 for indicator in holdings_indicators if indicator in all_content)
+        
+        # If we have 2 or more holdings indicators, it's definitely a holdings table
+        if holdings_score >= 2:
+            result = "holdings"
+            print(f"DEBUG: {os.path.basename(csv_file)} - Holdings score: {holdings_score}, Result: holdings")
+            return result
+        
+        # Transaction indicators (specific to transaction tables)
         transaction_indicators = [
-            'buy', 'sell', 'transaction', 'trade', 'date', 'activity',
-            'קנייה', 'מכירה', 'עסקה', 'ךיראת', 'דנדביד', 'העברה', 'הפקדה', 'משיכה',
-            'divid', 'div/', 'ביד/', 'חסמ/', '/01/25', '/02/25', 'תועונת',
-            'גוס העונת', 'גוס\nהעונת', 'ךיראת\nעוציב', 'םוי\nךרע'
+            'גוס העונת',  # Transaction type column (key indicator!)
+            'גוס\nהעונת',  # Transaction type with newline
+            'ךיראת\nעוציב',  # Execution date
+            'םוי\nךרע',  # Value date
+            'יוכיז/בויחל',  # Credit/Debit
+            'הלמע',  # Commission
+            'עוציב רעש',  # Execution price
         ]
         
         # Count matches
         score = sum(1 for indicator in transaction_indicators if indicator in all_content)
         
-        # Look for date patterns (strong transaction indicator)
+        # Look for date patterns in dd/mm/yy format (strong transaction indicator)
         date_patterns = [r'\d{2}/\d{2}/\d{2}', r'\d{1,2}/\d{1,2}/\d{2,4}']
         for pattern in date_patterns:
             if re.search(pattern, sample_data):
-                score += 3
-        
-        # Look for transaction IDs (900 for deposits, 99028 for stocks, etc.)
-        if re.search(r'\b(900|99\d{3}|60\d{5})\b', all_content):
-            score += 2
+                score += 1
         
         # If score is high enough, it's transactions
-        result = "transactions" if score >= 3 else "unknown"
+        result = "transactions" if score >= 2 else "unknown"
         print(f"DEBUG: {os.path.basename(csv_file)} - Transaction score: {score}, Result: {result}")
         return result
     
