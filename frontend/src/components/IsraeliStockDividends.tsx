@@ -33,7 +33,7 @@ export default function IsraeliStockDividends({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
+console.log("Rendering IsraeliStockDividends", dividends); 
   const fetchDividends = async () => {
     try {
       setLoading(true);
@@ -76,6 +76,10 @@ export default function IsraeliStockDividends({
     0
   );
   const netDividends = totalDividends - totalTax;
+console.log('Net Dividends:', netDividends);
+console.log('total tax:', totalTax);
+console.log('totalDividends:', totalDividends);
+
 
   // Group dividends by company
   const dividendsByCompany = (dividends || []).reduce((acc, dividend) => {
@@ -399,13 +403,13 @@ export default function IsraeliStockDividends({
                         <div className="mt-3 space-y-1">
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-500">Gross Amount:</span>
-                            <span className="font-medium">
+                            <span className="font-medium text-blue-600">
                               {formatCurrency(company.total_amount)}
                             </span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-500">Tax Paid:</span>
-                            <span className="font-medium">
+                            <span className="font-medium text-red-600">
                               {formatCurrency(company.total_tax)}
                             </span>
                           </div>
@@ -442,10 +446,7 @@ export default function IsraeliStockDividends({
                                   <div>
                                     <div className="font-medium text-gray-900">
                                       {formatDate(dividend.payment_date)}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      Source: {dividend.source_pdf}
-                                    </div>
+                                    </div> 
                                   </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-6">
