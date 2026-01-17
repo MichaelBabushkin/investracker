@@ -402,7 +402,7 @@ class IsraeliStockService:
         
         # First, check for deposits/withdrawals using broker-specific logic
         if csv_type == "transactions" and hasattr(self.broker_parser, 'extract_deposits_withdrawals'):
-            deposits = self.broker_parser.extract_deposits_withdrawals(df, pdf_name)
+            deposits = self.broker_parser.extract_deposits_withdrawals(df, pdf_name, holding_date)
             results.extend(deposits)
         
         # Then search for regular stocks
@@ -426,7 +426,7 @@ class IsraeliStockService:
                         results.append(holding_data)
             else:
                 # Transaction tables - extract all transaction types including dividends
-                transaction_data = self.extract_transaction_from_csv(df, security_no, symbol, name, pdf_name)
+                transaction_data = self.extract_transaction_from_csv(df, security_no, symbol, name, pdf_name, holding_date)
                 if transaction_data:
                     results.extend(transaction_data)
         
@@ -454,22 +454,22 @@ class IsraeliStockService:
     
     
     def extract_transaction_from_csv(self, df: pd.DataFrame, security_no: str, symbol: str, 
-                                   name: str, pdf_name: str) -> List[Dict]:
+                                   name: str, pdf_name: str, holding_date: Optional[datetime] = None) -> List[Dict]:
         """Extract transaction details for a specific stock from CSV"""
         transactions = []
         mask = df.astype(str).apply(lambda x: x.str.contains(security_no, na=False)).any(axis=1)
         relevant_rows = df[mask]
         
         for idx, row in relevant_rows.iterrows():
-            transaction = self.parse_transaction_row(row, security_no, symbol, name, pdf_name)
+            transaction = self.parse_transaction_row(row, security_no, symbol, name, pdf_name, holding_date)
             if transaction:
                 transactions.append(transaction)
         
         return transactions
     
-    def parse_transaction_row(self, row, security_no: str, symbol: str, name: str, pdf_name: str) -> Optional[Dict]:
+    def parse_transaction_row(self, row, security_no: str, symbol: str, name: str, pdf_name: str, holding_date: Optional[datetime] = None) -> Optional[Dict]:
         """Parse a single row into transaction data (delegates to broker parser)"""
-        return self.broker_parser.parse_transaction_row(row, security_no, symbol, name, pdf_name)
+        return self.broker_parser.parse_transaction_row(row, security_no, symbol, name, pdf_name, holding_date)
     
     def save_holdings_to_database(self, holdings: List[Dict], user_id: str) -> int:
         """Save holdings to database using bulk insert"""

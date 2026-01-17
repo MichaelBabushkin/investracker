@@ -38,7 +38,7 @@ class ExcellenceBrokerParser(BaseBrokerParser):
             'transactions': 'תועונת טוריפ'  # Transactions details
         }
     
-    def extract_deposits_withdrawals(self, df: pd.DataFrame, pdf_name: str) -> List[Dict]:
+    def extract_deposits_withdrawals(self, df: pd.DataFrame, pdf_name: str, holding_date: Optional[datetime] = None) -> List[Dict]:
         """Extract deposits and withdrawals (security_no = 900) from Excellence format"""
         results = []
         
@@ -62,8 +62,8 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                     ]
                     
                     if any(keyword in row_str for keyword in keywords):
-                        # Parse the transaction using the standard parser
-                        transaction = self.parse_transaction_row(row, '900', 'CASH', 'Cash Transaction', pdf_name)
+                        # Parse the transaction using the standard parser (with month filtering)
+                        transaction = self.parse_transaction_row(row, '900', 'CASH', 'Cash Transaction', pdf_name, holding_date)
                         if transaction:
                             results.append(transaction)
         
@@ -129,8 +129,13 @@ class ExcellenceBrokerParser(BaseBrokerParser):
         return None
     
     def parse_transaction_row(self, row: pd.Series, security_no: str, symbol: str,
-                            name: str, pdf_name: str) -> Optional[Dict]:
-        """Parse Excellence transaction row format with Hebrew mappings"""
+                            name: str, pdf_name: str, holding_date: Optional[datetime] = None) -> Optional[Dict]:
+        """Parse Excellence transaction row format with Hebrew mappings.
+        
+        Args:
+            holding_date: Report date - transactions will be filtered to match this month only.
+                         This prevents duplicates when uploading multiple monthly reports.
+        """
         row_values = [str(val).strip() if pd.notna(val) else '' for val in row.values]
         row_values_no_commas = [s.replace(',', '') for s in row_values]
         
@@ -245,6 +250,20 @@ class ExcellenceBrokerParser(BaseBrokerParser):
             
             # Only return if we have essential data
             if transaction_type or transaction_date:
+                # Filter by report month to prevent duplicates (broker shows 6 months of history)
+                if holding_date and transaction_date:
+                    try:
+                        # Parse transaction date
+                        trans_date = self.parse_date_string(transaction_date)
+                        if trans_date:
+                            # Only include transactions from the same month and year as the report
+                            if trans_date.year != holding_date.year or trans_date.month != holding_date.month:
+                                print(f"DEBUG: Skipping {symbol} transaction from {transaction_date} (not in report month {holding_date.month}/{holding_date.year})")
+                                return None
+                    except Exception as e:
+                        print(f"DEBUG: Could not parse transaction date {transaction_date} for filtering: {e}")
+                        # If we can't parse the date, include it anyway (safer than excluding valid data)
+                
                 print(f"DEBUG: Excellence transaction - {symbol}: {transaction_type} on {transaction_date}, value: {transaction.get('total_value', 'N/A')}")
                 return transaction
             

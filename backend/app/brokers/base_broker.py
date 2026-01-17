@@ -39,9 +39,11 @@ class BaseBrokerParser(ABC):
     
     @abstractmethod
     def parse_transaction_row(self, row: pd.Series, security_no: str, symbol: str,
-                            name: str, pdf_name: str) -> Optional[Dict]:
+                            name: str, pdf_name: str, holding_date: Optional[datetime] = None) -> Optional[Dict]:
         """
         Parse a transaction row from the broker's format
+        Args:
+            holding_date: Report date used to filter transactions to the report's month only
         Returns: dict with transaction data or None if invalid
         """
         pass
