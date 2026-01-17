@@ -54,7 +54,7 @@ export default function IsraeliStockDividends({
   }, [refreshTrigger]);
 
   const formatCurrency = (amount?: number) => {
-    if (!amount) return "₪0.00";
+    if (amount === undefined || amount === null || isNaN(amount)) return "₪0.00";
     return new Intl.NumberFormat("he-IL", {
       style: "currency",
       currency: "ILS",
