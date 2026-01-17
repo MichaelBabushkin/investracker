@@ -962,6 +962,102 @@ class IsraeliStockService:
             print(f"Error saving to pending transactions: {e}")
             raise e
     
+    def _update_holding_for_transaction(self, cursor, user_id: str, security_no: str, 
+                                       symbol: str, company_name: str, transaction_type: str,
+                                       quantity: float, price: float, currency: str, 
+                                       holding_date) -> None:
+        """Update or create holding based on a transaction with weighted average calculation"""
+        # Check if holding already exists (one holding per user per stock)
+        cursor.execute(
+            '''SELECT id, quantity, purchase_cost, last_price 
+               FROM "IsraeliStockHolding" 
+               WHERE user_id = %s AND security_no = %s''',
+            (user_id, security_no)
+        )
+        existing_holding = cursor.fetchone()
+        
+        if transaction_type == 'BUY':
+            if existing_holding:
+                # Calculate weighted average
+                holding_id, old_quantity, old_purchase_cost, old_last_price = existing_holding
+                old_quantity = float(old_quantity) if old_quantity else 0
+                old_purchase_cost = float(old_purchase_cost) if old_purchase_cost else 0
+                old_last_price = float(old_last_price) if old_last_price else price
+                
+                # Calculate old total cost and new total cost
+                old_total_cost = old_quantity * (old_purchase_cost / old_quantity if old_quantity > 0 else 0)
+                new_purchase_amount = quantity * price
+                
+                # New totals
+                new_quantity = old_quantity + quantity
+                new_total_cost = old_total_cost + new_purchase_amount
+                new_avg_purchase_price = new_total_cost / new_quantity if new_quantity > 0 else 0
+                
+                # Use the latest price (from this transaction)
+                new_last_price = price
+                new_current_value = new_quantity * new_last_price
+                
+                cursor.execute(
+                    '''UPDATE "IsraeliStockHolding" 
+                       SET quantity = %s, 
+                           purchase_cost = %s,
+                           last_price = %s,
+                           current_value = %s,
+                           holding_date = %s
+                       WHERE id = %s''',
+                    (new_quantity, new_total_cost, new_last_price, new_current_value, holding_date, holding_id)
+                )
+            else:
+                # Create new holding
+                total_cost = quantity * price
+                current_value = quantity * price
+                
+                cursor.execute(
+                    '''INSERT INTO "IsraeliStockHolding" 
+                       (user_id, security_no, symbol, company_name, quantity,
+                        last_price, purchase_cost, current_value, currency, holding_date, source_pdf)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                    (user_id, security_no, symbol, company_name, quantity,
+                     price, total_cost, current_value, currency, holding_date, 'Multiple PDFs')
+                )
+        
+        elif transaction_type == 'SELL':
+            if existing_holding:
+                holding_id, old_quantity, old_purchase_cost, old_last_price = existing_holding
+                old_quantity = float(old_quantity) if old_quantity else 0
+                old_purchase_cost = float(old_purchase_cost) if old_purchase_cost else 0
+                old_last_price = float(old_last_price) if old_last_price else price
+                
+                # Subtract sold quantity
+                new_quantity = old_quantity - quantity
+                
+                if new_quantity <= 0:
+                    # Sold all or more - delete the holding
+                    cursor.execute(
+                        'DELETE FROM "IsraeliStockHolding" WHERE id = %s',
+                        (holding_id,)
+                    )
+                else:
+                    # Partial sale - keep the same avg purchase cost, reduce quantity
+                    # Purchase cost stays same (we don't change avg price on sells)
+                    avg_purchase_price = old_purchase_cost / old_quantity if old_quantity > 0 else 0
+                    new_total_cost = new_quantity * avg_purchase_price
+                    
+                    # Use latest price from transaction
+                    new_last_price = price
+                    new_current_value = new_quantity * new_last_price
+                    
+                    cursor.execute(
+                        '''UPDATE "IsraeliStockHolding" 
+                           SET quantity = %s,
+                               purchase_cost = %s,
+                               last_price = %s,
+                               current_value = %s,
+                               holding_date = %s
+                           WHERE id = %s''',
+                        (new_quantity, new_total_cost, new_last_price, new_current_value, holding_date, holding_id)
+                    )
+    
     def process_approved_transaction(self, pending_transaction, user_id: str) -> Dict:
         """Process an approved pending transaction and save to final tables"""
         try:
@@ -1056,49 +1152,20 @@ class IsraeliStockService:
                 ))
                 conn.commit()
                 
-                # For BUY transactions, also update/create holding
-                if transaction_type == 'BUY':
-                    # Check if holding already exists
-                    cursor.execute(
-                        'SELECT quantity FROM "IsraeliStockHolding" WHERE user_id = %s AND security_no = %s AND source_pdf = %s',
-                        (user_id, data['security_no'], data['source_pdf'])
-                    )
-                    existing_holding = cursor.fetchone()
-                    
-                    if existing_holding:
-                        # Update existing holding
-                        cursor.execute(
-                            'UPDATE "IsraeliStockHolding" SET quantity = quantity + %s WHERE user_id = %s AND security_no = %s AND source_pdf = %s',
-                            (float(pending_transaction.quantity), user_id, data['security_no'], data['source_pdf'])
-                        )
-                    else:
-                        # Create new holding
-                        insert_holding_sql = """
-                        INSERT INTO "IsraeliStockHolding" (
-                            user_id, security_no, symbol, company_name, quantity,
-                            last_price, purchase_cost, current_value, currency,
-                            holding_date, source_pdf
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """
-                        
-                        quantity = float(pending_transaction.quantity) if pending_transaction.quantity else 0
-                        price = float(pending_transaction.price) if pending_transaction.price else 0
-                        total_value = quantity * price if quantity and price else float(pending_transaction.amount) if pending_transaction.amount else 0
-                        
-                        cursor.execute(insert_holding_sql, (
-                            user_id,
-                            data['security_no'],
-                            data['symbol'],
-                            data['name'],
-                            quantity,
-                            price,
-                            total_value,
-                            total_value,
-                            data['currency'],
-                            transaction_date,
-                            data['source_pdf']
-                        ))
-                    conn.commit()
+                # Update holdings based on transaction type
+                self._update_holding_for_transaction(
+                    cursor=cursor,
+                    user_id=user_id,
+                    security_no=data['security_no'],
+                    symbol=data['symbol'],
+                    company_name=data['name'],
+                    transaction_type=transaction_type,
+                    quantity=float(pending_transaction.quantity) if pending_transaction.quantity else 0,
+                    price=float(pending_transaction.price) if pending_transaction.price else 0,
+                    currency=data['currency'],
+                    holding_date=transaction_date
+                )
+                conn.commit()
                 
                 result = {
                     'type': 'transaction',
@@ -1165,32 +1232,20 @@ class IsraeliStockService:
     # Tables are now managed by SQLAlchemy models only
     
     def get_user_holdings(self, user_id: str, limit: Optional[int] = None) -> List[Dict]:
-        """Get user's Israeli stock holdings - latest position for each stock across all reports"""
+        """Get user's current Israeli stock holdings"""
         try:
             conn = self.create_database_connection()
             cursor = conn.cursor()
             
-            # Use a CTE with ROW_NUMBER to get the latest holding for each unique security_no
-            # This ensures we see all stocks the user holds, not just stocks from the latest report
+            # Get holdings with quantity > 0 (one per stock now)
             query = '''
-                WITH RankedHoldings AS (
-                    SELECT h.id, h.security_no, h.symbol, h.company_name, h.quantity, 
-                           h.last_price, h.current_value, h.holding_date, 
-                           h.currency, h.purchase_cost, s.logo_svg,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY h.security_no 
-                               ORDER BY h.holding_date DESC NULLS LAST, h.created_at DESC
-                           ) as rn
-                    FROM "IsraeliStockHolding" h
-                    LEFT JOIN "IsraeliStocks" s ON h.security_no = s.security_no
-                    WHERE h.user_id = %s AND h.quantity > 0
-                )
-                SELECT id, security_no, symbol, company_name, quantity, 
-                       last_price, current_value, holding_date, 
-                       currency, purchase_cost, logo_svg
-                FROM RankedHoldings 
-                WHERE rn = 1
-                ORDER BY symbol
+                SELECT h.id, h.security_no, h.symbol, h.company_name, h.quantity, 
+                       h.last_price, h.current_value, h.holding_date, 
+                       h.currency, h.purchase_cost, s.logo_svg
+                FROM "IsraeliStockHolding" h
+                LEFT JOIN "IsraeliStocks" s ON h.security_no = s.security_no
+                WHERE h.user_id = %s AND h.quantity > 0
+                ORDER BY h.symbol
             '''
             
             params = (user_id,)
@@ -1206,32 +1261,33 @@ class IsraeliStockService:
             
             # First pass: calculate total portfolio value
             for row in rows:
-                current_value = float(row[6]) if row[6] else 0  # current_value is at index 6
+                current_value = float(row[6]) if row[6] else 0
                 total_portfolio_value += current_value
             
             # Second pass: create holdings with calculated percentages
             for row in rows:
-                current_value = float(row[6]) if row[6] else 0  # current_value is at index 6
-                purchase_cost = float(row[9]) if row[9] else 0  # purchase_cost is at index 9
+                quantity = float(row[4]) if row[4] else 0
+                last_price = float(row[5]) if row[5] else 0
+                current_value = quantity * last_price  # Recalculate to ensure accuracy
+                purchase_cost = float(row[9]) if row[9] else 0
                 
-                # Israeli portfolio percentage (within Israeli stocks only)
-                israeli_portfolio_percentage = (current_value / total_portfolio_value * 100) if total_portfolio_value > 0 else 0
+                # Calculate average purchase price per share
+                avg_purchase_price = purchase_cost / quantity if quantity > 0 else 0
                 
-                # Overall portfolio percentage (for future use when we add global stocks)
-                # For now, it's the same as Israeli percentage since we only have Israeli stocks
-                overall_portfolio_percentage = israeli_portfolio_percentage
+                portfolio_percentage = (current_value / total_portfolio_value * 100) if total_portfolio_value > 0 else 0
                 
                 holdings.append({
-                    'id': row[0],  # ID for editing
+                    'id': row[0],
                     'security_no': row[1],
                     'symbol': row[2],
                     'company_name': row[3],
-                    'quantity': float(row[4]) if row[4] else 0,
-                    'last_price': float(row[5]) if row[5] else 0,
+                    'quantity': quantity,
+                    'last_price': last_price,
+                    'avg_purchase_price': round(avg_purchase_price, 2),  # Add this for display
                     'current_value': current_value,
                     'purchase_cost': purchase_cost,
-                    'portfolio_percentage': round(israeli_portfolio_percentage, 2),  # Israeli stocks percentage
-                    'overall_portfolio_percentage': round(overall_portfolio_percentage, 2),  # Overall portfolio percentage
+                    'portfolio_percentage': round(portfolio_percentage, 2),
+                    'overall_portfolio_percentage': round(portfolio_percentage, 2),
                     'currency': row[8],
                     'holding_date': row[7].isoformat() if row[7] else None,
                     'logo_svg': row[10] if len(row) > 10 else None
