@@ -211,6 +211,14 @@ export default function IsraeliStockTransactions({
     .filter((t) => (t.transaction_type || "").toUpperCase() === "SELL")
     .reduce((sum, t) => sum + (t.total_value || 0), 0);
 
+  const totalDeposits = transactions
+    .filter((t) => (t.transaction_type || "").toUpperCase() === "DEPOSIT")
+    .reduce((sum, t) => sum + (t.total_value || 0), 0);
+
+  const totalWithdrawals = transactions
+    .filter((t) => (t.transaction_type || "").toUpperCase() === "WITHDRAWAL")
+    .reduce((sum, t) => sum + (t.total_value || 0), 0);
+
   const totalCommission = transactions.reduce((sum, t) => {
     const raw = (t as any).commission;
     if (raw === null || raw === undefined || raw === "") return sum;
@@ -404,6 +412,61 @@ export default function IsraeliStockTransactions({
                 <p className="text-sm opacity-80">Total Commission Paid</p>
                 <p className="text-2xl font-bold">
                   {formatCurrency(totalCommission)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cash Flow Summary */}
+      {transactions.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="metric-card bg-gradient-to-r from-purple-500 to-purple-600">
+            <div className="flex items-center">
+              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <div className="ml-3">
+                <p className="text-sm opacity-80">Total Deposits</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(totalDeposits)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="metric-card bg-gradient-to-r from-orange-500 to-orange-600">
+            <div className="flex items-center">
+              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <div className="ml-3">
+                <p className="text-sm opacity-80">Total Withdrawals</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(totalWithdrawals)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="metric-card bg-gradient-to-r from-indigo-500 to-indigo-600">
+            <div className="flex items-center">
+              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <div className="ml-3">
+                <p className="text-sm opacity-80">Net Cash Flow</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(totalDeposits - totalWithdrawals)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="metric-card bg-gradient-to-r from-teal-500 to-teal-600">
+            <div className="flex items-center">
+              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <div className="ml-3">
+                <p className="text-sm opacity-80">Available Cash</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(
+                    totalDeposits - totalWithdrawals - totalBought + totalSold - totalCommission
+                  )}
                 </p>
               </div>
             </div>
