@@ -1009,7 +1009,7 @@ class IsraeliStockService:
                     data['name'],
                     payment_date,
                     float(pending_transaction.amount) if pending_transaction.amount else 0,
-                    0,  # tax - not captured in pending transactions yet
+                    float(pending_transaction.tax) if pending_transaction.tax else 0,
                     data['currency'],
                     data['source_pdf']
                 ))
