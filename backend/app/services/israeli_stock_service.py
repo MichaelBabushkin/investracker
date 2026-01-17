@@ -1165,62 +1165,35 @@ class IsraeliStockService:
     # Tables are now managed by SQLAlchemy models only
     
     def get_user_holdings(self, user_id: str, limit: Optional[int] = None) -> List[Dict]:
-        """Get user's Israeli stock holdings from the latest report only"""
+        """Get user's Israeli stock holdings - latest position for each stock across all reports"""
         try:
             conn = self.create_database_connection()
             cursor = conn.cursor()
             
-            # First, get the latest report date for this user
-            cursor.execute('''
-                SELECT MAX(holding_date) 
-                FROM "IsraeliStockHolding" 
-                WHERE user_id = %s AND holding_date IS NOT NULL
-            ''', (user_id,))
-            
-            latest_date_result = cursor.fetchone()
-            latest_date = latest_date_result[0] if latest_date_result and latest_date_result[0] else None
-            
-            if not latest_date:
-                # If no holding_date, fall back to latest source_pdf
-                cursor.execute('''
-                    SELECT source_pdf 
-                    FROM "IsraeliStockHolding" 
-                    WHERE user_id = %s 
-                    ORDER BY created_at DESC 
-                    LIMIT 1
-                ''', (user_id,))
-                
-                latest_pdf_result = cursor.fetchone()
-                if not latest_pdf_result:
-                    cursor.close()
-                    conn.close()
-                    return []
-                
-                latest_pdf = latest_pdf_result[0]
-                
-                # Get holdings from the latest PDF
-                query = '''
+            # Use a CTE with ROW_NUMBER to get the latest holding for each unique security_no
+            # This ensures we see all stocks the user holds, not just stocks from the latest report
+            query = '''
+                WITH RankedHoldings AS (
                     SELECT h.id, h.security_no, h.symbol, h.company_name, h.quantity, 
                            h.last_price, h.current_value, h.holding_date, 
-                           h.currency, h.purchase_cost, s.logo_svg
+                           h.currency, h.purchase_cost, s.logo_svg,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY h.security_no 
+                               ORDER BY h.holding_date DESC NULLS LAST, h.created_at DESC
+                           ) as rn
                     FROM "IsraeliStockHolding" h
                     LEFT JOIN "IsraeliStocks" s ON h.security_no = s.security_no
-                    WHERE h.user_id = %s AND h.source_pdf = %s
-                    ORDER BY h.symbol
-                '''
-                params = (user_id, latest_pdf)
-            else:
-                # Get holdings from the latest holding date
-                query = '''
-                    SELECT h.id, h.security_no, h.symbol, h.company_name, h.quantity, 
-                           h.last_price, h.current_value, h.holding_date, 
-                           h.currency, h.purchase_cost, s.logo_svg
-                    FROM "IsraeliStockHolding" h
-                    LEFT JOIN "IsraeliStocks" s ON h.security_no = s.security_no
-                    WHERE h.user_id = %s AND h.holding_date = %s
-                    ORDER BY h.symbol
-                '''
-                params = (user_id, latest_date)
+                    WHERE h.user_id = %s AND h.quantity > 0
+                )
+                SELECT id, security_no, symbol, company_name, quantity, 
+                       last_price, current_value, holding_date, 
+                       currency, purchase_cost, logo_svg
+                FROM RankedHoldings 
+                WHERE rn = 1
+                ORDER BY symbol
+            '''
+            
+            params = (user_id,)
             
             if limit:
                 query += f' LIMIT {limit}'
