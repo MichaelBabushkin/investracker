@@ -699,14 +699,14 @@ export default function IsraeliStockTransactions({
                             {formatCurrency(transaction.total_value)}
                           </td>
                           <td className="px-4 py-3 text-right text-xs text-gray-600">
-                            {transaction.commission || transaction.tax ? (
+                            {(transaction.commission && Number(transaction.commission) > 0) || (transaction.tax && Number(transaction.tax) > 0) ? (
                               <div>
-                                {transaction.commission && (
+                                {transaction.commission && Number(transaction.commission) > 0 && (
                                   <div>Fee: {formatCurrency(transaction.commission)}</div>
                                 )}
-                                {transaction.tax && (
+                                {transaction.tax && Number(transaction.tax) > 0 ? (
                                   <div>Tax: {formatCurrency(transaction.tax)}</div>
-                                )}
+                                ):''}
                               </div>
                             ) : (
                               "-"

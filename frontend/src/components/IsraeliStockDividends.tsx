@@ -33,7 +33,6 @@ export default function IsraeliStockDividends({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-console.log("Rendering IsraeliStockDividends", dividends); 
   const fetchDividends = async () => {
     try {
       setLoading(true);
@@ -76,9 +75,6 @@ console.log("Rendering IsraeliStockDividends", dividends);
     0
   );
   const netDividends = totalDividends - totalTax;
-console.log('Net Dividends:', netDividends);
-console.log('total tax:', totalTax);
-console.log('totalDividends:', totalDividends);
 
 
   // Group dividends by company
