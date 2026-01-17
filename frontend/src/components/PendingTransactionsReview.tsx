@@ -26,7 +26,7 @@ interface PendingTransaction {
 
 interface PendingTransactionsReviewProps {
   batchId?: string;
-  onApprovalComplete?: () => void;
+  onApprovalComplete?: (completedBatchId?: string) => void;
 }
 
 export default function PendingTransactionsReview({
@@ -111,7 +111,7 @@ export default function PendingTransactionsReview({
       setLoading(true);
       await israeliStocksAPI.approveAllInBatch(batchId);
       await loadTransactions();
-      if (onApprovalComplete) onApprovalComplete();
+      if (onApprovalComplete) onApprovalComplete(batchId);
     } catch (err: any) {
       setError(
         err.response?.data?.detail || "Failed to approve all transactions"
@@ -138,7 +138,7 @@ export default function PendingTransactionsReview({
       setLoading(true);
       await israeliStocksAPI.rejectAllInBatch(batchId);
       await loadTransactions();
-      if (onApprovalComplete) onApprovalComplete();
+      if (onApprovalComplete) onApprovalComplete(batchId);
     } catch (err: any) {
       setError(
         err.response?.data?.detail || "Failed to reject all transactions"

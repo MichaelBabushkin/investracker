@@ -66,14 +66,28 @@ export default function IsraeliStocksDashboard() {
     }
   };
 
-  const handleApprovalComplete = () => {
-    // Clear pending batch IDs
-    sessionStorage.removeItem('pending_batch_ids');
-    setPendingBatchIds([]);
-    
-    // Trigger refresh and switch to holdings
-    setRefreshTrigger((prev) => prev + 1);
-    setActiveTab("holdings");
+  const handleApprovalComplete = (completedBatchId?: string) => {
+    if (completedBatchId) {
+      // Remove only the completed batch ID from the list
+      const remainingBatchIds = pendingBatchIds.filter(id => id !== completedBatchId);
+      setPendingBatchIds(remainingBatchIds);
+      
+      if (remainingBatchIds.length > 0) {
+        // Still have batches to review, keep them in session storage
+        sessionStorage.setItem('pending_batch_ids', JSON.stringify(remainingBatchIds));
+      } else {
+        // No more batches, clear session storage and switch to holdings
+        sessionStorage.removeItem('pending_batch_ids');
+        setRefreshTrigger((prev) => prev + 1);
+        setActiveTab("holdings");
+      }
+    } else {
+      // Fallback: clear all pending batch IDs (old behavior)
+      sessionStorage.removeItem('pending_batch_ids');
+      setPendingBatchIds([]);
+      setRefreshTrigger((prev) => prev + 1);
+      setActiveTab("holdings");
+    }
   };
 
   const tabs = [
