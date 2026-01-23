@@ -19,12 +19,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 # Import SQLAlchemy models
 try:
-    from app.models.world_stock import (
-        WorldStockAccount,
+    from app.models.world_stock_models import (
+        WorldStock,
         WorldStockHolding,
         WorldStockTransaction,
-        WorldStockDividend,
-        WorldStockPerformance
+        WorldDividend,
+        PendingWorldTransaction,
+        ExchangeRate
     )
     MODELS_AVAILABLE = True
 except ImportError:

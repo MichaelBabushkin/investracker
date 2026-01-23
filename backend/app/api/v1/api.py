@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, portfolios, transactions, analytics, reports, israeli_stocks, world_stocks, admin, calendar, user_settings
+from app.api.v1.endpoints import auth, portfolios, transactions, analytics, reports, israeli_stocks, admin, calendar, user_settings, world_stocks
 
 api_router = APIRouter()
 

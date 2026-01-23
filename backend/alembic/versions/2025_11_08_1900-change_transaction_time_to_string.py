@@ -1,7 +1,7 @@
 """change_transaction_time_to_string
 
 Revision ID: 2025_11_08_1900
-Revises: 2025_10_18_1730
+Revises: 20251013_01
 Create Date: 2025-11-08 19:00:00.000000
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '2025_11_08_1900'
-down_revision = '2025_10_18_1730'
+down_revision = '20251013_01'
 branch_labels = None
 depends_on = None
 

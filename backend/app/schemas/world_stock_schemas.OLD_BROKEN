@@ -1,0 +1,311 @@
+"""
+Pydantic schemas for World Stock Analysis API
+These schemas are used for request/response validation and serialization
+"""
+from __future__ import annotations
+
+from pydantic import BaseModel, Field, validator
+from typing import Optional, List, Dict
+from datetime import date, datetime, time
+from decimal import Decimal
+
+
+# Base schemas for common fields
+class WorldStockBase(BaseModel):
+    ticker: str = Field(..., description="Stock ticker symbol")
+    exchange: str = Field(..., description="Exchange (US, NASDAQ, NYSE)")
+    company_name: Optional[str] = Field(None, description="Company name")
+
+
+# WorldStock (reference data) schemas
+class WorldStockCreate(WorldStockBase):
+    sector: Optional[str] = Field(None, description="Sector")
+    industry: Optional[str] = Field(None, description="Industry")
+    country: str = Field(default="US", description="Country")
+    currency: str = Field(default="USD", description="Currency code")
+    logo_url: Optional[str] = Field(None, description="Logo URL")
+    logo_svg: Optional[str] = Field(None, description="SVG logo content")
+    is_active: bool = Field(default=True, description="Whether stock is active")
+
+
+class WorldStockResponse(WorldStockBase):
+    id: int
+    sector: Optional[str]
+    industry: Optional[str]
+    country: str
+    currency: str
+    logo_svg: Optional[str]
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Account schemas
+class WorldStockAccountResponse(BaseModel):
+    id: int
+    user_id: str
+    account_number: Optional[str]
+    account_alias: Optional[str]
+    account_type: Optional[str]
+    base_currency: Optional[str]
+    broker_name: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Holding schemas
+class WorldStockHoldingBase(BaseModel):
+    ticker: str = Field(..., description="Stock ticker symbol")
+    symbol: str = Field(..., description="Display symbol (e.g., 'NKE US')")
+    company_name: Optional[str] = Field(None, description="Company name")
+    quantity: Optional[Decimal] = Field(None, description="Number of shares held")
+    currency: str = Field(default="USD", description="Currency code")
+
+
+class WorldStockHoldingCreate(WorldStockHoldingBase):
+    last_price: Optional[Decimal] = Field(None, description="Last price per share in USD")
+    purchase_cost: Optional[Decimal] = Field(None, description="Total purchase cost")
+    current_value: Optional[Decimal] = Field(None, description="Current market value in ILS")
+    portfolio_percentage: Optional[Decimal] = Field(None, description="Percentage of portfolio")
+    exchange_rate: Optional[Decimal] = Field(None, description="USD to ILS exchange rate")
+    holding_date: Optional[date] = Field(None, description="Date from PDF header")
+    source_pdf: str = Field(..., description="Source PDF filename")
+
+
+class WorldStockHoldingResponse(WorldStockHoldingBase):
+    id: int
+    user_id: str
+    last_price: Optional[Decimal]
+    purchase_cost: Optional[Decimal]
+    current_value: Optional[Decimal]
+    portfolio_percentage: Optional[Decimal]
+    exchange_rate: Optional[Decimal]
+    holding_date: Optional[date]
+    source_pdf: str
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Transaction schemas
+class WorldStockTransactionBase(BaseModel):
+    ticker: str = Field(..., description="Stock ticker symbol")
+    symbol: str = Field(..., description="Display symbol")
+    company_name: Optional[str] = Field(None, description="Company name")
+    transaction_type: str = Field(..., description="Transaction type (BUY, SELL, DIVIDEND)")
+    currency: str = Field(default="USD", description="Currency code")
+
+
+class WorldStockTransactionCreate(WorldStockTransactionBase):
+    transaction_date: Optional[date] = Field(None, description="Transaction date")
+    transaction_time: Optional[str] = Field(None, description="Transaction time")
+    quantity: Optional[Decimal] = Field(None, description="Number of shares")
+    price: Optional[Decimal] = Field(None, description="Price per share in USD")
+    total_value: Optional[Decimal] = Field(None, description="Total transaction value in ILS")
+    commission: Optional[Decimal] = Field(None, description="Broker commission")
+    tax: Optional[Decimal] = Field(None, description="Tax amount")
+    exchange_rate: Optional[Decimal] = Field(None, description="USD to ILS exchange rate")
+    source_pdf: str = Field(..., description="Source PDF filename")
+    
+    @validator('transaction_type')
+    def validate_transaction_type(cls, v):
+        allowed_types = ['BUY', 'SELL', 'DIVIDEND', 'FEE', 'SPLIT', 'BONUS']
+        if v.upper() not in allowed_types:
+            raise ValueError(f'Transaction type must be one of: {allowed_types}')
+        return v.upper()
+
+
+class WorldStockTransactionResponse(WorldStockTransactionBase):
+    id: int
+    user_id: str
+    transaction_date: Optional[date]
+    transaction_time: Optional[str]
+    quantity: Optional[Decimal]
+    price: Optional[Decimal]
+    total_value: Optional[Decimal]
+    commission: Optional[Decimal]
+    tax: Optional[Decimal]
+    exchange_rate: Optional[Decimal]
+    source_pdf: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Dividend schemas
+class WorldStockDividendBase(BaseModel):
+    ticker: str = Field(..., description="Stock ticker symbol")
+    symbol: str = Field(..., description="Display symbol")
+    company_name: Optional[str] = Field(None, description="Company name")
+    payment_date: date = Field(..., description="Dividend payment date")
+    currency: str = Field(default="USD", description="Currency code")
+
+
+class WorldStockDividendCreate(WorldStockDividendBase):
+    amount: Optional[Decimal] = Field(None, description="Gross dividend amount in ILS")
+    tax: Optional[Decimal] = Field(None, description="Tax withheld")
+    net_amount: Optional[Decimal] = Field(None, description="Net amount received in ILS")
+    exchange_rate: Optional[Decimal] = Field(None, description="USD to ILS exchange rate")
+    source_pdf: str = Field(..., description="Source PDF filename")
+
+
+class WorldStockDividendResponse(WorldStockDividendBase):
+    id: int
+    user_id: str
+    amount: Optional[Decimal]
+    tax: Optional[Decimal]
+    net_amount: Optional[Decimal]
+    exchange_rate: Optional[Decimal]
+    source_pdf: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Pending Transaction schemas
+class PendingWorldTransactionBase(BaseModel):
+    ticker: str = Field(..., description="Stock ticker symbol")
+    stock_name: Optional[str] = Field(None, description="Stock name")
+    transaction_type: str = Field(..., description="Transaction type")
+    currency: str = Field(default="USD", description="Currency code")
+
+
+class PendingWorldTransactionCreate(PendingWorldTransactionBase):
+    upload_batch_id: str = Field(..., description="Batch ID for this upload")
+    pdf_filename: Optional[str] = Field(None, description="Source PDF filename")
+    transaction_date: Optional[str] = Field(None, description="Transaction date as string")
+    transaction_time: Optional[str] = Field(None, description="Transaction time")
+    quantity: Optional[Decimal] = Field(None, description="Number of shares")
+    price: Optional[Decimal] = Field(None, description="Price per share")
+    amount: Optional[Decimal] = Field(None, description="Total amount")
+    commission: Optional[Decimal] = Field(None, description="Commission")
+    tax: Optional[Decimal] = Field(None, description="Tax")
+    exchange_rate: Optional[Decimal] = Field(None, description="Exchange rate")
+
+
+class PendingWorldTransactionUpdate(BaseModel):
+    ticker: Optional[str] = Field(None, description="Stock ticker symbol")
+    stock_name: Optional[str] = Field(None, description="Stock name")
+    transaction_type: Optional[str] = Field(None, description="Transaction type")
+    transaction_date: Optional[str] = Field(None, description="Transaction date")
+    transaction_time: Optional[str] = Field(None, description="Transaction time")
+    quantity: Optional[Decimal] = Field(None, description="Quantity")
+    price: Optional[Decimal] = Field(None, description="Price")
+    amount: Optional[Decimal] = Field(None, description="Amount")
+    commission: Optional[Decimal] = Field(None, description="Commission")
+    tax: Optional[Decimal] = Field(None, description="Tax")
+    exchange_rate: Optional[Decimal] = Field(None, description="Exchange rate")
+    review_notes: Optional[str] = Field(None, description="Review notes")
+
+
+class PendingWorldTransactionResponse(PendingWorldTransactionBase):
+    id: int
+    user_id: str
+    upload_batch_id: str
+    pdf_filename: Optional[str]
+    transaction_date: Optional[str]
+    transaction_time: Optional[str]
+    quantity: Optional[Decimal]
+    price: Optional[Decimal]
+    amount: Optional[Decimal]
+    commission: Optional[Decimal]
+    tax: Optional[Decimal]
+    exchange_rate: Optional[Decimal]
+    status: str
+    review_notes: Optional[str]
+    reviewed_at: Optional[datetime]
+    reviewed_by: Optional[str]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Exchange Rate schemas
+class ExchangeRateBase(BaseModel):
+    from_currency: str = Field(..., description="Source currency")
+    to_currency: str = Field(..., description="Target currency")
+    rate: Decimal = Field(..., description="Exchange rate")
+    date: date = Field(..., description="Rate date")
+
+
+class ExchangeRateCreate(ExchangeRateBase):
+    source: Optional[str] = Field(None, description="Source (pdf, api, manual)")
+
+
+class ExchangeRateResponse(ExchangeRateBase):
+    id: int
+    source: Optional[str]
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Upload response
+class WorldStockUploadResponse(BaseModel):
+    success: bool
+    pdf_name: str
+    batch_id: str
+    holdings_found: int
+    transactions_found: int
+    dividends_found: int
+    pending_transactions_saved: int
+    error: Optional[str] = None
+
+
+# Summary/Dashboard schemas
+class WorldStockSummaryResponse(BaseModel):
+    total_value: Decimal
+    total_holdings: int
+    total_transactions: int
+    total_dividends: Decimal
+    total_tax: Decimal
+    total_commissions: Decimal
+    holdings_count: int
+    transactions_count: int
+    dividends_count: int
+    
+    class Config:
+        from_attributes = True
+
+
+# List responses
+class WorldStockListResponse(BaseModel):
+    stocks: List[WorldStockResponse]
+    total: int
+
+
+class WorldStockHoldingListResponse(BaseModel):
+    holdings: List[WorldStockHoldingResponse]
+    total: int
+    summary: Optional[Dict] = None
+
+
+class WorldStockTransactionListResponse(BaseModel):
+    transactions: List[WorldStockTransactionResponse]
+    total: int
+    summary: Optional[Dict] = None
+
+
+class WorldStockDividendListResponse(BaseModel):
+    dividends: List[WorldStockDividendResponse]
+    total: int
+    summary: Optional[Dict] = None
+
+
+class PendingWorldTransactionListResponse(BaseModel):
+    transactions: List[PendingWorldTransactionResponse]
+    total: int
+    batch_id: Optional[str] = None
+

@@ -3,16 +3,19 @@ World Stocks API Endpoints
 Handles PDF upload, processing, and analysis for world/US broker stock reports
 """
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse
 from typing import List, Dict, Optional
 import tempfile
 import os
 import shutil
 from datetime import datetime
+from sqlalchemy import text
 
-from app.services.world_stock_service import WorldStockService
+# WorldStockService and logo crawler service imported within functions to avoid circular imports
 from app.core.deps import get_current_user
+from app.core.auth import get_admin_user
+from app.core.database import engine
 from app.models.user import User
 from app.schemas.world_stock_schemas import (
     WorldStockAccountResponse,
@@ -34,6 +37,9 @@ async def upload_and_analyze_world_stock_pdf(
     """
     Upload and analyze investment PDF for world/US broker stocks
     """
+    # Import WorldStockService locally to avoid circular imports
+    from app.services.world_stock_service import WorldStockService
+    
     if not file.filename.endswith('.pdf'):
         raise HTTPException(status_code=400, detail="File must be a PDF")
     
@@ -481,3 +487,405 @@ async def delete_world_stock_account(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting account: {str(e)}")
+
+
+# ==================== Logo Management Endpoints ====================
+
+@router.post("/crawl-logos")
+async def crawl_all_stock_logos(
+    batch_size: int = Query(5, description="Number of concurrent requests"),
+    current_admin: User = Depends(get_admin_user)
+):
+    """
+    Crawl logos for all world stocks that don't have them (Admin only)
+    
+    This is a direct logo fetch from TradingView's S3 bucket.
+    For a two-phase approach, use crawl-tradingview-logo-urls first.
+    """
+    from app.services.world_stock_logo_crawler_service import crawl_all_world_stock_logos
+    
+    try:
+        result = await crawl_all_world_stock_logos(batch_size)
+        
+        return {
+            "success": True,
+            "message": f"World stock logo crawling completed",
+            "results": result
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error crawling logos: {str(e)}")
+
+
+@router.post("/crawl-logo/{ticker}")
+async def crawl_single_stock_logo(
+    ticker: str,
+    exchange: str = Query("NASDAQ", description="Exchange (NASDAQ, NYSE, etc.)"),
+    current_admin: User = Depends(get_admin_user)
+):
+    """
+    Crawl logo for a specific stock by ticker (Admin only)
+    Perfect for admin panel - allows manual logo fetching for individual stocks
+    """
+    from app.services.world_stock_logo_crawler_service import crawl_logo_for_world_stock
+    
+    try:
+        # First check if stock exists
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT id, ticker, company_name, logo_svg IS NOT NULL as has_logo
+                    FROM "WorldStocks" 
+                    WHERE ticker ILIKE :ticker
+                    LIMIT 1
+                """),
+                {"ticker": ticker}
+            )
+            stock_info = result.fetchone()
+        
+        if not stock_info:
+            return {
+                "success": False,
+                "message": f"Stock not found: {ticker}",
+                "suggestion": "Try using the exact stock ticker symbol"
+            }
+        
+        stock_id, tick, company_name, had_logo = stock_info
+        
+        # Attempt to crawl the logo
+        success = await crawl_logo_for_world_stock(ticker, exchange)
+        
+        if success:
+            return {
+                "success": True,
+                "message": f"Logo successfully fetched for {tick} ({company_name})",
+                "stock": {
+                    "id": stock_id,
+                    "ticker": tick,
+                    "company_name": company_name,
+                    "exchange": exchange,
+                    "had_logo_before": had_logo,
+                    "has_logo_now": True
+                }
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Failed to fetch logo for {tick} ({company_name})",
+                "stock": {
+                    "id": stock_id,
+                    "ticker": tick,
+                    "company_name": company_name,
+                    "exchange": exchange,
+                    "had_logo_before": had_logo,
+                    "has_logo_now": had_logo
+                },
+                "suggestion": "Logo may not be available on TradingView for this stock"
+            }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error crawling logo: {str(e)}")
+
+
+@router.post("/crawl-tradingview-logo-urls")
+async def crawl_tradingview_logo_urls(
+    batch_size: int = Query(5, description="Number of concurrent requests"),
+    missing_only: bool = Query(True, description="Only process stocks without logo_url"),
+    current_admin: User = Depends(get_admin_user)
+):
+    """
+    Crawl TradingView symbol pages for world stocks and extract company logo URLs (Admin only)
+    Phase 1: Does not fetch/store SVG content, only the URL reference.
+    """
+    from app.services.world_stock_logo_crawler_service import WorldStockLogoCrawlerService
+    
+    try:
+        async with WorldStockLogoCrawlerService() as crawler:
+            results = await crawler.crawl_tradingview_logo_urls_for_all(
+                batch_size=batch_size,
+                missing_only=missing_only
+            )
+        return {
+            "success": True,
+            "message": "Logo URL crawling completed",
+            "results": results
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error crawling TradingView logo URLs: {str(e)}")
+
+
+@router.post("/crawl-tradingview-logo-url/{ticker}")
+async def crawl_tradingview_logo_url_for_ticker(
+    ticker: str,
+    exchange: str = Query("NASDAQ", description="Exchange (NASDAQ, NYSE, etc.)"),
+    current_admin: User = Depends(get_admin_user)
+):
+    """
+    Crawl TradingView symbol page for a single ticker and update its logo_url (Admin only)
+    """
+    from app.services.world_stock_logo_crawler_service import WorldStockLogoCrawlerService
+    
+    try:
+        async with WorldStockLogoCrawlerService() as crawler:
+            result = await crawler.crawl_tradingview_logo_url_for_ticker(ticker, exchange)
+            if not result:
+                return {
+                    "success": False,
+                    "message": f"No logo URL found for ticker {ticker} on {exchange}"
+                }
+            return {
+                "success": True,
+                "message": f"Logo URL found for {ticker}",
+                "data": result
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error crawling TradingView logo URL: {str(e)}")
+
+
+@router.post("/fetch-logo-svg-from-url")
+async def fetch_logo_svg_from_url_bulk(
+    batch_size: int = Query(5, description="Number of concurrent requests"),
+    only_missing: bool = Query(True, description="Only process stocks with logo_url but no logo_svg"),
+    current_admin: User = Depends(get_admin_user)
+):
+    """
+    For stocks with logo_url set, fetch the SVG and store it into logo_svg (Admin only)
+    Phase 2: Processes stocks that already have a logo_url from Phase 1.
+    If only_missing=True, process only stocks where logo_svg is NULL/empty.
+    """
+    from app.services.world_stock_logo_crawler_service import WorldStockLogoCrawlerService
+    
+    try:
+        async with WorldStockLogoCrawlerService() as crawler:
+            results = await crawler.populate_logo_svg_from_logo_urls_for_all(
+                batch_size=batch_size,
+                only_missing=only_missing
+            )
+        return {
+            "success": True,
+            "message": "Logo SVG population completed",
+            "results": results
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error populating logo_svg from logo_url: {str(e)}")
+
+
+@router.put("/stocks/{stock_id}/logo")
+async def update_stock_logo_manual(
+    stock_id: int,
+    logo_data: dict,
+    current_admin: User = Depends(get_admin_user)
+):
+    """
+    Manually update a world stock's logo with custom SVG content (Admin only)
+    Perfect for admin panel when automatic crawling fails
+
+    Body: {"svg_content": "<svg>...</svg>", "logo_url": "https://..."}
+    """
+    try:
+        svg_content = (logo_data.get("svg_content") or "").strip()
+        logo_url = (logo_data.get("logo_url") or None)
+
+        if not svg_content:
+            raise HTTPException(status_code=400, detail="svg_content is required")
+
+        # Basic SVG validation
+        if not (svg_content.startswith("<svg") and svg_content.endswith("</svg>")):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid SVG format - must start with <svg and end with </svg>"
+            )
+
+        with engine.connect() as conn:
+            # Check if stock exists
+            result = conn.execute(
+                text('SELECT ticker, company_name FROM "WorldStocks" WHERE id = :id'),
+                {"id": stock_id}
+            )
+            stock_info = result.fetchone()
+            if not stock_info:
+                raise HTTPException(status_code=404, detail="Stock not found")
+
+            ticker, company_name = stock_info
+
+            # Update the logo fields
+            if logo_url:
+                result = conn.execute(
+                    text('UPDATE "WorldStocks" SET logo_url = :url, logo_svg = :svg WHERE id = :id'),
+                    {"url": logo_url, "svg": svg_content, "id": stock_id}
+                )
+            else:
+                result = conn.execute(
+                    text('UPDATE "WorldStocks" SET logo_svg = :svg WHERE id = :id'),
+                    {"svg": svg_content, "id": stock_id}
+                )
+
+            if result.rowcount and result.rowcount > 0:
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": f"Logo successfully updated for {ticker} ({company_name})",
+                    "stock": {
+                        "id": stock_id,
+                        "ticker": ticker,
+                        "company_name": company_name,
+                        "logo_size": len(svg_content)
+                    }
+                }
+            raise HTTPException(status_code=500, detail="Failed to update logo")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating logo: {str(e)}")
+
+
+@router.delete("/stocks/{stock_id}/logo")
+async def remove_stock_logo(
+    stock_id: int,
+    current_admin: User = Depends(get_admin_user)
+):
+    """
+    Remove a world stock's logo (set to NULL) (Admin only)
+    Useful for admin panel to clean up bad logos
+    """
+    try:
+        with engine.connect() as conn:
+            # Check if stock exists
+            result = conn.execute(
+                text('SELECT ticker, company_name, logo_svg IS NOT NULL as has_logo FROM "WorldStocks" WHERE id = :id'),
+                {"id": stock_id}
+            )
+            stock_info = result.fetchone()
+            
+            if not stock_info:
+                raise HTTPException(status_code=404, detail="Stock not found")
+            
+            ticker, company_name, had_logo = stock_info
+            
+            if not had_logo:
+                return {
+                    "success": True,
+                    "message": f"Stock {ticker} ({company_name}) already has no logo",
+                    "stock": {"id": stock_id, "ticker": ticker, "company_name": company_name}
+                }
+            
+            # Remove the logo
+            result = conn.execute(
+                text('UPDATE "WorldStocks" SET logo_svg = NULL, logo_url = NULL WHERE id = :id'),
+                {"id": stock_id}
+            )
+            
+            if result.rowcount > 0:
+                conn.commit()
+                return {
+                    "success": True,
+                    "message": f"Logo successfully removed for {ticker} ({company_name})",
+                    "stock": {"id": stock_id, "ticker": ticker, "company_name": company_name}
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to remove logo")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error removing logo: {str(e)}")
+
+
+@router.get("/stocks-without-logos")
+async def get_stocks_without_logos(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get list of world stocks that don't have logos yet
+    """
+    try:
+        async with WorldStockLogoCrawlerService() as crawler:
+            stocks = crawler.get_stocks_without_logos()
+        
+        return {
+            "stocks": stocks,
+            "count": len(stocks)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving stocks: {str(e)}")
+
+
+@router.get("/stocks-with-logos")
+async def get_stocks_with_logos(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get list of world stocks that have logos
+    """
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT id, ticker, company_name, exchange,
+                           CASE WHEN logo_svg IS NOT NULL AND logo_svg != '' 
+                           THEN true ELSE false END as has_logo
+                    FROM "WorldStocks" 
+                    WHERE is_active = true 
+                    AND logo_svg IS NOT NULL 
+                    AND logo_svg != ''
+                    ORDER BY ticker
+                """)
+            )
+            
+            stocks = []
+            for row in result:
+                stocks.append({
+                    'id': row[0],
+                    'ticker': row[1],
+                    'company_name': row[2],
+                    'exchange': row[3],
+                    'has_logo': row[4]
+                })
+        
+        return {
+            "stocks": stocks,
+            "count": len(stocks)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving stocks: {str(e)}")
+
+
+@router.get("/logo-stats")
+async def get_logo_statistics(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get statistics about world stock logo coverage
+    """
+    try:
+        async with WorldStockLogoCrawlerService() as crawler:
+            all_stocks = crawler.get_all_stocks()
+            missing_urls = crawler.get_stocks_missing_logo_url()
+            missing_svgs = crawler.get_stocks_with_logo_url_missing_svg()
+            without_logos = crawler.get_stocks_without_logos()
+            
+            total = len(all_stocks)
+            with_urls = total - len(missing_urls)
+            with_svgs = total - len(without_logos)
+            
+            return {
+                "total_stocks": total,
+                "logo_urls": {
+                    "with_url": with_urls,
+                    "missing_url": len(missing_urls),
+                    "percentage": round(with_urls/total*100, 1) if total > 0 else 0
+                },
+                "logo_svgs": {
+                    "with_svg": with_svgs,
+                    "missing_svg": len(without_logos),
+                    "percentage": round(with_svgs/total*100, 1) if total > 0 else 0
+                },
+                "partial_completion": {
+                    "has_url_but_no_svg": len(missing_svgs)
+                }
+            }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving statistics: {str(e)}")

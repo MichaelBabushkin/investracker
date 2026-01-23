@@ -8,14 +8,19 @@ import {
   TableCellsIcon,
   ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
-import { israeliStocksAPI } from "@/services/api";
+import { israeliStocksAPI, worldStocksAPI } from "@/services/api";
 import toast from "react-hot-toast";
 
 const StocksSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
     "israeli" | "world" | "logos" | "metadata"
   >("israeli");
+  const [logoCrawlerTab, setLogoCrawlerTab] = useState<"israeli" | "world">("israeli");
   const [isImporting, setIsImporting] = useState(false);
+  const [batchSize, setBatchSize] = useState(10);
+  const [worldBatchSize, setWorldBatchSize] = useState(5);
+  const [isCrawling, setIsCrawling] = useState(false);
+  const [singleTicker, setSingleTicker] = useState("");
 
   const handleImportStocks = async () => {
     if (!confirm("This will import all Israeli stocks from the CSV file. Existing stocks will be skipped. Continue?")) {
@@ -140,135 +145,410 @@ const StocksSection: React.FC = () => {
 
         {activeTab === "logos" && (
           <div className="space-y-6">
-            {/* Logo Crawler Section */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Batch Logo Crawler
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Fetch and store SVG logos for Israeli stocks
-                  </p>
-                </div>
-                <ArrowPathIcon className="w-5 h-5 text-gray-400" />
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Batch size
-                  </label>
-                  <input
-                    type="number"
-                    defaultValue={10}
-                    className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Runs concurrent requests in batches
-                  </p>
-                </div>
-
-                <button className="w-full sm:w-auto px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
-                  Crawl Missing Logos
-                </button>
-              </div>
+            {/* Logo Crawler Type Tabs */}
+            <div className="flex gap-4 border-b border-gray-200 pb-2">
+              <button
+                onClick={() => setLogoCrawlerTab("israeli")}
+                className={`px-4 py-2 font-medium text-sm transition-colors ${
+                  logoCrawlerTab === "israeli"
+                    ? "text-blue-600 border-b-2 border-blue-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Israeli Stocks
+              </button>
+              <button
+                onClick={() => setLogoCrawlerTab("world")}
+                className={`px-4 py-2 font-medium text-sm transition-colors ${
+                  logoCrawlerTab === "world"
+                    ? "text-blue-600 border-b-2 border-blue-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                World Stocks
+              </button>
             </div>
 
-            {/* TradingView Logo URL Crawler */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    TradingView Logo URL Crawler
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Extract logo URLs from TradingView symbol pages
-                  </p>
-                </div>
-              </div>
+            {/* Israeli Stocks Logo Crawler */}
+            {logoCrawlerTab === "israeli" && (
+              <>
+                {/* Batch Logo Crawler */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Batch Logo Crawler
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Fetch and store SVG logos for Israeli stocks
+                      </p>
+                    </div>
+                    <ArrowPathIcon className="w-5 h-5 text-gray-400" />
+                  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">
-                    Batch crawl
-                  </h4>
-                  <button className="w-full px-4 py-2.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors">
-                    Crawl Missing logo_url
-                  </button>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Finds 53 SVG URLs via TradingView page and saves it to
-                    logo_url only
-                  </p>
-                </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Batch size
+                      </label>
+                      <input
+                        type="number"
+                        value={batchSize}
+                        onChange={(e) => setBatchSize(parseInt(e.target.value) || 10)}
+                        className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Runs concurrent requests in batches
+                      </p>
+                    </div>
 
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">
-                    Single symbol
-                  </h4>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. DNYA"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                      Crawl URL for Symbol
+                    <button className="w-full sm:w-auto px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
+                      Crawl Missing Logos
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Uses TradingView page like
-                    https://www.tradingview.com/symbols/TASE-DNYA/
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Populate logo_svg from logo_url */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Populate logo_svg from logo_url
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Download SVGs using saved logo_url and store them in the
-                    database
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">
-                    Bulk populate
-                  </h4>
-                  <button className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-                    Populate Missing SVGs
-                  </button>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Only processes stocks with a saved logo_url
-                  </p>
                 </div>
 
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">
-                    Single stock
-                  </h4>
-                  <div className="flex gap-2">
-                    <select className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                      <option>Select stock...</option>
-                    </select>
-                    <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                      Populate for Selected
+                {/* TradingView Logo URL Crawler */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        TradingView Logo URL Crawler
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Extract logo URLs from TradingView symbol pages
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        Batch crawl
+                      </h4>
+                      <button className="w-full px-4 py-2.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors">
+                        Crawl Missing logo_url
+                      </button>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Finds SVG URLs via TradingView page and saves it to logo_url only
+                      </p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        Single symbol
+                      </h4>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="e.g. DNYA"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                          Crawl URL for Symbol
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Uses TradingView page like https://www.tradingview.com/symbols/TASE-DNYA/
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Populate logo_svg from logo_url */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Populate logo_svg from logo_url
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Download SVGs using saved logo_url and store them in the database
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        Bulk populate
+                      </h4>
+                      <button className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                        Populate Missing SVGs
+                      </button>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Only processes stocks with a saved logo_url
+                      </p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        Single stock
+                      </h4>
+                      <div className="flex gap-2">
+                        <select className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                          <option>Select stock...</option>
+                        </select>
+                        <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                          Populate for Selected
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Uses the stock&apos;s logo_url field, if present
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* World Stocks Logo Crawler */}
+            {logoCrawlerTab === "world" && (
+              <>
+                {/* Batch Logo Crawler for World Stocks */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Batch Logo Crawler
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Fetch and store SVG logos for World stocks
+                      </p>
+                    </div>
+                    <ArrowPathIcon className={`w-5 h-5 ${isCrawling ? 'animate-spin text-blue-600' : 'text-blue-400'}`} />
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Batch size
+                      </label>
+                      <input
+                        type="number"
+                        value={worldBatchSize}
+                        onChange={(e) => setWorldBatchSize(parseInt(e.target.value) || 5)}
+                        className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={isCrawling}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Runs concurrent requests in batches
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        if (!confirm("This will crawl logos for all world stocks that don't have them. Continue?")) {
+                          return;
+                        }
+                        
+                        setIsCrawling(true);
+                        const loadingToast = toast.loading("Crawling world stock logos...");
+                        
+                        try {
+                          const result = await worldStocksAPI.crawlAllLogos(worldBatchSize);
+                          toast.success(
+                            `Successfully crawled ${result.results?.success || 0} logos! (${result.results?.failed || 0} failed)`,
+                            { id: loadingToast }
+                          );
+                        } catch (error: any) {
+                          toast.error(
+                            error.response?.data?.detail || "Failed to crawl logos",
+                            { id: loadingToast }
+                          );
+                        } finally {
+                          setIsCrawling(false);
+                        }
+                      }}
+                      disabled={isCrawling}
+                      className="w-full sm:w-auto px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {isCrawling ? "Crawling..." : "Crawl Missing Logos"}
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Uses the stock&apos;s logo_url field, if present
-                  </p>
                 </div>
-              </div>
-            </div>
+
+                {/* TradingView Logo URL Crawler for World Stocks */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        TradingView Logo URL Crawler
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Extract logo URLs from TradingView symbol pages
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        Batch crawl
+                      </h4>
+                      <button
+                        onClick={async () => {
+                          setIsCrawling(true);
+                          const loadingToast = toast.loading("Crawling TradingView logo URLs...");
+                          
+                          try {
+                            const result = await worldStocksAPI.crawlTradingViewLogoUrls(worldBatchSize, true);
+                            toast.success(
+                              `Successfully crawled ${result.results?.success || 0} URLs!`,
+                              { id: loadingToast }
+                            );
+                          } catch (error: any) {
+                            toast.error(
+                              error.response?.data?.detail || "Failed to crawl URLs",
+                              { id: loadingToast }
+                            );
+                          } finally {
+                            setIsCrawling(false);
+                          }
+                        }}
+                        disabled={isCrawling}
+                        className="w-full px-4 py-2.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:bg-gray-400"
+                      >
+                        Crawl Missing logo_url
+                      </button>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Finds SVG URLs via TradingView page and saves it to logo_url only
+                      </p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        Single symbol
+                      </h4>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="e.g., AAPL"
+                          value={singleTicker}
+                          onChange={(e) => setSingleTicker(e.target.value.toUpperCase())}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          disabled={isCrawling}
+                        />
+                        <button
+                          onClick={async () => {
+                            if (!singleTicker) {
+                              toast.error("Please enter a ticker symbol");
+                              return;
+                            }
+                            
+                            setIsCrawling(true);
+                            const loadingToast = toast.loading(`Crawling logo URL for ${singleTicker}...`);
+                            
+                            try {
+                              const result = await worldStocksAPI.crawlLogoForTicker(singleTicker);
+                              if (result.success) {
+                                toast.success(result.message, { id: loadingToast });
+                              } else {
+                                toast.error(result.message, { id: loadingToast });
+                              }
+                            } catch (error: any) {
+                              toast.error(
+                                error.response?.data?.detail || "Failed to crawl logo URL",
+                                { id: loadingToast }
+                              );
+                            } finally {
+                              setIsCrawling(false);
+                            }
+                          }}
+                          disabled={isCrawling || !singleTicker}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
+                        >
+                          Crawl URL for Symbol
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Uses TradingView page like https://www.tradingview.com/symbols/NASDAQ-AAPL/
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Populate logo_svg from logo_url for World Stocks */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Populate logo_svg from logo_url
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Download SVGs using saved logo_url and store them in the database
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        Bulk populate
+                      </h4>
+                      <button
+                        onClick={async () => {
+                          setIsCrawling(true);
+                          const loadingToast = toast.loading("Populating SVGs from URLs...");
+                          
+                          try {
+                            const result = await worldStocksAPI.fetchLogoSvgFromUrl(worldBatchSize, true);
+                            toast.success(
+                              `Successfully populated ${result.results?.success || 0} SVGs!`,
+                              { id: loadingToast }
+                            );
+                          } catch (error: any) {
+                            toast.error(
+                              error.response?.data?.detail || "Failed to populate SVGs",
+                              { id: loadingToast }
+                            );
+                          } finally {
+                            setIsCrawling(false);
+                          }
+                        }}
+                        disabled={isCrawling}
+                        className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:bg-gray-400"
+                      >
+                        Populate Missing SVGs
+                      </button>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Only processes stocks with a saved logo_url
+                      </p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        Logo Statistics
+                      </h4>
+                      <button
+                        onClick={async () => {
+                          const loadingToast = toast.loading("Fetching logo stats...");
+                          
+                          try {
+                            const stats = await worldStocksAPI.getLogoStats();
+                            toast.success(
+                              `Total: ${stats.total_stocks} | With Logos: ${stats.with_logos} (${stats.coverage_percentage}%)`,
+                              { id: loadingToast, duration: 5000 }
+                            );
+                          } catch (error: any) {
+                            toast.error(
+                              error.response?.data?.detail || "Failed to fetch stats",
+                              { id: loadingToast }
+                            );
+                          }
+                        }}
+                        className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        View Logo Statistics
+                      </button>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Check current logo coverage
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 

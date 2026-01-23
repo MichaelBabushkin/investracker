@@ -638,6 +638,36 @@ export const worldStocksAPI = {
     const response = await api.delete(`/world-stocks/accounts/${accountId}`);
     return response.data;
   },
+
+  // Logo Crawler APIs
+  crawlAllLogos: async (batchSize: number = 5) => {
+    const response = await api.post(`/world-stocks/crawl-logos?batch_size=${batchSize}`);
+    return response.data;
+  },
+
+  crawlLogoForTicker: async (ticker: string, exchange: string = "NASDAQ") => {
+    const response = await api.post(`/world-stocks/crawl-logo/${ticker}?exchange=${exchange}`);
+    return response.data;
+  },
+
+  crawlTradingViewLogoUrls: async (batchSize: number = 5, missingOnly: boolean = true) => {
+    const response = await api.post(
+      `/world-stocks/crawl-tradingview-logo-urls?batch_size=${batchSize}&missing_only=${missingOnly}`
+    );
+    return response.data;
+  },
+
+  fetchLogoSvgFromUrl: async (batchSize: number = 5, onlyMissing: boolean = true) => {
+    const response = await api.post(
+      `/world-stocks/fetch-logo-svg-from-url?batch_size=${batchSize}&only_missing=${onlyMissing}`
+    );
+    return response.data;
+  },
+
+  getLogoStats: async () => {
+    const response = await api.get("/world-stocks/logo-stats");
+    return response.data;
+  },
 };
 
 // Admin API
