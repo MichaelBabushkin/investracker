@@ -690,8 +690,7 @@ export const worldStocksAPI = {
 
   batchApprovePendingTransactions: async (batchId: string) => {
     const response = await api.post(
-      `/world-stocks/pending-transactions/batch-approve`,
-      { batch_id: batchId }
+      `/world-stocks/pending-transactions/batch/${batchId}/approve-all`
     );
     return response.data;
   },
