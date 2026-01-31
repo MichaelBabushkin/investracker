@@ -973,46 +973,82 @@ async def approve_pending_world_transaction(
         from sqlalchemy import text
         
         with engine.connect() as conn:
+            now = datetime.now()
+            
+            # Extract actual ticker from stock_name (e.g., "NKE US" -> "NKE", "FORD MOTOR(F)" -> "F")
+            # If stock_name contains a ticker, use it; otherwise fall back to the ticker field
+            actual_ticker = transaction.ticker
+            stock_name_for_display = transaction.stock_name
+            
+            if transaction.stock_name:
+                # Handle formats like "NKE US", "FORD MOTOR(F)", etc.
+                name = transaction.stock_name.strip()
+                if ' US' in name:
+                    # Format: "NKE US" -> extract "NKE"
+                    actual_ticker = name.replace(' US', '').strip()
+                elif '(' in name and ')' in name:
+                    # Format: "FORD MOTOR(F)" -> extract "F"
+                    start = name.rfind('(')
+                    end = name.rfind(')')
+                    if start != -1 and end != -1:
+                        actual_ticker = name[start+1:end]
+                        stock_name_for_display = name[:start].strip()
+            
             # Based on transaction type, insert into appropriate table
             if transaction.transaction_type in ('BUY', 'SELL'):
                 # Insert into WorldStockTransaction
                 insert_query = text("""
                     INSERT INTO "WorldStockTransaction" 
-                    (user_id, ticker, symbol, transaction_date, transaction_time,
-                     transaction_type, quantity, price, commission, currency, source_pdf)
-                    VALUES (:user_id, :ticker, :ticker, :transaction_date, :transaction_time,
-                            :transaction_type, :quantity, :price, :commission, :currency, :pdf_filename)
+                    (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
+                     transaction_type, quantity, price, total_value, commission, currency, source_pdf, created_at, updated_at)
+                    VALUES (:user_id, :ticker, :symbol, :company_name, :transaction_date, :transaction_time,
+                            :transaction_type, :quantity, :price, :total_value, :commission, :currency, :source_pdf, :created_at, :updated_at)
                 """)
                 
                 conn.execute(insert_query, {
                     "user_id": str(current_user.id),
-                    "ticker": transaction.ticker,
+                    "ticker": actual_ticker,
+                    "symbol": actual_ticker,
+                    "company_name": stock_name_for_display,
                     "transaction_date": transaction.transaction_date,
                     "transaction_time": transaction.transaction_time,
                     "transaction_type": transaction.transaction_type,
                     "quantity": transaction.quantity,
                     "price": transaction.price,
+                    "total_value": transaction.amount,
                     "commission": transaction.commission,
-                    "currency": transaction.currency,
-                    "pdf_filename": transaction.pdf_filename
+                    "currency": transaction.currency or "USD",
+                    "source_pdf": transaction.pdf_filename,
+                    "created_at": now,
+                    "updated_at": now
                 })
                 
             elif transaction.transaction_type == 'DIVIDEND':
                 # Insert into WorldDividend
                 insert_query = text("""
                     INSERT INTO "WorldDividend" 
-                    (user_id, ticker, symbol, payment_date, amount, tax, currency, source_pdf)
-                    VALUES (:user_id, :ticker, :ticker, :payment_date, :amount, :tax, :currency, :pdf_filename)
+                    (user_id, ticker, symbol, company_name, payment_date, amount, tax, net_amount, currency, source_pdf, created_at, updated_at)
+                    VALUES (:user_id, :ticker, :symbol, :company_name, :payment_date, :amount, :tax, :net_amount, :currency, :source_pdf, :created_at, :updated_at)
                 """)
+                
+                # Calculate net amount if not provided
+                gross_amount = transaction.amount or 0
+                tax_amount = transaction.tax or 0
+                net_amount = gross_amount - tax_amount
                 
                 conn.execute(insert_query, {
                     "user_id": str(current_user.id),
-                    "ticker": transaction.ticker,
+                    "ticker": actual_ticker,
+                    "symbol": actual_ticker,
+                    "company_name": stock_name_for_display,
                     "payment_date": transaction.transaction_date,
                     "amount": transaction.amount,
                     "tax": transaction.tax,
-                    "currency": transaction.currency,
-                    "pdf_filename": transaction.pdf_filename
+                    "net_amount": net_amount,
+                    "currency": transaction.currency or "USD",
+                    "source_pdf": transaction.pdf_filename,
+                    "created_at": now,
+                    "updated_at": now
                 })
             
             conn.commit()
@@ -1052,48 +1088,84 @@ async def approve_all_world_in_batch(
     
     approved_count = 0
     errors = []
+    now = datetime.now()
+    
+    # Helper function to extract actual ticker from stock_name
+    def extract_ticker(ticker_field: str, stock_name: str):
+        actual_ticker = ticker_field
+        stock_name_for_display = stock_name
+        
+        if stock_name:
+            name = stock_name.strip()
+            if ' US' in name:
+                actual_ticker = name.replace(' US', '').strip()
+            elif '(' in name and ')' in name:
+                start = name.rfind('(')
+                end = name.rfind(')')
+                if start != -1 and end != -1:
+                    actual_ticker = name[start+1:end]
+                    stock_name_for_display = name[:start].strip()
+        
+        return actual_ticker, stock_name_for_display
     
     for t in transactions:
         try:
+            actual_ticker, stock_name_for_display = extract_ticker(t.ticker, t.stock_name)
+            
             with engine.connect() as conn:
                 # Based on transaction type, insert into appropriate table
                 if t.transaction_type in ('BUY', 'SELL'):
                     insert_query = text("""
                         INSERT INTO "WorldStockTransaction" 
-                        (user_id, ticker, symbol, transaction_date, transaction_time,
-                         transaction_type, quantity, price, commission, currency, source_pdf)
-                        VALUES (:user_id, :ticker, :ticker, :transaction_date, :transaction_time,
-                                :transaction_type, :quantity, :price, :commission, :currency, :pdf_filename)
+                        (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
+                         transaction_type, quantity, price, total_value, commission, currency, source_pdf, created_at, updated_at)
+                        VALUES (:user_id, :ticker, :symbol, :company_name, :transaction_date, :transaction_time,
+                                :transaction_type, :quantity, :price, :total_value, :commission, :currency, :source_pdf, :created_at, :updated_at)
                     """)
                     
                     conn.execute(insert_query, {
                         "user_id": str(current_user.id),
-                        "ticker": t.ticker,
+                        "ticker": actual_ticker,
+                        "symbol": actual_ticker,
+                        "company_name": stock_name_for_display,
                         "transaction_date": t.transaction_date,
                         "transaction_time": t.transaction_time,
                         "transaction_type": t.transaction_type,
                         "quantity": t.quantity,
                         "price": t.price,
+                        "total_value": t.amount,
                         "commission": t.commission,
-                        "currency": t.currency,
-                        "pdf_filename": t.pdf_filename
+                        "currency": t.currency or "USD",
+                        "source_pdf": t.pdf_filename,
+                        "created_at": now,
+                        "updated_at": now
                     })
                     
                 elif t.transaction_type == 'DIVIDEND':
                     insert_query = text("""
                         INSERT INTO "WorldDividend" 
-                        (user_id, ticker, symbol, payment_date, amount, tax, currency, source_pdf)
-                        VALUES (:user_id, :ticker, :ticker, :payment_date, :amount, :tax, :currency, :pdf_filename)
+                        (user_id, ticker, symbol, company_name, payment_date, amount, tax, net_amount, currency, source_pdf, created_at, updated_at)
+                        VALUES (:user_id, :ticker, :symbol, :company_name, :payment_date, :amount, :tax, :net_amount, :currency, :source_pdf, :created_at, :updated_at)
                     """)
+                    
+                    # Calculate net amount
+                    gross_amount = t.amount or 0
+                    tax_amount = t.tax or 0
+                    net_amount = gross_amount - tax_amount
                     
                     conn.execute(insert_query, {
                         "user_id": str(current_user.id),
-                        "ticker": t.ticker,
+                        "ticker": actual_ticker,
+                        "symbol": actual_ticker,
+                        "company_name": stock_name_for_display,
                         "payment_date": t.transaction_date,
                         "amount": t.amount,
                         "tax": t.tax,
-                        "currency": t.currency,
-                        "pdf_filename": t.pdf_filename
+                        "net_amount": net_amount,
+                        "currency": t.currency or "USD",
+                        "source_pdf": t.pdf_filename,
+                        "created_at": now,
+                        "updated_at": now
                     })
                 
                 conn.commit()

@@ -115,6 +115,7 @@ class WorldStockTransaction(Base):
     exchange_rate = Column(DECIMAL(10, 4), nullable=True)
     source_pdf = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Indexes
     __table_args__ = (
@@ -145,6 +146,7 @@ class WorldDividend(Base):
     exchange_rate = Column(DECIMAL(10, 4), nullable=True)
     source_pdf = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Indexes
     __table_args__ = (
