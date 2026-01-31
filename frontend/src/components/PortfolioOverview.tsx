@@ -45,14 +45,14 @@ export default function PortfolioOverview() {
   // Function to check pending transactions
   const checkPendingTransactions = async () => {
     try {
-      // Check Israeli pending
-      const israeliPending = await israeliStocksAPI.getPendingTransactions();
+      // Check Israeli pending - only count pending status
+      const israeliPending = await israeliStocksAPI.getPendingTransactions(undefined, "pending");
       const israeliCount = israeliPending.count || 0;
       setIsraeliPendingCount(israeliCount);
 
-      // Check World pending
+      // Check World pending - only count pending status
       try {
-        const worldPending = await worldStocksAPI.getPendingTransactions();
+        const worldPending = await worldStocksAPI.getPendingTransactions(undefined, "pending");
         const worldCount = worldPending.count || 0;
         setWorldPendingCount(worldCount);
       } catch (err) {
