@@ -1216,3 +1216,150 @@ async def delete_pending_batch(
         "message": f"Deleted {deleted_count} pending transactions",
         "deleted_count": deleted_count
     }
+
+
+# ============== Stock Price Endpoints ==============
+
+@router.get("/stocks/{ticker}/price")
+async def get_stock_price(
+    ticker: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get current price data for a specific stock
+    """
+    result = db.execute(
+        text("""
+            SELECT ticker, company_name, current_price, previous_close, 
+                   price_change, price_change_pct, day_high, day_low, 
+                   volume, market_cap, price_updated_at
+            FROM "WorldStocks"
+            WHERE ticker = :ticker
+        """),
+        {"ticker": ticker.upper()}
+    )
+    row = result.fetchone()
+    
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Stock {ticker} not found")
+    
+    return {
+        "ticker": row[0],
+        "company_name": row[1],
+        "current_price": float(row[2]) if row[2] else None,
+        "previous_close": float(row[3]) if row[3] else None,
+        "price_change": float(row[4]) if row[4] else None,
+        "price_change_pct": float(row[5]) if row[5] else None,
+        "day_high": float(row[6]) if row[6] else None,
+        "day_low": float(row[7]) if row[7] else None,
+        "volume": row[8],
+        "market_cap": float(row[9]) if row[9] else None,
+        "price_updated_at": row[10].isoformat() if row[10] else None
+    }
+
+
+@router.get("/stocks/prices")
+async def get_multiple_stock_prices(
+    tickers: str = Query(..., description="Comma-separated list of tickers"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get current price data for multiple stocks
+    """
+    ticker_list = [t.strip().upper() for t in tickers.split(",")]
+    
+    result = db.execute(
+        text("""
+            SELECT ticker, company_name, current_price, previous_close, 
+                   price_change, price_change_pct, price_updated_at
+            FROM "WorldStocks"
+            WHERE ticker = ANY(:tickers)
+        """),
+        {"tickers": ticker_list}
+    )
+    
+    stocks = []
+    for row in result.fetchall():
+        stocks.append({
+            "ticker": row[0],
+            "company_name": row[1],
+            "current_price": float(row[2]) if row[2] else None,
+            "previous_close": float(row[3]) if row[3] else None,
+            "price_change": float(row[4]) if row[4] else None,
+            "price_change_pct": float(row[5]) if row[5] else None,
+            "price_updated_at": row[6].isoformat() if row[6] else None
+        })
+    
+    return {
+        "stocks": stocks,
+        "requested": len(ticker_list),
+        "found": len(stocks)
+    }
+
+
+@router.get("/holdings/with-prices")
+async def get_holdings_with_prices(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get user's holdings with current price data and calculated values
+    """
+    result = db.execute(
+        text("""
+            SELECT h.ticker, h.symbol, h.company_name, h.quantity, 
+                   h.purchase_cost, h.current_value, h.last_price,
+                   s.current_price, s.previous_close, s.price_change_pct,
+                   s.price_updated_at
+            FROM "WorldStockHolding" h
+            LEFT JOIN "WorldStocks" s ON h.ticker = s.ticker
+            WHERE h.user_id = :user_id AND h.quantity > 0
+            ORDER BY h.current_value DESC NULLS LAST
+        """),
+        {"user_id": str(current_user.id)}
+    )
+    
+    holdings = []
+    total_value = 0
+    total_cost = 0
+    
+    for row in result.fetchall():
+        current_price = float(row[7]) if row[7] else float(row[6]) if row[6] else None
+        quantity = float(row[3]) if row[3] else 0
+        market_value = current_price * quantity if current_price else None
+        purchase_cost = float(row[4]) if row[4] else 0
+        
+        gain_loss = (market_value - purchase_cost) if market_value and purchase_cost else None
+        gain_loss_pct = ((market_value - purchase_cost) / purchase_cost * 100) if market_value and purchase_cost else None
+        
+        if market_value:
+            total_value += market_value
+        if purchase_cost:
+            total_cost += purchase_cost
+        
+        holdings.append({
+            "ticker": row[0],
+            "symbol": row[1],
+            "company_name": row[2],
+            "quantity": quantity,
+            "purchase_cost": purchase_cost,
+            "current_price": current_price,
+            "market_value": market_value,
+            "gain_loss": gain_loss,
+            "gain_loss_pct": gain_loss_pct,
+            "day_change_pct": float(row[9]) if row[9] else None,
+            "price_updated_at": row[10].isoformat() if row[10] else None
+        })
+    
+    return {
+        "holdings": holdings,
+        "summary": {
+            "total_holdings": len(holdings),
+            "total_market_value": total_value,
+            "total_cost": total_cost,
+            "total_gain_loss": total_value - total_cost if total_value and total_cost else None,
+            "total_gain_loss_pct": ((total_value - total_cost) / total_cost * 100) if total_value and total_cost else None
+        }
+    }

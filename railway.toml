@@ -14,20 +14,18 @@ healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 
-# Cron jobs will be configured through Railway dashboard
-# Example cron jobs you can add later (paths relative to backend folder):
+# ============== Cron Jobs ==============
+# Uncomment to enable scheduled stock price updates
 
-# Daily portfolio value update (midnight UTC)
+# Active holdings price update (every 15 mins during US market hours: 9:30 AM - 4 PM EST = 14:30-21:00 UTC)
 # [[crons]]
-# schedule = "0 0 * * *"
-# command = "python -m app.tasks.update_portfolio_values"
+# schedule = "*/15 14-21 * * 1-5"
+# command = "python -m app.tasks.fetch_stock_prices active"
 
-# Fetch latest stock prices (every 15 minutes during market hours)
+# Catalog stock price update (daily at 6 AM UTC - before US market opens)
 # [[crons]]
-# schedule = "*/15 9-16 * * 1-5"
-# command = "python -m app.tasks.fetch_stock_prices"
-
-# Generate weekly reports (Sundays at 10 PM UTC)
+# schedule = "0 6 * * 1-5"
+# command = "python -m app.tasks.fetch_stock_prices catalog"
 # [[crons]]
 # schedule = "0 22 * * 0"
 # command = "python -m app.tasks.generate_weekly_report"

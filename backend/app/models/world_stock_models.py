@@ -39,6 +39,17 @@ class WorldStock(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Price data (updated by price service)
+    current_price = Column(DECIMAL(18, 4), nullable=True)
+    previous_close = Column(DECIMAL(18, 4), nullable=True)
+    price_change = Column(DECIMAL(18, 4), nullable=True)
+    price_change_pct = Column(DECIMAL(8, 4), nullable=True)
+    day_high = Column(DECIMAL(18, 4), nullable=True)
+    day_low = Column(DECIMAL(18, 4), nullable=True)
+    volume = Column(Integer, nullable=True)
+    market_cap = Column(DECIMAL(20, 2), nullable=True)
+    price_updated_at = Column(DateTime, nullable=True)
+    
     # Indexes
     __table_args__ = (
         Index('idx_world_stock_ticker', 'ticker'),

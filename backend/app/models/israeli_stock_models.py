@@ -29,6 +29,16 @@ class IsraeliStock(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Price data (updated by price service)
+    current_price = Column(DECIMAL(15, 4), nullable=True)
+    previous_close = Column(DECIMAL(15, 4), nullable=True)
+    price_change = Column(DECIMAL(15, 4), nullable=True)
+    price_change_pct = Column(DECIMAL(8, 4), nullable=True)
+    day_high = Column(DECIMAL(15, 4), nullable=True)
+    day_low = Column(DECIMAL(15, 4), nullable=True)
+    volume = Column(Integer, nullable=True)
+    price_updated_at = Column(DateTime, nullable=True)
+    
     # Indexes
     __table_args__ = (
         Index('idx_israeli_stocks_security_no', 'security_no'),

@@ -539,3 +539,96 @@ def run_migrations(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error running migrations: {str(e)}"
         )
+
+
+# ============== Stock Price Management ==============
+
+@router.post("/prices/refresh-active")
+def refresh_active_stock_prices(
+    current_admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Manually trigger price update for stocks in user holdings (Admin only)
+    This updates Tier 1 stocks (actively held by users)
+    """
+    from app.services.stock_price_service import StockPriceService
+    
+    service = StockPriceService(db)
+    tickers = service.get_active_tickers()
+    
+    if not tickers:
+        return {
+            "message": "No active holdings found",
+            "updated": 0,
+            "failed": 0
+        }
+    
+    updated, failed = service.update_world_stock_prices(tickers)
+    holdings_updated = service.update_holdings_values()
+    
+    return {
+        "message": f"Updated prices for {len(tickers)} active stocks",
+        "tickers_processed": len(tickers),
+        "updated": updated,
+        "failed": failed,
+        "holdings_recalculated": holdings_updated
+    }
+
+
+@router.post("/prices/refresh-catalog")
+def refresh_catalog_stock_prices(
+    limit: int = Query(500, ge=1, le=2000),
+    current_admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Manually trigger price update for catalog stocks (Admin only)
+    Updates stocks not refreshed in the last 24 hours
+    """
+    from app.services.stock_price_service import StockPriceService
+    
+    service = StockPriceService(db)
+    tickers = service.get_stale_catalog_tickers(hours=24, limit=limit)
+    
+    if not tickers:
+        return {
+            "message": "All catalog stocks are up to date",
+            "updated": 0,
+            "failed": 0
+        }
+    
+    updated, failed = service.update_world_stock_prices(tickers)
+    
+    return {
+        "message": f"Updated prices for {len(tickers)} catalog stocks",
+        "tickers_processed": len(tickers),
+        "updated": updated,
+        "failed": failed
+    }
+
+
+@router.get("/prices/stats")
+def get_price_stats(
+    current_admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get statistics about price data freshness (Admin only)
+    """
+    from app.services.stock_price_service import StockPriceService
+    
+    service = StockPriceService(db)
+    stats = service.get_price_stats()
+    
+    return {
+        "total_stocks": stats["total_stocks"],
+        "stocks_with_price": stats["stocks_with_price"],
+        "stocks_without_price": stats["total_stocks"] - stats["stocks_with_price"],
+        "fresh_15_minutes": stats["fresh_15m"],
+        "fresh_24_hours": stats["fresh_24h"],
+        "stale_24_hours": stats["total_stocks"] - stats["fresh_24h"],
+        "oldest_update": stats["oldest_update"].isoformat() if stats["oldest_update"] else None,
+        "newest_update": stats["newest_update"].isoformat() if stats["newest_update"] else None
+    }
+
