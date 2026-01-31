@@ -156,6 +156,7 @@ class PendingWorldTransaction(Base):
     pdf_filename = Column(String(255), nullable=True)
     ticker = Column(String(20), nullable=False)
     stock_name = Column(String(255), nullable=True)
+    world_stock_id = Column(Integer, ForeignKey('WorldStocks.id', ondelete='SET NULL'), nullable=True)
     transaction_type = Column(String(20), nullable=False)
     transaction_date = Column(String(50), nullable=True)
     transaction_time = Column(String(10), nullable=True)

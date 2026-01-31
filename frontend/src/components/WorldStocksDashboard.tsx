@@ -2,26 +2,23 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  CloudArrowUpIcon,
   BuildingOfficeIcon,
   ArrowRightIcon,
   CurrencyDollarIcon,
   GlobeAmericasIcon,
 } from "@heroicons/react/24/outline";
-import WorldStockUploader from "./WorldStockUploader";
 import WorldStockHoldings from "./WorldStockHoldings";
 import WorldStockTransactions from "./WorldStockTransactions";
 import WorldStockDividends from "./WorldStockDividends";
 import {
-  WorldStockUploadResult,
   WorldStockAccount,
 } from "@/types/world-stocks";
 import { worldStocksAPI } from "@/services/api";
 
-type TabType = "upload" | "holdings" | "transactions" | "dividends";
+type TabType = "holdings" | "transactions" | "dividends";
 
 export default function WorldStocksDashboard() {
-  const [activeTab, setActiveTab] = useState<TabType>("upload");
+  const [activeTab, setActiveTab] = useState<TabType>("holdings");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [accounts, setAccounts] = useState<WorldStockAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<
@@ -45,30 +42,7 @@ export default function WorldStocksDashboard() {
     fetchAccounts();
   }, [fetchAccounts, refreshTrigger]);
 
-  const handleUploadComplete = (results: WorldStockUploadResult[]) => {
-    // Trigger refresh of all components
-    setRefreshTrigger((prev) => prev + 1);
-
-    // Show success message
-    const totalHoldings = results.reduce((sum, r) => sum + r.holdings_saved, 0);
-    const totalTransactions = results.reduce(
-      (sum, r) => sum + r.transactions_saved,
-      0
-    );
-
-    if (totalHoldings > 0 || totalTransactions > 0) {
-      // Switch to holdings tab to show the imported data
-      setActiveTab("holdings");
-    }
-  };
-
   const tabs = [
-    {
-      id: "upload" as TabType,
-      name: "Upload Reports",
-      icon: CloudArrowUpIcon,
-      description: "Upload world stock broker statement PDFs",
-    },
     {
       id: "holdings" as TabType,
       name: "Holdings",
@@ -108,7 +82,7 @@ export default function WorldStocksDashboard() {
             </div>
 
             {/* Account Selector */}
-            {accounts.length > 0 && activeTab !== "upload" && (
+            {accounts.length > 0 && (
               <div className="flex items-center space-x-2">
                 <label className="text-sm font-medium text-gray-700">
                   Account:
@@ -179,22 +153,6 @@ export default function WorldStocksDashboard() {
 
         {/* Tab Content */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          {activeTab === "upload" && (
-            <div>
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                  Upload Broker Statements
-                </h2>
-                <p className="text-gray-600">
-                  Upload PDF statements from US and international brokers to
-                  automatically extract and analyze your stock holdings,
-                  transactions, and dividends.
-                </p>
-              </div>
-              <WorldStockUploader onUploadComplete={handleUploadComplete} />
-            </div>
-          )}
-
           {activeTab === "holdings" && (
             <WorldStockHoldings
               refreshTrigger={refreshTrigger}

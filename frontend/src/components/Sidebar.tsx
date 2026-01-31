@@ -81,6 +81,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
       requiredRole: "viewer",
       subItems: [
         {
+          name: "Overview",
+          href: "/portfolio",
+          icon: ChartPieIcon,
+        },
+        {
           name: "World Stocks",
           href: "/world-stocks",
           icon: GlobeAmericasIcon,
@@ -89,11 +94,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
           name: "Israeli Stocks",
           href: "/israeli-stocks",
           icon: BuildingLibraryIcon,
-        },
-        {
-          name: "Overview",
-          href: "/portfolio",
-          icon: ChartPieIcon,
         },
       ],
     },

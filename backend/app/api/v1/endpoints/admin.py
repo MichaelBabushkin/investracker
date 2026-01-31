@@ -235,18 +235,16 @@ def reset_user_stock_data(
     db: Session = Depends(get_db)
 ):
     """
-    Delete all Israeli stock data for a specific user by email (Admin only)
+    Delete all stock data for a specific user by email (Admin only)
     
     This removes:
-    - Israeli stock holdings
-    - Israeli stock transactions
-    - Israeli dividends
-    - Pending transactions (for review)
+    - Israeli stock holdings, transactions, and dividends
+    - World stock holdings, transactions, and dividends
+    - Pending transactions (for review) from both portfolios
     - Uploaded PDF reports
     
     Does NOT remove:
     - User account
-    - World stock data
     - Portfolios
     """
     # Find user by email
@@ -261,14 +259,21 @@ def reset_user_stock_data(
     user_id = str(user.id)
     
     try:
-        # Delete Israeli stock data using raw SQL for efficiency
+        # Delete stock data using raw SQL for efficiency
         with engine.connect() as conn:
-            # Delete pending transactions first (foreign key to upload_batch_id)
-            pending_result = conn.execute(
+            # Delete Israeli pending transactions first (foreign key to upload_batch_id)
+            israeli_pending_result = conn.execute(
                 text('DELETE FROM "PendingIsraeliTransaction" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
-            pending_deleted = pending_result.rowcount
+            israeli_pending_deleted = israeli_pending_result.rowcount
+            
+            # Delete World pending transactions
+            world_pending_result = conn.execute(
+                text('DELETE FROM "PendingWorldTransaction" WHERE user_id = :user_id'),
+                {"user_id": user_id}
+            )
+            world_pending_deleted = world_pending_result.rowcount
             
             # Delete uploaded PDF reports (will cascade delete due to foreign key, but doing explicitly for count)
             reports_result = conn.execute(
@@ -277,42 +282,77 @@ def reset_user_stock_data(
             )
             reports_deleted = reports_result.rowcount
             
-            # Delete holdings
-            holdings_result = conn.execute(
+            # Delete Israeli holdings
+            israeli_holdings_result = conn.execute(
                 text('DELETE FROM "IsraeliStockHolding" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
-            holdings_deleted = holdings_result.rowcount
+            israeli_holdings_deleted = israeli_holdings_result.rowcount
             
-            # Delete transactions
-            transactions_result = conn.execute(
+            # Delete Israeli transactions
+            israeli_transactions_result = conn.execute(
                 text('DELETE FROM "IsraeliStockTransaction" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
-            transactions_deleted = transactions_result.rowcount
+            israeli_transactions_deleted = israeli_transactions_result.rowcount
             
-            # Delete dividends
-            dividends_result = conn.execute(
+            # Delete Israeli dividends
+            israeli_dividends_result = conn.execute(
                 text('DELETE FROM "IsraeliDividend" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
-            dividends_deleted = dividends_result.rowcount
+            israeli_dividends_deleted = israeli_dividends_result.rowcount
+            
+            # Delete World holdings
+            world_holdings_result = conn.execute(
+                text('DELETE FROM "WorldStockHolding" WHERE user_id = :user_id'),
+                {"user_id": user_id}
+            )
+            world_holdings_deleted = world_holdings_result.rowcount
+            
+            # Delete World transactions
+            world_transactions_result = conn.execute(
+                text('DELETE FROM "WorldStockTransaction" WHERE user_id = :user_id'),
+                {"user_id": user_id}
+            )
+            world_transactions_deleted = world_transactions_result.rowcount
+            
+            # Delete World dividends
+            world_dividends_result = conn.execute(
+                text('DELETE FROM "WorldDividend" WHERE user_id = :user_id'),
+                {"user_id": user_id}
+            )
+            world_dividends_deleted = world_dividends_result.rowcount
             
             # Commit the transaction
             conn.commit()
         
+        total_deleted = (
+            israeli_holdings_deleted + israeli_transactions_deleted + israeli_dividends_deleted +
+            world_holdings_deleted + world_transactions_deleted + world_dividends_deleted +
+            israeli_pending_deleted + world_pending_deleted + reports_deleted
+        )
+        
         return {
             "success": True,
-            "message": f"Successfully deleted all Israeli stock data for user {email}",
+            "message": f"Successfully deleted all stock data for user {email}",
             "user_id": user_id,
             "user_email": email,
             "deleted": {
-                "holdings": holdings_deleted,
-                "transactions": transactions_deleted,
-                "dividends": dividends_deleted,
-                "pending_transactions": pending_deleted,
+                "israeli": {
+                    "holdings": israeli_holdings_deleted,
+                    "transactions": israeli_transactions_deleted,
+                    "dividends": israeli_dividends_deleted,
+                    "pending": israeli_pending_deleted,
+                },
+                "world": {
+                    "holdings": world_holdings_deleted,
+                    "transactions": world_transactions_deleted,
+                    "dividends": world_dividends_deleted,
+                    "pending": world_pending_deleted,
+                },
                 "uploaded_reports": reports_deleted,
-                "total": holdings_deleted + transactions_deleted + dividends_deleted + pending_deleted + reports_deleted
+                "total": total_deleted
             }
         }
         

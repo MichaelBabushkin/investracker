@@ -125,7 +125,7 @@ class ExcellenceBrokerParser(BaseBrokerParser):
     
     def parse_holding_row(self, row: pd.Series, security_no: str, symbol: str,
                          name: str, pdf_name: str, holding_date: Optional[datetime]) -> Optional[Dict]:
-        """Holdings are no longer extracted - all data comes from transactions"""
+        """Holdings are not extracted for Israeli stocks - all data comes from transactions"""
         return None
     
     def parse_transaction_row(self, row: pd.Series, security_no: str, symbol: str,
@@ -139,35 +139,70 @@ class ExcellenceBrokerParser(BaseBrokerParser):
         row_values = [str(val).strip() if pd.notna(val) else '' for val in row.values]
         row_values_no_commas = [s.replace(',', '') for s in row_values]
         
+        # Detect if this is an international stock
+        is_world_stock = self._is_world_stock(name, symbol)
+        currency = 'USD' if is_world_stock else 'ILS'
+        
         transaction = {
             'security_no': security_no,
             'symbol': symbol,
             'name': name,
             'source_pdf': pdf_name,
-            'currency': 'ILS'
+            'currency': currency,
+            'is_world_stock': is_world_stock
         }
         
         # Excellence Hebrew to English transaction type mapping
         hebrew_mappings = {
+            # Dividends
             'דנדביד': 'DIVIDEND',
             'דיבידנד': 'DIVIDEND',
+            'ביד/פה': 'DIVIDEND',  # World stocks: Full dividend before tax
             'ביד/': 'DIVIDEND',
+            'הפ/דיב': 'DIVIDEND',
+            'דיב': 'DIVIDEND',
             'div/': 'DIVIDEND',
             'dividend': 'DIVIDEND',
+            
+            # Buy transactions
+            'ל"וח/ק': 'BUY',  # World stocks: Buy foreign stock
             'ףיצר/ק': 'BUY',
             'ךיצר': 'BUY',
             'קנייה': 'BUY',
-            'חסמ/': 'BUY',
+            'הינק': 'BUY',  # Buy variant
+            'ק/חו"ל': 'BUY',
+            'ק/חול': 'BUY',
             'buy': 'BUY',
+            
+            # Sell transactions
+            'ל"וח/מ': 'SELL',  # World stocks: Sell foreign stock
             'מכירה': 'SELL',
+            'הריכמ': 'SELL',  # Sell variant
             'ףיצר/מ': 'SELL',
             'מיכור': 'SELL',
             'מכ/שמטל': 'SELL',
+            'מ/חו"ל': 'SELL',
+            'מ/חול': 'SELL',
             'sell': 'SELL',
+            
+            # Commission and tax (these should be tracked but not as main transaction types)
+            'למע/שמ': 'COMMISSION',  # World stocks: Commission withdrawal
+            'חסמ/שמ': 'COMMISSION',  # Commission variant
+            'מש/עמל': 'COMMISSION',
+            'עמל': 'COMMISSION',
+            'סמ/שמ': 'TAX',  # World stocks: Tax withdrawal
+            'מש/מסח': 'TAX',
+            'מסח': 'TAX',
+            
+            # Deposits/Withdrawals
             'העברה': 'DEPOSIT',
+            'הרבעה': 'DEPOSIT',  # Deposit variant
             'הפקדה': 'DEPOSIT',
+            'הדקפה': 'DEPOSIT',  # Deposit variant
             'deposit': 'DEPOSIT',
             'משיכה': 'WITHDRAWAL',
+            'הכישמ': 'WITHDRAWAL',  # Withdrawal variant
+            'ביר/שמ': 'WITHDRAWAL',  # Withdrawal variant
             'withdrawal': 'WITHDRAWAL'
         }
         
@@ -182,12 +217,14 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                 transaction_type = 'DEPOSIT'
         
         # Detect transaction type (if not already identified as deposit)
+        raw_hebrew_type = None  # Store original Hebrew type for later disambiguation
         if not is_deposit:
             for value in row_values:
                 value_str = str(value).strip().lower()
                 for hebrew_key, english_type in hebrew_mappings.items():
                     if hebrew_key.lower() in value_str:
                         transaction_type = english_type
+                        raw_hebrew_type = hebrew_key  # Store the matched Hebrew key
                         break
                 if transaction_type:
                     break
@@ -233,6 +270,7 @@ class ExcellenceBrokerParser(BaseBrokerParser):
         
         try:
             transaction['transaction_type'] = transaction_type or 'BUY'
+            transaction['raw_hebrew_type'] = raw_hebrew_type  # Store for disambiguation
             
             if transaction_date:
                 transaction['transaction_date'] = transaction_date
@@ -296,8 +334,14 @@ class ExcellenceBrokerParser(BaseBrokerParser):
             elif net_amount > 0:
                 transaction['total_value'] = abs(net_amount)
             
-            # Column 0: Remaining quantity
-            if len(row_values) >= 1 and row_values[0]:
+            # Column 7: Dividend amount (for world stocks) or Column 0: Balance (for Israeli stocks)
+            # Try column 7 first (dividend amount in movement column)
+            if len(row_values) >= 8 and row_values[7]:
+                dividend_amt = self.clean_numeric_value(row_values[7])
+                if dividend_amt is not None and dividend_amt != 0:
+                    transaction['quantity'] = abs(dividend_amt)
+            # Fallback to Column 0 (balance) for Israeli stocks
+            elif len(row_values) >= 1 and row_values[0]:
                 qty = float(str(row_values[0]).replace('₪', '').replace(',', '').strip())
                 if qty > 0:
                     transaction['quantity'] = abs(qty)
@@ -396,6 +440,45 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                 transaction['total_value'] = abs(numeric_values[0])
         
         return transaction
+    
+    def _is_world_stock(self, name: str, symbol: str) -> bool:
+        """Detect if a stock is international (world) vs Israeli.
+        
+        International stocks typically have patterns like:
+        - Stock name ends with country code: "NIKE US", "APPLE US", "BP GB"
+        - Exchange indicators in parentheses: "CHEVRON (CVX)", "MICROSOFT (MSFT)"
+        
+        Israeli stocks typically have:
+        - Hebrew names or Hebrew company names in English
+        - Numeric security IDs
+        - No country/exchange suffixes
+        """
+        if not name:
+            return False
+        
+        name_upper = name.upper().strip()
+        
+        # Skip cash transactions
+        if 'CASH' in name_upper or symbol == '900':
+            return False
+        
+        # Check for country/exchange suffixes - MOST RELIABLE INDICATOR
+        world_suffixes = [
+            ' US', ' GB', ' FR', ' DE', ' JP', ' CA', ' AU',  # Country codes
+            '(US)', '(GB)', '(NYSE)', '(NASDAQ)', '(LSE)',     # Exchange codes
+        ]
+        
+        for suffix in world_suffixes:
+            if name_upper.endswith(suffix) or suffix in name_upper:
+                return True
+        
+        # Check for common US stock name patterns with ticker symbols
+        # Example: "NIKE (NKE)", "APPLE INC (AAPL)"
+        if re.search(r'\([A-Z]{1,5}\)', name):  # Ticker in parentheses
+            return True
+        
+        # If none of the above patterns match, it's likely Israeli
+        return False
     
     def extract_date_from_pdf_text(self, text: str) -> Optional[datetime]:
         """Extract holding date from Excellence PDF header"""

@@ -2,150 +2,39 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  CloudArrowUpIcon,
   BuildingOfficeIcon,
   ArrowRightIcon,
   CurrencyDollarIcon,
   ChartBarIcon,
-  ClockIcon,
 } from "@heroicons/react/24/outline";
-import BrokerUploader from "./BrokerUploader";
 import IsraeliStockHoldings from "./IsraeliStockHoldings";
 import IsraeliStockTransactions from "./IsraeliStockTransactions";
 import IsraeliStockDividends from "./IsraeliStockDividends";
-import PendingTransactionsReview from "./PendingTransactionsReview";
-import { UploadResult } from "@/types/israeli-stocks";
-import { israeliStocksAPI } from "@/services/api";
 
-type TabType = "upload" | "review" | "holdings" | "transactions" | "dividends";
+type TabType = "holdings" | "transactions" | "dividends";
 
 export default function IsraeliStocksDashboard() {
-  const [activeTab, setActiveTab] = useState<TabType>("upload");
+  const [activeTab, setActiveTab] = useState<TabType>("holdings");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [pendingBatchIds, setPendingBatchIds] = useState<string[]>([]);
-  const [approvingAll, setApprovingAll] = useState(false);
-
-  // Check for pending batch IDs on mount
-  useEffect(() => {
-    const stored = sessionStorage.getItem('pending_batch_ids');
-    if (stored) {
-      try {
-        const batchIds = JSON.parse(stored);
-        if (batchIds.length > 0) {
-          setPendingBatchIds(batchIds);
-          setActiveTab("review");
-        }
-      } catch (e) {
-        console.error("Failed to parse pending batch IDs", e);
-      }
-    }
-  }, []);
-
-  const handleUploadComplete = (results: UploadResult[]) => {
-    // Check if we have pending transactions
-    const hasPending = results.some((r: any) => r.pending_count > 0);
-    const batchIds = results
-      .filter((r: any) => r.batch_id)
-      .map((r: any) => r.batch_id);
-
-    if (hasPending && batchIds.length > 0) {
-      setPendingBatchIds(batchIds);
-      sessionStorage.setItem('pending_batch_ids', JSON.stringify(batchIds));
-      setActiveTab("review");
-    } else {
-      // Trigger refresh of all components (old flow)
-      setRefreshTrigger((prev) => prev + 1);
-      
-      const totalHoldings = results.reduce((sum, r) => sum + (r.holdings_saved || 0), 0);
-      const totalTransactions = results.reduce(
-        (sum, r) => sum + (r.transactions_saved || 0),
-        0
-      );
-
-      if (totalHoldings > 0 || totalTransactions > 0) {
-        setActiveTab("holdings");
-      }
-    }
-  };
-
-  const handleApprovalComplete = (completedBatchId?: string) => {
-    if (completedBatchId) {
-      // Remove only the completed batch ID from the list
-      const remainingBatchIds = pendingBatchIds.filter(id => id !== completedBatchId);
-      setPendingBatchIds(remainingBatchIds);
-      
-      if (remainingBatchIds.length > 0) {
-        // Still have batches to review, keep them in session storage
-        sessionStorage.setItem('pending_batch_ids', JSON.stringify(remainingBatchIds));
-      } else {
-        // No more batches, clear session storage and switch to holdings
-        sessionStorage.removeItem('pending_batch_ids');
-        setRefreshTrigger((prev) => prev + 1);
-        setActiveTab("holdings");
-      }
-    } else {
-      // Fallback: clear all pending batch IDs (old behavior)
-      sessionStorage.removeItem('pending_batch_ids');
-      setPendingBatchIds([]);
-      setRefreshTrigger((prev) => prev + 1);
-      setActiveTab("holdings");
-    }
-  };
-
-  const handleApproveAllBatches = async () => {
-    if (!confirm(
-      `Are you sure you want to approve ALL pending transactions from all ${pendingBatchIds.length} reports?`
-    )) {
-      return;
-    }
-
-    try {
-      setApprovingAll(true);
-      await israeliStocksAPI.approveAllBatches();
-      
-      // Clear all batch IDs and switch to holdings
-      sessionStorage.removeItem('pending_batch_ids');
-      setPendingBatchIds([]);
-      setRefreshTrigger((prev) => prev + 1);
-      setActiveTab("holdings");
-    } catch (error: any) {
-      alert(error.response?.data?.detail || "Failed to approve all transactions");
-    } finally {
-      setApprovingAll(false);
-    }
-  };
 
   const tabs = [
-    {
-      id: "upload" as TabType,
-      name: "Upload Reports",
-      icon: CloudArrowUpIcon,
-      description: "Upload PDF investment reports",
-    },
-    {
-      id: "review" as TabType,
-      name: "Review",
-      icon: ClockIcon,
-      description: "Review pending transactions",
-      badge: pendingBatchIds.length > 0 ? pendingBatchIds.length : undefined,
-    },
     {
       id: "holdings" as TabType,
       name: "Holdings",
       icon: BuildingOfficeIcon,
-      description: "View your stock holdings",
+      description: "View your Israeli stock holdings",
     },
     {
       id: "transactions" as TabType,
       name: "Transactions",
       icon: ArrowRightIcon,
-      description: "View transaction history",
+      description: "View Israeli stock transaction history",
     },
     {
       id: "dividends" as TabType,
       name: "Dividends",
       icon: CurrencyDollarIcon,
-      description: "View dividend payments",
+      description: "View Israeli stock dividend payments",
     },
   ];
 
@@ -178,7 +67,7 @@ export default function IsraeliStocksDashboard() {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`
-                      flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm relative
+                      flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm
                       ${
                         activeTab === tab.id
                           ? "border-blue-500 text-blue-600"
@@ -188,11 +77,6 @@ export default function IsraeliStocksDashboard() {
                   >
                     <Icon className="h-5 w-5" />
                     <span>{tab.name}</span>
-                    {tab.badge && (
-                      <span className="ml-2 bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                        {tab.badge}
-                      </span>
-                    )}
                   </button>
                 );
               })}
@@ -214,72 +98,6 @@ export default function IsraeliStocksDashboard() {
 
         {/* Tab Content */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          {activeTab === "upload" && (
-            <div>
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                  Upload Investment Reports
-                </h2>
-                <p className="text-gray-600">
-                  Select your Israeli broker and upload PDF investment reports to automatically
-                  extract and analyze your stock holdings, transactions, and
-                  dividends. Supports both TA-125 and SME-60 index stocks.
-                </p>
-              </div>
-              <BrokerUploader onUploadComplete={handleUploadComplete} />
-            </div>
-          )}
-
-          {activeTab === "review" && (
-            <div>
-              <div className="mb-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                      Review Pending Transactions
-                    </h2>
-                    <p className="text-gray-600">
-                      Review, edit, and approve transactions extracted from your PDF reports.
-                      Only approved transactions will be added to your portfolio.
-                    </p>
-                  </div>
-                  {pendingBatchIds.length > 1 && (
-                    <button
-                      onClick={handleApproveAllBatches}
-                      disabled={approvingAll}
-                      className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-md flex items-center space-x-2"
-                    >
-                      {approvingAll ? (
-                        <>
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                          <span>Approving...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>✓ Approve All Reports</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-              {pendingBatchIds.length > 0 ? (
-                pendingBatchIds.map((batchId) => (
-                  <div key={batchId} className="mb-8">
-                    <PendingTransactionsReview
-                      batchId={batchId}
-                      onApprovalComplete={handleApprovalComplete}
-                    />
-                  </div>
-                ))
-              ) : (
-                <PendingTransactionsReview
-                  onApprovalComplete={handleApprovalComplete}
-                />
-              )}
-            </div>
-          )}
-
           {activeTab === "holdings" && (
             <IsraeliStockHoldings refreshTrigger={refreshTrigger} />
           )}
@@ -292,8 +110,6 @@ export default function IsraeliStocksDashboard() {
             <IsraeliStockDividends refreshTrigger={refreshTrigger} />
           )}
         </div>
-
-        {/* Removed Quick Stats Footer per request */}
       </div>
     </div>
   );

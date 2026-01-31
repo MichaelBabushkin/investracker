@@ -11,12 +11,14 @@ import os
 import shutil
 from datetime import datetime
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 # WorldStockService and logo crawler service imported within functions to avoid circular imports
 from app.core.deps import get_current_user
 from app.core.auth import get_admin_user
-from app.core.database import engine
+from app.core.database import engine, get_db
 from app.models.user import User
+from app.models.world_stock_models import PendingWorldTransaction
 from app.schemas.world_stock_schemas import (
     WorldStockAccountResponse,
     WorldStockHoldingResponse,
@@ -116,7 +118,6 @@ async def get_world_stock_accounts(
 @router.get("/holdings", response_model=List[WorldStockHoldingResponse])
 async def get_world_stock_holdings(
     user_id: Optional[str] = None,
-    account_id: Optional[int] = None,
     limit: Optional[int] = 100,
     current_user: User = Depends(get_current_user)
 ):
@@ -128,37 +129,20 @@ async def get_world_stock_holdings(
         target_user_id = user_id or current_user.id
         
         with engine.connect() as conn:
-            if account_id:
-                query = text("""
-                    SELECT id, user_id, account_id, symbol, company_name, quantity,
-                           avg_entry_price, current_price, current_value, purchase_cost,
-                           unrealized_pl, unrealized_pl_percent, currency, source_pdf,
-                           last_updated, created_at
-                    FROM "WorldStockHolding"
-                    WHERE user_id = :user_id AND account_id = :account_id
-                    ORDER BY current_value DESC NULLS LAST
-                    LIMIT :limit
-                """)
-                result = conn.execute(query, {
-                    "user_id": target_user_id,
-                    "account_id": account_id,
-                    "limit": limit
-                })
-            else:
-                query = text("""
-                    SELECT id, user_id, account_id, symbol, company_name, quantity,
-                           avg_entry_price, current_price, current_value, purchase_cost,
-                           unrealized_pl, unrealized_pl_percent, currency, source_pdf,
-                           last_updated, created_at
-                    FROM "WorldStockHolding"
-                    WHERE user_id = :user_id
-                    ORDER BY current_value DESC NULLS LAST
-                    LIMIT :limit
-                """)
-                result = conn.execute(query, {
-                    "user_id": target_user_id,
-                    "limit": limit
-                })
+            query = text("""
+                SELECT id, user_id, ticker, symbol, company_name, quantity,
+                       last_price, purchase_cost, current_value, portfolio_percentage,
+                       currency, exchange_rate, holding_date, source_pdf,
+                       created_at, updated_at
+                FROM "WorldStockHolding"
+                WHERE user_id = :user_id
+                ORDER BY current_value DESC NULLS LAST
+                LIMIT :limit
+            """)
+            result = conn.execute(query, {
+                "user_id": target_user_id,
+                "limit": limit
+            })
             
             rows = result.fetchall()
             
@@ -167,20 +151,20 @@ async def get_world_stock_holdings(
                 holdings.append(WorldStockHoldingResponse(
                     id=row[0],
                     user_id=row[1],
-                    account_id=row[2],
+                    ticker=row[2],
                     symbol=row[3],
                     company_name=row[4],
                     quantity=row[5],
-                    avg_entry_price=row[6],
-                    current_price=row[7],
+                    last_price=row[6],
+                    purchase_cost=row[7],
                     current_value=row[8],
-                    purchase_cost=row[9],
-                    unrealized_pl=row[10],
-                    unrealized_pl_percent=row[11],
-                    currency=row[12],
+                    portfolio_percentage=row[9],
+                    currency=row[10],
+                    exchange_rate=row[11],
+                    holding_date=row[12],
                     source_pdf=row[13],
-                    last_updated=row[14],
-                    created_at=row[15]
+                    created_at=row[14],
+                    updated_at=row[15]
                 ))
             
             return holdings
@@ -192,7 +176,6 @@ async def get_world_stock_holdings(
 @router.get("/transactions", response_model=List[WorldStockTransactionResponse])
 async def get_world_stock_transactions(
     user_id: Optional[str] = None,
-    account_id: Optional[int] = None,
     symbol: Optional[str] = None,
     limit: Optional[int] = 100,
     current_user: User = Depends(get_current_user)
@@ -208,10 +191,6 @@ async def get_world_stock_transactions(
             filters = ["user_id = :user_id"]
             params = {"user_id": target_user_id, "limit": limit}
             
-            if account_id:
-                filters.append("account_id = :account_id")
-                params["account_id"] = account_id
-            
             if symbol:
                 filters.append("symbol = :symbol")
                 params["symbol"] = symbol
@@ -219,10 +198,9 @@ async def get_world_stock_transactions(
             where_clause = " AND ".join(filters)
             
             query = text(f"""
-                SELECT id, user_id, account_id, symbol, transaction_date, transaction_time,
-                       transaction_type, quantity, trade_price, close_price, proceeds,
-                       commission, basis, realized_pl, mtm_pl, trade_code, currency,
-                       source_pdf, created_at
+                SELECT id, user_id, ticker, symbol, company_name, transaction_type,
+                       transaction_date, transaction_time, quantity, price, total_value,
+                       commission, tax, currency, exchange_rate, source_pdf, created_at
                 FROM "WorldStockTransaction"
                 WHERE {where_clause}
                 ORDER BY transaction_date DESC NULLS LAST, created_at DESC
@@ -237,23 +215,21 @@ async def get_world_stock_transactions(
                 transactions.append(WorldStockTransactionResponse(
                     id=row[0],
                     user_id=row[1],
-                    account_id=row[2],
+                    ticker=row[2],
                     symbol=row[3],
-                    transaction_date=row[4],
-                    transaction_time=row[5],
-                    transaction_type=row[6],
-                    quantity=row[7],
-                    trade_price=row[8],
-                    close_price=row[9],
-                    proceeds=row[10],
+                    company_name=row[4],
+                    transaction_type=row[5],
+                    transaction_date=row[6],
+                    transaction_time=row[7],
+                    quantity=row[8],
+                    price=row[9],
+                    total_value=row[10],
                     commission=row[11],
-                    basis=row[12],
-                    realized_pl=row[13],
-                    mtm_pl=row[14],
-                    trade_code=row[15],
-                    currency=row[16],
-                    source_pdf=row[17],
-                    created_at=row[18]
+                    tax=row[12],
+                    currency=row[13],
+                    exchange_rate=row[14],
+                    source_pdf=row[15],
+                    created_at=row[16]
                 ))
             
             return transactions
@@ -265,7 +241,6 @@ async def get_world_stock_transactions(
 @router.get("/dividends", response_model=List[WorldStockDividendResponse])
 async def get_world_stock_dividends(
     user_id: Optional[str] = None,
-    account_id: Optional[int] = None,
     symbol: Optional[str] = None,
     limit: Optional[int] = 100,
     current_user: User = Depends(get_current_user)
@@ -281,10 +256,6 @@ async def get_world_stock_dividends(
             filters = ["user_id = :user_id"]
             params = {"user_id": target_user_id, "limit": limit}
             
-            if account_id:
-                filters.append("account_id = :account_id")
-                params["account_id"] = account_id
-            
             if symbol:
                 filters.append("symbol = :symbol")
                 params["symbol"] = symbol
@@ -292,10 +263,10 @@ async def get_world_stock_dividends(
             where_clause = " AND ".join(filters)
             
             query = text(f"""
-                SELECT id, user_id, account_id, symbol, isin, payment_date, amount,
-                       amount_per_share, withholding_tax, net_amount, dividend_type,
-                       currency, source_pdf, created_at
-                FROM "WorldStockDividend"
+                SELECT id, user_id, ticker, symbol, company_name, payment_date,
+                       amount, tax, net_amount, currency, exchange_rate,
+                       source_pdf, created_at, created_at as updated_at
+                FROM "WorldDividend"
                 WHERE {where_clause}
                 ORDER BY payment_date DESC NULLS LAST, created_at DESC
                 LIMIT :limit
@@ -309,18 +280,19 @@ async def get_world_stock_dividends(
                 dividends.append(WorldStockDividendResponse(
                     id=row[0],
                     user_id=row[1],
-                    account_id=row[2],
+                    ticker=row[2],
                     symbol=row[3],
-                    isin=row[4],
+                    company_name=row[4],
                     payment_date=row[5],
-                    amount=row[6],
-                    amount_per_share=row[7],
-                    withholding_tax=row[8],
-                    net_amount=row[9],
-                    dividend_type=row[10],
-                    currency=row[11],
-                    source_pdf=row[12],
-                    created_at=row[13]
+                    total_amount=row[6],
+                    amount_per_share=None,  # Not stored separately
+                    ex_date=None,  # Not in model
+                    currency=row[9],
+                    exchange_rate=row[10],
+                    dividend_type=None,  # Not in model
+                    source_pdf=row[11],
+                    created_at=row[12],
+                    updated_at=row[13]
                 ))
             
             return dividends
@@ -332,7 +304,6 @@ async def get_world_stock_dividends(
 @router.get("/summary", response_model=WorldStockSummaryResponse)
 async def get_world_stock_summary(
     user_id: Optional[str] = None,
-    account_id: Optional[int] = None,
     current_user: User = Depends(get_current_user)
 ):
     """Get summary statistics for world stock portfolio"""
@@ -342,77 +313,68 @@ async def get_world_stock_summary(
         from decimal import Decimal
         
         target_user_id = user_id or current_user.id
+        params = {"user_id": target_user_id}
         
         with engine.connect() as conn:
-            # Build account filter
-            account_filter = ""
-            params = {"user_id": target_user_id}
-            
-            if account_id:
-                account_filter = " AND account_id = :account_id"
-                params["account_id"] = account_id
-            
             # Get holdings summary
-            holdings_query = text(f"""
+            holdings_query = text("""
                 SELECT 
-                    COUNT(DISTINCT account_id) as total_accounts,
                     COUNT(*) as holdings_count,
                     COALESCE(SUM(current_value), 0) as total_value,
-                    COALESCE(SUM(unrealized_pl), 0) as total_unrealized_pl
+                    COALESCE(SUM(purchase_cost), 0) as total_cost
                 FROM "WorldStockHolding"
-                WHERE user_id = :user_id{account_filter}
+                WHERE user_id = :user_id
             """)
             
             holdings_result = conn.execute(holdings_query, params).fetchone()
             
             # Get dividends summary
-            dividends_query = text(f"""
+            dividends_query = text("""
                 SELECT 
                     COALESCE(SUM(amount), 0) as total_dividends,
-                    COALESCE(SUM(withholding_tax), 0) as total_withholding_tax,
+                    COALESCE(SUM(tax), 0) as total_tax,
                     COUNT(*) as dividends_count
-                FROM "WorldStockDividend"
-                WHERE user_id = :user_id{account_filter}
+                FROM "WorldDividend"
+                WHERE user_id = :user_id
             """)
             
             dividends_result = conn.execute(dividends_query, params).fetchone()
             
             # Get transactions summary
-            transactions_query = text(f"""
+            transactions_query = text("""
                 SELECT 
                     COALESCE(SUM(commission), 0) as total_commissions,
                     COUNT(*) as transactions_count
                 FROM "WorldStockTransaction"
-                WHERE user_id = :user_id{account_filter}
+                WHERE user_id = :user_id
             """)
             
             transactions_result = conn.execute(transactions_query, params).fetchone()
             
-            total_accounts = holdings_result[0] or 0
-            holdings_count = holdings_result[1] or 0
-            total_value = holdings_result[2] or Decimal('0')
-            total_unrealized_pl = holdings_result[3] or Decimal('0')
+            holdings_count = holdings_result[0] or 0
+            total_value = holdings_result[1] or Decimal('0')
+            total_cost = holdings_result[2] or Decimal('0')
             
             total_dividends = dividends_result[0] or Decimal('0')
-            total_withholding_tax = dividends_result[1] or Decimal('0')
+            total_tax = dividends_result[1] or Decimal('0')
             dividends_count = dividends_result[2] or 0
             
             total_commissions = transactions_result[0] or Decimal('0')
             transactions_count = transactions_result[1] or 0
             
-            # Calculate percentage
-            if total_value > 0:
-                total_unrealized_pl_percent = (total_unrealized_pl / (total_value - total_unrealized_pl)) * 100
+            # Calculate unrealized P/L and percentage
+            total_unrealized_pl = total_value - total_cost
+            if total_cost > 0:
+                total_unrealized_pl_percent = (total_unrealized_pl / total_cost) * 100
             else:
                 total_unrealized_pl_percent = Decimal('0')
             
             return WorldStockSummaryResponse(
-                total_accounts=total_accounts,
                 total_value=total_value,
-                total_unrealized_pl=total_unrealized_pl,
-                total_unrealized_pl_percent=total_unrealized_pl_percent,
+                total_holdings=holdings_count,
+                total_transactions=transactions_count,
                 total_dividends=total_dividends,
-                total_withholding_tax=total_withholding_tax,
+                total_tax=total_tax,
                 total_commissions=total_commissions,
                 holdings_count=holdings_count,
                 transactions_count=transactions_count,
@@ -889,3 +851,368 @@ async def get_logo_statistics(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving statistics: {str(e)}")
+
+
+# ===== PENDING TRANSACTIONS ENDPOINTS =====
+
+@router.get("/pending-transactions")
+async def get_pending_world_transactions(
+    batch_id: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get pending world stock transactions for review"""
+    
+    query = db.query(PendingWorldTransaction).filter(
+        PendingWorldTransaction.user_id == str(current_user.id)
+    )
+    
+    if batch_id:
+        query = query.filter(PendingWorldTransaction.upload_batch_id == batch_id)
+    if status:
+        query = query.filter(PendingWorldTransaction.status == status)
+    
+    transactions = query.order_by(PendingWorldTransaction.created_at.desc()).all()
+    
+    return {
+        "transactions": [
+            {
+                "id": t.id,
+                "upload_batch_id": t.upload_batch_id,
+                "pdf_filename": t.pdf_filename,
+                "transaction_date": t.transaction_date,
+                "transaction_time": t.transaction_time,
+                "ticker": t.ticker,
+                "stock_name": t.stock_name,
+                "world_stock_id": t.world_stock_id,
+                "transaction_type": t.transaction_type,
+                "quantity": float(t.quantity) if t.quantity else None,
+                "price": float(t.price) if t.price else None,
+                "amount": float(t.amount) if t.amount else None,
+                "commission": float(t.commission) if t.commission else None,
+                "tax": float(t.tax) if t.tax else None,
+                "currency": t.currency,
+                "exchange_rate": float(t.exchange_rate) if t.exchange_rate else None,
+                "status": t.status,
+                "review_notes": t.review_notes,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+            }
+            for t in transactions
+        ],
+        "count": len(transactions)
+    }
+
+
+@router.get("/pending-transactions/batches")
+async def get_pending_batches(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get summary of all pending batches"""
+    
+    query = text("""
+        SELECT 
+            upload_batch_id,
+            pdf_filename,
+            MIN(created_at) as upload_date,
+            COUNT(*) as transaction_count,
+            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+            SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_count,
+            SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_count
+        FROM "PendingWorldTransaction"
+        WHERE user_id = :user_id
+        GROUP BY upload_batch_id, pdf_filename
+        ORDER BY MIN(created_at) DESC
+    """)
+    
+    with engine.connect() as conn:
+        result = conn.execute(query, {"user_id": str(current_user.id)})
+        rows = result.fetchall()
+        
+        batches = []
+        for row in rows:
+            batches.append({
+                "batch_id": row[0],
+                "pdf_filename": row[1],
+                "upload_date": row[2].isoformat() if row[2] else None,
+                "transaction_count": row[3],
+                "pending_count": row[4],
+                "approved_count": row[5],
+                "rejected_count": row[6]
+            })
+        
+        return {
+            "batches": batches,
+            "count": len(batches)
+        }
+
+
+@router.post("/pending-transactions/{transaction_id}/approve")
+async def approve_pending_world_transaction(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Approve a pending world stock transaction and process it"""
+    
+    transaction = db.query(PendingWorldTransaction).filter(
+        PendingWorldTransaction.id == transaction_id,
+        PendingWorldTransaction.user_id == str(current_user.id)
+    ).first()
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    if transaction.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Transaction already {transaction.status}")
+    
+    # Process transaction into final tables
+    try:
+        # Import here to avoid circular dependency
+        from sqlalchemy import text
+        
+        with engine.connect() as conn:
+            # Based on transaction type, insert into appropriate table
+            if transaction.transaction_type in ('BUY', 'SELL'):
+                # Insert into WorldStockTransaction
+                insert_query = text("""
+                    INSERT INTO "WorldStockTransaction" 
+                    (user_id, ticker, symbol, transaction_date, transaction_time,
+                     transaction_type, quantity, price, commission, currency, source_pdf)
+                    VALUES (:user_id, :ticker, :ticker, :transaction_date, :transaction_time,
+                            :transaction_type, :quantity, :price, :commission, :currency, :pdf_filename)
+                """)
+                
+                conn.execute(insert_query, {
+                    "user_id": str(current_user.id),
+                    "ticker": transaction.ticker,
+                    "transaction_date": transaction.transaction_date,
+                    "transaction_time": transaction.transaction_time,
+                    "transaction_type": transaction.transaction_type,
+                    "quantity": transaction.quantity,
+                    "price": transaction.price,
+                    "commission": transaction.commission,
+                    "currency": transaction.currency,
+                    "pdf_filename": transaction.pdf_filename
+                })
+                
+            elif transaction.transaction_type == 'DIVIDEND':
+                # Insert into WorldDividend
+                insert_query = text("""
+                    INSERT INTO "WorldDividend" 
+                    (user_id, ticker, symbol, payment_date, amount, tax, currency, source_pdf)
+                    VALUES (:user_id, :ticker, :ticker, :payment_date, :amount, :tax, :currency, :pdf_filename)
+                """)
+                
+                conn.execute(insert_query, {
+                    "user_id": str(current_user.id),
+                    "ticker": transaction.ticker,
+                    "payment_date": transaction.transaction_date,
+                    "amount": transaction.amount,
+                    "tax": transaction.tax,
+                    "currency": transaction.currency,
+                    "pdf_filename": transaction.pdf_filename
+                })
+            
+            conn.commit()
+        
+        # Update status after successful processing
+        transaction.status = "approved"
+        transaction.reviewed_at = datetime.now()
+        transaction.reviewed_by = str(current_user.id)
+        db.commit()
+        
+        return {
+            "success": True, 
+            "message": f"{transaction.transaction_type} transaction approved and processed"
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error processing transaction: {str(e)}")
+
+
+@router.post("/pending-transactions/batch/{batch_id}/approve-all")
+async def approve_all_world_in_batch(
+    batch_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Approve all pending world stock transactions in a batch"""
+    
+    transactions = db.query(PendingWorldTransaction).filter(
+        PendingWorldTransaction.upload_batch_id == batch_id,
+        PendingWorldTransaction.user_id == str(current_user.id),
+        PendingWorldTransaction.status == "pending"
+    ).all()
+    
+    if not transactions:
+        raise HTTPException(status_code=404, detail="No pending transactions found in this batch")
+    
+    approved_count = 0
+    errors = []
+    
+    for t in transactions:
+        try:
+            with engine.connect() as conn:
+                # Based on transaction type, insert into appropriate table
+                if t.transaction_type in ('BUY', 'SELL'):
+                    insert_query = text("""
+                        INSERT INTO "WorldStockTransaction" 
+                        (user_id, ticker, symbol, transaction_date, transaction_time,
+                         transaction_type, quantity, price, commission, currency, source_pdf)
+                        VALUES (:user_id, :ticker, :ticker, :transaction_date, :transaction_time,
+                                :transaction_type, :quantity, :price, :commission, :currency, :pdf_filename)
+                    """)
+                    
+                    conn.execute(insert_query, {
+                        "user_id": str(current_user.id),
+                        "ticker": t.ticker,
+                        "transaction_date": t.transaction_date,
+                        "transaction_time": t.transaction_time,
+                        "transaction_type": t.transaction_type,
+                        "quantity": t.quantity,
+                        "price": t.price,
+                        "commission": t.commission,
+                        "currency": t.currency,
+                        "pdf_filename": t.pdf_filename
+                    })
+                    
+                elif t.transaction_type == 'DIVIDEND':
+                    insert_query = text("""
+                        INSERT INTO "WorldDividend" 
+                        (user_id, ticker, symbol, payment_date, amount, tax, currency, source_pdf)
+                        VALUES (:user_id, :ticker, :ticker, :payment_date, :amount, :tax, :currency, :pdf_filename)
+                    """)
+                    
+                    conn.execute(insert_query, {
+                        "user_id": str(current_user.id),
+                        "ticker": t.ticker,
+                        "payment_date": t.transaction_date,
+                        "amount": t.amount,
+                        "tax": t.tax,
+                        "currency": t.currency,
+                        "pdf_filename": t.pdf_filename
+                    })
+                
+                conn.commit()
+            
+            # Update status after successful processing
+            t.status = "approved"
+            t.reviewed_at = datetime.now()
+            t.reviewed_by = str(current_user.id)
+            approved_count += 1
+            
+        except Exception as e:
+            errors.append(f"Error processing transaction {t.id} ({t.ticker}): {str(e)}")
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Approved {approved_count} of {len(transactions)} transactions",
+        "approved_count": approved_count,
+        "total_count": len(transactions),
+        "errors": errors if errors else None
+    }
+
+
+@router.post("/pending-transactions/{transaction_id}/reject")
+async def reject_pending_world_transaction(
+    transaction_id: int,
+    review_notes: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Reject a pending world stock transaction"""
+    
+    transaction = db.query(PendingWorldTransaction).filter(
+        PendingWorldTransaction.id == transaction_id,
+        PendingWorldTransaction.user_id == str(current_user.id)
+    ).first()
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    if transaction.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Transaction already {transaction.status}")
+    
+    # Update status
+    transaction.status = "rejected"
+    transaction.review_notes = review_notes
+    transaction.reviewed_at = datetime.now()
+    transaction.reviewed_by = str(current_user.id)
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": "Transaction rejected"
+    }
+
+
+@router.put("/pending-transactions/{transaction_id}")
+async def update_pending_world_transaction(
+    transaction_id: int,
+    updates: Dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a pending world stock transaction before approval"""
+    
+    transaction = db.query(PendingWorldTransaction).filter(
+        PendingWorldTransaction.id == transaction_id,
+        PendingWorldTransaction.user_id == str(current_user.id),
+        PendingWorldTransaction.status == "pending"
+    ).first()
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Pending transaction not found")
+    
+    # Update allowed fields
+    allowed_fields = ['ticker', 'stock_name', 'transaction_type', 'transaction_date', 
+                      'transaction_time', 'quantity', 'price', 'amount', 'commission', 
+                      'tax', 'currency', 'review_notes']
+    
+    for field, value in updates.items():
+        if field in allowed_fields and hasattr(transaction, field):
+            setattr(transaction, field, value)
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": "Transaction updated",
+        "transaction": {
+            "id": transaction.id,
+            "ticker": transaction.ticker,
+            "stock_name": transaction.stock_name,
+            "transaction_type": transaction.transaction_type,
+            "quantity": float(transaction.quantity) if transaction.quantity else None,
+            "price": float(transaction.price) if transaction.price else None,
+            "amount": float(transaction.amount) if transaction.amount else None
+        }
+    }
+
+
+@router.delete("/pending-transactions/batch/{batch_id}")
+async def delete_pending_batch(
+    batch_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete all pending transactions in a batch"""
+    
+    deleted_count = db.query(PendingWorldTransaction).filter(
+        PendingWorldTransaction.upload_batch_id == batch_id,
+        PendingWorldTransaction.user_id == str(current_user.id),
+        PendingWorldTransaction.status == "pending"
+    ).delete()
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Deleted {deleted_count} pending transactions",
+        "deleted_count": deleted_count
+    }

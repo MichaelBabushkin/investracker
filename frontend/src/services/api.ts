@@ -650,6 +650,52 @@ export const worldStocksAPI = {
     return response.data;
   },
 
+  // Pending Transactions
+  getPendingTransactions: async (batchId?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (batchId) params.append("batch_id", batchId);
+    if (status) params.append("status", status);
+    
+    const paramString = params.toString();
+    const response = await api.get(
+      `/world-stocks/pending-transactions${paramString ? `?${paramString}` : ""}`
+    );
+    return response.data;
+  },
+
+  approvePendingTransaction: async (transactionId: number) => {
+    const response = await api.post(
+      `/world-stocks/pending-transactions/${transactionId}/approve`
+    );
+    return response.data;
+  },
+
+  rejectPendingTransaction: async (transactionId: number) => {
+    const response = await api.post(
+      `/world-stocks/pending-transactions/${transactionId}/reject`
+    );
+    return response.data;
+  },
+
+  updatePendingTransaction: async (
+    transactionId: number,
+    updates: Record<string, any>
+  ) => {
+    const response = await api.put(
+      `/world-stocks/pending-transactions/${transactionId}`,
+      updates
+    );
+    return response.data;
+  },
+
+  batchApprovePendingTransactions: async (batchId: string) => {
+    const response = await api.post(
+      `/world-stocks/pending-transactions/batch-approve`,
+      { batch_id: batchId }
+    );
+    return response.data;
+  },
+
   crawlTradingViewLogoUrls: async (batchSize: number = 5, missingOnly: boolean = true) => {
     const response = await api.post(
       `/world-stocks/crawl-tradingview-logo-urls?batch_size=${batchSize}&missing_only=${missingOnly}`

@@ -58,6 +58,33 @@ class WorldStockService:
                 return psycopg2.connect(dsn)
             raise e
     
+    def load_world_stocks(self) -> Dict[str, Dict]:
+        """Load world stocks reference data from database"""
+        try:
+            conn = self.create_database_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT * FROM "WorldStocks"')
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+            
+            cursor.close()
+            conn.close()
+            
+            # Create a dictionary keyed by ticker (uppercase for matching)
+            world_stocks = {}
+            for row in rows:
+                row_dict = dict(zip(columns, row))
+                ticker = row_dict['ticker']
+                world_stocks[ticker.upper()] = row_dict
+            
+            print(f"Loaded {len(world_stocks)} world stocks from database")
+            return world_stocks
+            
+        except Exception as e:
+            print(f"Error loading world stocks: {e}")
+            return {}
+    
     def extract_text_from_pdf(self, pdf_path: str, max_pages: int = 3) -> str:
         """Extract text from first few pages of PDF for account info"""
         try:
@@ -688,63 +715,291 @@ class WorldStockService:
         print(f"{'='*80}\n")
         return dividends
     
-    def process_pdf_report(self, pdf_path: str, user_id: str) -> Dict:
-        """Main function to process a PDF world stock report"""
+    def _serialize_for_json(self, data: Dict) -> Dict:
+        """Serialize data for JSON storage (convert dates, decimals, etc.)"""
+        serialized = {}
+        for key, value in data.items():
+            if isinstance(value, datetime):
+                serialized[key] = value.isoformat()
+            elif isinstance(value, Decimal):
+                serialized[key] = str(value)
+            elif value is None:
+                serialized[key] = None
+            else:
+                serialized[key] = str(value)
+        return serialized
+    
+    def save_to_pending_transactions(
+        self, 
+        holdings: List[Dict], 
+        transactions: List[Dict], 
+        dividends: List[Dict],
+        user_id: str,
+        batch_id: str,
+        pdf_filename: str
+    ) -> Dict:
+        """
+        Save all extracted world stock data to pending transactions table for review
+        
+        Returns: {
+            'saved_count': int,
+            'valid_count': int,
+            'invalid_count': int,
+            'warnings': List[str],
+            'errors': List[str]
+        }
+        """
         try:
+            conn = self.create_database_connection()
+            cursor = conn.cursor()
+            
+            pending_records = []
+            validation_warnings = []
+            validation_errors = []
+            
+            # Build a ticker to world_stock_id lookup cache
+            ticker_to_id_map = {}
+            unique_tickers = set()
+            
+            # Collect all unique tickers
+            for holding in holdings:
+                ticker = holding.get('symbol')
+                if ticker:
+                    unique_tickers.add(ticker)
+            
+            for transaction in transactions:
+                ticker = transaction.get('symbol')
+                if ticker:
+                    unique_tickers.add(ticker)
+            
+            for dividend in dividends:
+                ticker = dividend.get('symbol')
+                if ticker:
+                    unique_tickers.add(ticker)
+            
+            # Lookup world_stock_id for all tickers in batch
+            if unique_tickers:
+                placeholders = ','.join(['%s'] * len(unique_tickers))
+                cursor.execute(f'''
+                    SELECT ticker, id FROM "WorldStocks"
+                    WHERE ticker IN ({placeholders})
+                ''', tuple(unique_tickers))
+                
+                for row in cursor.fetchall():
+                    ticker_to_id_map[row[0]] = row[1]
+            
+            print(f"DEBUG: Saving to pending - Holdings: {len(holdings)}, Transactions: {len(transactions)}, Dividends: {len(dividends)}")
+            print(f"DEBUG: Found {len(ticker_to_id_map)} stocks in WorldStocks table")
+            
+            # Convert holdings to pending transactions (type: BUY)
+            for holding in holdings:
+                if holding.get('quantity') is None:
+                    continue
+                
+                transaction_date = holding.get('transaction_date') or holding.get('holding_date')
+                if isinstance(transaction_date, str):
+                    transaction_date = self.parse_date_string(transaction_date)
+                
+                # Basic validation
+                if not holding.get('symbol'):
+                    validation_errors.append(f"Holding missing ticker symbol")
+                    continue
+                
+                ticker = holding.get('symbol')
+                world_stock_id = ticker_to_id_map.get(ticker)
+                
+                pending_records.append((
+                    user_id,
+                    batch_id,
+                    pdf_filename,
+                    ticker,
+                    holding.get('name'),
+                    world_stock_id,
+                    'BUY',  # Holdings are treated as BUY transactions
+                    transaction_date.isoformat() if transaction_date else None,
+                    None,  # transaction_time - holdings don't have time
+                    holding.get('quantity'),
+                    holding.get('current_price') or holding.get('last_price'),
+                    holding.get('current_value'),
+                    None,  # commission - not available for holdings
+                    None,  # tax - not available for holdings
+                    holding.get('currency', 'USD'),
+                    'pending'
+                ))
+            
+            # Convert regular transactions to pending transactions
+            for transaction in transactions:
+                transaction_date = transaction.get('transaction_date')
+                if isinstance(transaction_date, str):
+                    transaction_date = self.parse_date_string(transaction_date)
+                
+                # Basic validation
+                if not transaction.get('symbol'):
+                    validation_errors.append(f"Transaction missing ticker symbol")
+                    continue
+                
+                ticker = transaction.get('symbol')
+                world_stock_id = ticker_to_id_map.get(ticker)
+                
+                pending_records.append((
+                    user_id,
+                    batch_id,
+                    pdf_filename,
+                    ticker,
+                    transaction.get('company_name') or transaction.get('name'),
+                    world_stock_id,
+                    transaction.get('transaction_type', 'BUY'),
+                    transaction_date.isoformat() if transaction_date else None,
+                    transaction.get('transaction_time'),
+                    transaction.get('quantity'),
+                    transaction.get('trade_price') or transaction.get('price'),
+                    transaction.get('proceeds') or transaction.get('total_value'),
+                    transaction.get('commission'),
+                    transaction.get('tax'),
+                    transaction.get('currency', 'USD'),
+                    'pending'
+                ))
+            
+            # Convert dividends to pending transactions
+            for dividend in dividends:
+                payment_date = dividend.get('payment_date') or dividend.get('transaction_date')
+                if isinstance(payment_date, str):
+                    payment_date = self.parse_date_string(payment_date)
+                
+                # Basic validation
+                if not dividend.get('symbol'):
+                    validation_errors.append(f"Dividend missing ticker symbol")
+                    continue
+                
+                ticker = dividend.get('symbol')
+                world_stock_id = ticker_to_id_map.get(ticker)
+                
+                pending_records.append((
+                    user_id,
+                    batch_id,
+                    pdf_filename,
+                    ticker,
+                    dividend.get('company_name') or dividend.get('name'),
+                    world_stock_id,
+                    'DIVIDEND',
+                    payment_date.isoformat() if payment_date else None,
+                    None,  # transaction_time
+                    None,  # quantity - not applicable for dividends
+                    None,  # price - not applicable for dividends
+                    dividend.get('gross_amount') or dividend.get('amount'),
+                    dividend.get('commission'),
+                    dividend.get('withholding_tax') or dividend.get('tax'),
+                    dividend.get('currency', 'USD'),
+                    'pending'
+                ))
+            
+            # Batch insert all pending records
+            if pending_records:
+                cursor.executemany('''
+                    INSERT INTO "PendingWorldTransaction" 
+                    (user_id, upload_batch_id, pdf_filename, ticker, stock_name, world_stock_id, transaction_type,
+                     transaction_date, transaction_time, quantity, price, amount,
+                     commission, tax, currency, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ''', pending_records)
+                
+                conn.commit()
+            
+            cursor.close()
+            conn.close()
+            
+            saved_count = len(pending_records)
+            valid_count = saved_count - len(validation_errors)
+            invalid_count = len(validation_errors)
+            
+            print(f"Saved {saved_count} pending transactions (valid: {valid_count}, invalid: {invalid_count})")
+            
+            return {
+                'saved_count': saved_count,
+                'valid_count': valid_count,
+                'invalid_count': invalid_count,
+                'warnings': validation_warnings,
+                'errors': validation_errors
+            }
+            
+        except Exception as e:
+            print(f"Error saving to pending transactions: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'saved_count': 0,
+                'valid_count': 0,
+                'invalid_count': 0,
+                'warnings': [],
+                'errors': [str(e)]
+            }
+    
+    def process_pdf_report(self, pdf_path: str, user_id: str, broker: str = 'excellence') -> Dict:
+        """Main function to process a PDF world stock report and save to pending transactions"""
+        try:
+            # Generate unique batch ID for this upload
+            batch_id = str(uuid.uuid4())
             pdf_name = os.path.basename(pdf_path)
             
-            print(f"Step 1: Extracting account info...")
-            # Extract text for account info (only first few pages)
-            text = self.extract_text_from_pdf(pdf_path, max_pages=2)
-            account_info = self.extract_account_info(text)
-            print(f"  Account Number: {account_info.get('account_number')}")
-            print(f"  Account Alias: {account_info.get('account_alias')}")
-            print(f"  Broker: {account_info.get('broker_name')}")
+            print(f"\n{'='*80}")
+            print(f"Processing PDF: {pdf_name}")
+            print(f"Batch ID: {batch_id}")
+            print(f"{'='*80}\n")
             
-            print(f"Step 2: Extracting holdings...")
-            # Extract data from tables
+            print(f"Step 1: Extracting holdings...")
             holdings = self.extract_holdings_from_tables(pdf_path, pdf_name)
+            print(f"  Found {len(holdings)} holdings")
             
-            print(f"Step 3: Extracting transactions...")
+            print(f"Step 2: Extracting transactions...")
             transactions = self.extract_transactions_from_tables(pdf_path, pdf_name)
+            print(f"  Found {len(transactions)} transactions")
             
-            print(f"Step 4: Extracting dividends...")
+            print(f"Step 3: Extracting dividends...")
             dividends = self.extract_dividends_from_tables(pdf_path, pdf_name)
+            print(f"  Found {len(dividends)} dividends")
             
-            print(f"DEBUG: Found {len(holdings)} holdings, {len(transactions)} transactions, {len(dividends)} dividends")
+            print(f"Step 4: Saving to pending transactions...")
+            save_result = self.save_to_pending_transactions(
+                holdings=holdings,
+                transactions=transactions,
+                dividends=dividends,
+                user_id=user_id,
+                batch_id=batch_id,
+                pdf_filename=pdf_name
+            )
             
-            print(f"Step 5: Saving to database...")
-            # Save to database
-            account_id = self.save_account_to_database(account_info, user_id)
+            total_extracted = len(holdings) + len(transactions) + len(dividends)
             
-            if account_id:
-                print(f"  Account ID: {account_id}")
-                holdings_saved = self.save_holdings_to_database(holdings, user_id, account_id) if holdings else 0
-                print(f"  Holdings: {len(holdings)} found, {holdings_saved} saved")
-                transactions_saved = self.save_transactions_to_database(transactions, user_id, account_id) if transactions else 0
-                print(f"  Transactions: {len(transactions)} found, {transactions_saved} saved")
-                dividends_saved = self.save_dividends_to_database(dividends, user_id, account_id) if dividends else 0
-                print(f"  Dividends: {len(dividends)} found, {dividends_saved} saved")
-            else:
-                holdings_saved = transactions_saved = dividends_saved = 0
+            print(f"\n{'='*80}")
+            print(f"PROCESSING COMPLETE")
+            print(f"  Total extracted: {total_extracted}")
+            print(f"  Saved to pending: {save_result['saved_count']}")
+            print(f"  Valid: {save_result['valid_count']}")
+            print(f"  Invalid: {save_result['invalid_count']}")
+            print(f"{'='*80}\n")
             
             return {
                 'success': True,
+                'batch_id': batch_id,
                 'pdf_name': pdf_name,
-                'account_number': account_info.get('account_number'),
-                'account_id': account_id,
+                'total_extracted': total_extracted,
                 'holdings_found': len(holdings),
                 'transactions_found': len(transactions),
                 'dividends_found': len(dividends),
-                'holdings_saved': holdings_saved,
-                'transactions_saved': transactions_saved,
-                'dividends_saved': dividends_saved
+                'pending_count': save_result['saved_count'],
+                'valid_count': save_result['valid_count'],
+                'invalid_count': save_result['invalid_count'],
+                'validation_warnings': save_result['warnings'],
+                'validation_errors': save_result['errors'],
+                'message': f"Extracted {save_result['saved_count']} transactions. " +
+                          (f"{save_result['invalid_count']} have validation issues. " if save_result['invalid_count'] > 0 else "") +
+                          "Please review and approve them."
             }
             
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return {'error': str(e)}
+            return {'success': False, 'error': str(e)}
     
     def save_account_to_database(self, account_info: Dict, user_id: str) -> Optional[int]:
         """Save account information to database"""
