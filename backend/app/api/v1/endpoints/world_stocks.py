@@ -1219,45 +1219,7 @@ async def delete_pending_batch(
 
 
 # ============== Stock Price Endpoints ==============
-
-@router.get("/stocks/{ticker}/price")
-async def get_stock_price(
-    ticker: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Get current price data for a specific stock
-    """
-    result = db.execute(
-        text("""
-            SELECT ticker, company_name, current_price, previous_close, 
-                   price_change, price_change_pct, day_high, day_low, 
-                   volume, market_cap, price_updated_at
-            FROM "WorldStocks"
-            WHERE ticker = :ticker
-        """),
-        {"ticker": ticker.upper()}
-    )
-    row = result.fetchone()
-    
-    if not row:
-        raise HTTPException(status_code=404, detail=f"Stock {ticker} not found")
-    
-    return {
-        "ticker": row[0],
-        "company_name": row[1],
-        "current_price": float(row[2]) if row[2] else None,
-        "previous_close": float(row[3]) if row[3] else None,
-        "price_change": float(row[4]) if row[4] else None,
-        "price_change_pct": float(row[5]) if row[5] else None,
-        "day_high": float(row[6]) if row[6] else None,
-        "day_low": float(row[7]) if row[7] else None,
-        "volume": row[8],
-        "market_cap": float(row[9]) if row[9] else None,
-        "price_updated_at": row[10].isoformat() if row[10] else None
-    }
-
+# NOTE: Static routes must come before dynamic routes to avoid conflicts
 
 @router.get("/stocks/prices")
 async def get_multiple_stock_prices(
@@ -1296,6 +1258,45 @@ async def get_multiple_stock_prices(
         "stocks": stocks,
         "requested": len(ticker_list),
         "found": len(stocks)
+    }
+
+
+@router.get("/stocks/{ticker}/price")
+async def get_stock_price(
+    ticker: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get current price data for a specific stock
+    """
+    result = db.execute(
+        text("""
+            SELECT ticker, company_name, current_price, previous_close, 
+                   price_change, price_change_pct, day_high, day_low, 
+                   volume, market_cap, price_updated_at
+            FROM "WorldStocks"
+            WHERE ticker = :ticker
+        """),
+        {"ticker": ticker.upper()}
+    )
+    row = result.fetchone()
+    
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Stock {ticker} not found")
+    
+    return {
+        "ticker": row[0],
+        "company_name": row[1],
+        "current_price": float(row[2]) if row[2] else None,
+        "previous_close": float(row[3]) if row[3] else None,
+        "price_change": float(row[4]) if row[4] else None,
+        "price_change_pct": float(row[5]) if row[5] else None,
+        "day_high": float(row[6]) if row[6] else None,
+        "day_low": float(row[7]) if row[7] else None,
+        "volume": row[8],
+        "market_cap": float(row[9]) if row[9] else None,
+        "price_updated_at": row[10].isoformat() if row[10] else None
     }
 
 

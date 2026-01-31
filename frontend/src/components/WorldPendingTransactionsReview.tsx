@@ -96,8 +96,11 @@ export default function WorldPendingTransactionsReview({
   };
 
   const handleApproveAll = async () => {
-    if (!batchId) {
-      setError("No batch ID provided");
+    // Use provided batchId or extract from first transaction
+    const effectiveBatchId = batchId || (transactions.length > 0 ? transactions[0].upload_batch_id : null);
+    
+    if (!effectiveBatchId) {
+      setError("No batch ID available");
       return;
     }
 
@@ -110,10 +113,10 @@ export default function WorldPendingTransactionsReview({
 
     try {
       setLoading(true);
-      await worldStocksAPI.batchApprovePendingTransactions(batchId);
+      await worldStocksAPI.batchApprovePendingTransactions(effectiveBatchId);
       await loadTransactions();
       if (onApprovalComplete) {
-        onApprovalComplete(batchId);
+        onApprovalComplete(effectiveBatchId);
       }
     } catch (err: any) {
       setError(
