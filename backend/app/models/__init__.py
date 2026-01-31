@@ -2,13 +2,6 @@
 # Import all models so SQLAlchemy can find them
 
 from .user import User
-from .portfolio import Portfolio
-from .asset import Asset
-from .transaction import Transaction
-from .holding import Holding
-from .market_data import PriceHistory, CurrencyRate
-from .report import ReportUpload, ExtractedHolding, ExtractedTransaction
-from .ta125_stock import TA125Stock
 
 # Israeli Stock Analysis Models
 from .israeli_stock_models import (
@@ -16,9 +9,9 @@ from .israeli_stock_models import (
     IsraeliStockHolding,
     IsraeliStockTransaction,
     IsraeliDividend,
-    IsraeliStockSummary
 )
 from .pending_transaction import PendingIsraeliTransaction
+from .israeli_report import IsraeliReportUpload
 
 # World Stock Analysis Models
 from .world_stock_models import (
@@ -38,23 +31,13 @@ from .user_event_notification_preferences import UserEventNotificationPreference
 
 __all__ = [
     "User",
-    "Portfolio", 
-    "Asset",
-    "Transaction",
-    "Holding",
-    "PriceHistory",
-    "CurrencyRate",
-    "ReportUpload",
-    "ExtractedHolding", 
-    "ExtractedTransaction",
-    "TA125Stock",
     # Israeli Stock Models
     "IsraeliStock",
     "IsraeliStockHolding",
     "IsraeliStockTransaction", 
     "IsraeliDividend",
-    "IsraeliStockSummary",
     "PendingIsraeliTransaction",
+    "IsraeliReportUpload",
     # World Stock Models
     "WorldStock",
     "WorldStockHolding",
