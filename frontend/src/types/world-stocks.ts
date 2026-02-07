@@ -34,22 +34,29 @@ export interface WorldStockTransaction {
   id: number;
   user_id: string;
   account_id?: number;
+  ticker: string;
   symbol: string;
+  company_name?: string;
   transaction_date?: string;
   transaction_time?: string;
-  transaction_type?: string;
+  transaction_type?: string;  // BUY, SELL
   quantity?: number;
-  trade_price?: number;
+  price?: number;  // Trade price
+  trade_price?: number;  // Alias for compatibility
+  total_value?: number;  // Total transaction value
   close_price?: number;
   proceeds?: number;
   commission?: number;
+  tax?: number;
   basis?: number;
   realized_pl?: number;
   mtm_pl?: number;
   trade_code?: string;
   currency: string;
+  exchange_rate?: number;
   source_pdf: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface WorldStockDividend {

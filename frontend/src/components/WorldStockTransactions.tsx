@@ -83,52 +83,46 @@ export default function WorldStockTransactions({
     return new Date(dateStr).toLocaleDateString("en-US");
   };
 
-  const getTransactionIcon = (code: string) => {
-    switch (code?.toUpperCase()) {
-      case "O": // Open
+  const getTransactionIcon = (type: string) => {
+    switch (type?.toUpperCase()) {
+      case "BUY":
         return <ArrowTrendingUpIcon className="h-5 w-5 text-green-600" />;
-      case "C": // Close
+      case "SELL":
         return <ArrowTrendingDownIcon className="h-5 w-5 text-red-600" />;
-      case "P": // Partial
-        return <ArrowRightIcon className="h-5 w-5 text-blue-600" />;
       default:
         return <ArrowRightIcon className="h-5 w-5 text-gray-600" />;
     }
   };
 
-  const getTransactionColor = (code: string) => {
-    switch (code?.toUpperCase()) {
-      case "O":
+  const getTransactionColor = (type: string) => {
+    switch (type?.toUpperCase()) {
+      case "BUY":
         return "text-green-600 bg-green-50 border-green-200";
-      case "C":
+      case "SELL":
         return "text-red-600 bg-red-50 border-red-200";
-      case "P":
-        return "text-blue-600 bg-blue-50 border-blue-200";
       default:
         return "text-gray-600 bg-gray-50 border-gray-200";
     }
   };
 
-  const getTransactionLabel = (code: string) => {
-    switch (code?.toUpperCase()) {
-      case "O":
-        return "Open";
-      case "C":
-        return "Close";
-      case "P":
-        return "Partial";
+  const getTransactionLabel = (type: string) => {
+    switch (type?.toUpperCase()) {
+      case "BUY":
+        return "Buy";
+      case "SELL":
+        return "Sell";
       default:
-        return code || "Unknown";
+        return type || "Unknown";
     }
   };
 
   // Calculate comprehensive metrics
   const metrics = useMemo(() => {
     const closedTrades = transactions.filter(
-      (t) => t.trade_code?.toUpperCase() === "C"
+      (t) => t.transaction_type?.toUpperCase() === "SELL"
     );
     const openTrades = transactions.filter(
-      (t) => t.trade_code?.toUpperCase() === "O"
+      (t) => t.transaction_type?.toUpperCase() === "BUY"
     );
 
     // Helper function to safely parse numeric values
@@ -166,7 +160,7 @@ export default function WorldStockTransactions({
     // Volume statistics
     const totalVolume = transactions.reduce((sum, t) => {
       const qty = Math.abs(parseNumeric(t.quantity));
-      const price = parseNumeric(t.trade_price);
+      const price = parseNumeric(t.price || t.trade_price);
       return sum + qty * price;
     }, 0);
 
@@ -200,7 +194,7 @@ export default function WorldStockTransactions({
 
     // Proceeds statistics
     const totalProceeds = closedTrades.reduce((sum, t) => {
-      return sum + Math.abs(parseNumeric(t.proceeds));
+      return sum + Math.abs(parseNumeric(t.total_value || t.proceeds));
     }, 0);
 
     const totalBasis = closedTrades.reduce((sum, t) => {
@@ -228,18 +222,18 @@ export default function WorldStockTransactions({
   }, [transactions]);
 
   const totalOpened = transactions
-    .filter((t) => t.trade_code?.toUpperCase() === "O")
+    .filter((t) => t.transaction_type?.toUpperCase() === "BUY")
     .reduce(
       (sum, t) =>
-        sum + (t.quantity || 0) * (t.trade_price || 0) + (t.commission || 0),
+        sum + (t.quantity || 0) * (t.price || t.trade_price || 0) + (t.commission || 0),
       0
     );
 
   const totalClosed = transactions
-    .filter((t) => t.trade_code?.toUpperCase() === "C")
+    .filter((t) => t.transaction_type?.toUpperCase() === "SELL")
     .reduce(
       (sum, t) =>
-        sum + (t.quantity || 0) * (t.trade_price || 0) - (t.commission || 0),
+        sum + (t.quantity || 0) * (t.price || t.trade_price || 0) - (t.commission || 0),
       0
     );
 
@@ -268,11 +262,11 @@ export default function WorldStockTransactions({
         map[monthKey] = { month: monthLabel, opened: 0, closed: 0 };
       }
 
-      const value = (t.quantity || 0) * (t.trade_price || 0);
+      const value = (t.quantity || 0) * (t.price || t.trade_price || 0);
 
-      if (t.trade_code?.toUpperCase() === "O") {
+      if (t.transaction_type?.toUpperCase() === "BUY") {
         map[monthKey].opened += value;
-      } else if (t.trade_code?.toUpperCase() === "C") {
+      } else if (t.transaction_type?.toUpperCase() === "SELL") {
         map[monthKey].closed += value;
       }
     });
@@ -674,10 +668,10 @@ export default function WorldStockTransactions({
                 };
 
                 const quantity = parseNum(transaction.quantity);
-                const tradePrice = parseNum(transaction.trade_price);
+                const tradePrice = parseNum(transaction.price || transaction.trade_price);
                 const realizedPL = parseNum(transaction.realized_pl);
                 const mtmPL = parseNum(transaction.mtm_pl);
-                const proceeds = parseNum(transaction.proceeds);
+                const proceeds = parseNum(transaction.total_value || transaction.proceeds);
                 const commission = parseNum(transaction.commission);
                 const basis = parseNum(transaction.basis);
 
@@ -696,18 +690,18 @@ export default function WorldStockTransactions({
                         {transaction.symbol}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {transaction.trade_code || "-"}
+                        {transaction.ticker || "-"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getTransactionColor(
-                          transaction.trade_code || ""
+                          transaction.transaction_type || ""
                         )}`}
                       >
-                        {getTransactionIcon(transaction.trade_code || "")}
+                        {getTransactionIcon(transaction.transaction_type || "")}
                         <span className="ml-1">
-                          {getTransactionLabel(transaction.trade_code || "")}
+                          {getTransactionLabel(transaction.transaction_type || "")}
                         </span>
                       </span>
                     </td>

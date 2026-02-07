@@ -200,7 +200,7 @@ async def get_world_stock_transactions(
             query = text(f"""
                 SELECT id, user_id, ticker, symbol, company_name, transaction_type,
                        transaction_date, transaction_time, quantity, price, total_value,
-                       commission, tax, currency, exchange_rate, source_pdf, created_at
+                       commission, tax, currency, exchange_rate, source_pdf, created_at, updated_at
                 FROM "WorldStockTransaction"
                 WHERE {where_clause}
                 ORDER BY transaction_date DESC NULLS LAST, created_at DESC
@@ -229,7 +229,8 @@ async def get_world_stock_transactions(
                     currency=row[13],
                     exchange_rate=row[14],
                     source_pdf=row[15],
-                    created_at=row[16]
+                    created_at=row[16],
+                    updated_at=row[17]
                 ))
             
             return transactions
@@ -265,7 +266,7 @@ async def get_world_stock_dividends(
             query = text(f"""
                 SELECT id, user_id, ticker, symbol, company_name, payment_date,
                        amount, tax, net_amount, currency, exchange_rate,
-                       source_pdf, created_at, created_at as updated_at
+                       source_pdf, created_at, updated_at
                 FROM "WorldDividend"
                 WHERE {where_clause}
                 ORDER BY payment_date DESC NULLS LAST, created_at DESC
@@ -284,7 +285,10 @@ async def get_world_stock_dividends(
                     symbol=row[3],
                     company_name=row[4],
                     payment_date=row[5],
-                    total_amount=row[6],
+                    total_amount=row[6],  # gross amount
+                    amount=row[6],  # same as total_amount for frontend
+                    withholding_tax=row[7],  # tax
+                    net_amount=row[8],  # amount after tax
                     amount_per_share=None,  # Not stored separately
                     ex_date=None,  # Not in model
                     currency=row[9],
@@ -1140,6 +1144,67 @@ async def approve_all_world_in_batch(
                         "created_at": now,
                         "updated_at": now
                     })
+                    
+                    # Also update or create holdings based on transaction type
+                    quantity = float(t.quantity or 0)
+                    price = float(t.price or 0)
+                    cost = quantity * price
+                    
+                    # Check if holding exists for this user and ticker
+                    existing_holding = conn.execute(text("""
+                        SELECT id, quantity, purchase_cost FROM "WorldStockHolding"
+                        WHERE user_id = :user_id AND ticker = :ticker
+                    """), {"user_id": str(current_user.id), "ticker": actual_ticker}).fetchone()
+                    
+                    if t.transaction_type == 'BUY':
+                        if existing_holding:
+                            # Update existing holding - add quantity and cost
+                            new_qty = float(existing_holding[1] or 0) + quantity
+                            new_cost = float(existing_holding[2] or 0) + cost
+                            conn.execute(text("""
+                                UPDATE "WorldStockHolding" 
+                                SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
+                                WHERE id = :id
+                            """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
+                        else:
+                            # Create new holding
+                            conn.execute(text("""
+                                INSERT INTO "WorldStockHolding" 
+                                (user_id, ticker, symbol, company_name, quantity, purchase_cost, 
+                                 current_value, currency, source_pdf, created_at, updated_at)
+                                VALUES (:user_id, :ticker, :symbol, :company_name, :quantity, :purchase_cost,
+                                        :current_value, :currency, :source_pdf, :created_at, :updated_at)
+                            """), {
+                                "user_id": str(current_user.id),
+                                "ticker": actual_ticker,
+                                "symbol": actual_ticker,
+                                "company_name": stock_name_for_display,
+                                "quantity": quantity,
+                                "purchase_cost": cost,
+                                "current_value": cost,  # Initial current value = purchase cost
+                                "currency": t.currency or "USD",
+                                "source_pdf": t.pdf_filename,
+                                "created_at": now,
+                                "updated_at": now
+                            })
+                    elif t.transaction_type == 'SELL':
+                        if existing_holding:
+                            # Update existing holding - reduce quantity
+                            new_qty = float(existing_holding[1] or 0) - quantity
+                            if new_qty > 0:
+                                # Proportionally reduce cost
+                                original_qty = float(existing_holding[1] or 1)
+                                new_cost = float(existing_holding[2] or 0) * (new_qty / original_qty)
+                                conn.execute(text("""
+                                    UPDATE "WorldStockHolding" 
+                                    SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
+                                    WHERE id = :id
+                                """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
+                            else:
+                                # Position closed - delete holding
+                                conn.execute(text("""
+                                    DELETE FROM "WorldStockHolding" WHERE id = :id
+                                """), {"id": existing_holding[0]})
                     
                 elif t.transaction_type == 'DIVIDEND':
                     insert_query = text("""

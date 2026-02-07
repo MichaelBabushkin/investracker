@@ -84,6 +84,9 @@ class WorldStockDividendResponse(BaseModel):
     payment_date: Optional[date] = None
     amount_per_share: Optional[Decimal] = None
     total_amount: Optional[Decimal] = None
+    amount: Optional[Decimal] = None  # Alias for total_amount (gross amount)
+    withholding_tax: Optional[Decimal] = None  # Tax withheld
+    net_amount: Optional[Decimal] = None  # After tax
     currency: str = "USD"
     dividend_type: Optional[str] = None
     exchange_rate: Optional[Decimal] = None

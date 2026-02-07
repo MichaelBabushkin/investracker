@@ -131,14 +131,21 @@ class WorldStockService:
         return account_info
     
     def parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse a date string into a date object"""
+        """Parse a date string into a date object.
+        
+        Israeli broker reports use DD/MM/YY format, so we prioritize European date formats.
+        """
         if not date_str:
             return None
         
         date_str = date_str.strip()
+        # Prioritize DD/MM formats (European/Israeli) over MM/DD (US) formats
         date_formats = [
-            '%m/%d/%Y', '%d/%m/%Y', '%m/%d/%y', '%d/%m/%y',
-            '%Y/%m/%d', '%Y-%m-%d', '%d-%m-%Y', '%m-%d-%Y'
+            '%d/%m/%y', '%d/%m/%Y',  # DD/MM formats first (Israeli standard)
+            '%d-%m-%y', '%d-%m-%Y',
+            '%Y-%m-%d', '%Y/%m/%d',  # ISO formats
+            '%m/%d/%Y', '%m/%d/%y',  # US formats last
+            '%m-%d-%Y', '%m-%d-%y'
         ]
         
         for fmt in date_formats:
