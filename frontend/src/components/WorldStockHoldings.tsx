@@ -93,7 +93,7 @@ export default function WorldStockHoldings({
     ? holdings.reduce((sum, holding) => sum + (holding.current_value || 0), 0)
     : 0;
   const totalUnrealizedPL = Array.isArray(holdings)
-    ? holdings.reduce((sum, holding) => sum + (holding.unrealized_pl || 0), 0)
+    ? holdings.reduce((sum, holding) => sum + (holding.unrealized_gain || 0), 0)
     : 0;
   const totalUnrealizedPLPercent =
     totalValue > 0
@@ -332,14 +332,17 @@ export default function WorldStockHoldings({
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Symbol
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Description
-                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Quantity
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Purchase Price
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Current Price
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Purchase Cost
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Current Value
@@ -348,7 +351,35 @@ export default function WorldStockHoldings({
                     Unrealized P/L
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    P/L %
+                    Last Purchase
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div className="flex items-center justify-end space-x-1">
+                      <span>TWR</span>
+                      <div className="relative group">
+                        <span className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-gray-400 rounded-full cursor-help hover:bg-gray-600">
+                          ?
+                        </span>
+                        <div className="hidden group-hover:block absolute right-0 top-full mt-2 w-64 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg z-50 whitespace-normal">
+                          <div className="font-semibold mb-1">Time-Weighted Return (TWR)</div>
+                          <div>Measures portfolio performance independent of cash flows. Best for comparing to benchmarks.</div>
+                        </div>
+                      </div>
+                    </div>
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div className="flex items-center justify-end space-x-1">
+                      <span>MWR</span>
+                      <div className="relative group">
+                        <span className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-gray-400 rounded-full cursor-help hover:bg-gray-600">
+                          ?
+                        </span>
+                        <div className="hidden group-hover:block absolute right-0 top-full mt-2 w-64 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg z-50 whitespace-normal">
+                          <div className="font-semibold mb-1">Money-Weighted Return (MWR/IRR)</div>
+                          <div>Measures actual investor return accounting for timing and size of contributions.</div>
+                        </div>
+                      </div>
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -357,13 +388,6 @@ export default function WorldStockHoldings({
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {holdings.map((holding) => {
-                  const plPercent =
-                    holding.current_value && holding.unrealized_pl
-                      ? (holding.unrealized_pl /
-                          (holding.current_value - holding.unrealized_pl)) *
-                        100
-                      : 0;
-
                   return (
                     <tr key={holding.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -371,36 +395,64 @@ export default function WorldStockHoldings({
                           {holding.symbol}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 max-w-xs truncate">
-                          {holding.description || "-"}
-                        </div>
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
                         {formatNumber(holding.quantity)}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">
+                        {holding.quantity && holding.purchase_cost
+                          ? formatCurrency(holding.purchase_cost / holding.quantity)
+                          : "-"}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
-                        {formatCurrency(holding.current_price)}
+                        {formatCurrency(holding.last_price)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                        {formatCurrency(holding.purchase_cost)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
                         {formatCurrency(holding.current_value)}
                       </td>
                       <td
                         className={`px-6 py-4 whitespace-nowrap text-right text-sm font-semibold ${
-                          (holding.unrealized_pl || 0) >= 0
+                          (holding.unrealized_gain || 0) >= 0
                             ? "text-green-600"
                             : "text-red-600"
                         }`}
                       >
-                        {formatCurrency(holding.unrealized_pl)}
+                        {formatCurrency(holding.unrealized_gain)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">
+                        {holding.holding_date || "-"}
                       </td>
                       <td
-                        className={`px-6 py-4 whitespace-nowrap text-right text-sm font-semibold ${
-                          plPercent >= 0 ? "text-green-600" : "text-red-600"
+                        className={`px-6 py-4 whitespace-nowrap text-right text-sm font-medium ${
+                          (holding.twr || 0) >= 0 ? "text-green-600" : "text-red-600"
                         }`}
+                        title="Time-Weighted Return"
                       >
-                        {plPercent >= 0 ? "+" : ""}
-                        {plPercent.toFixed(2)}%
+                        {holding.twr ? (
+                          <>
+                            {holding.twr >= 0 ? "+" : ""}
+                            {Number(holding.twr).toFixed(2)}%
+                          </>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td
+                        className={`px-6 py-4 whitespace-nowrap text-right text-sm font-medium ${
+                          (holding.mwr || 0) >= 0 ? "text-green-600" : "text-red-600"
+                        }`}
+                        title="Money-Weighted Return (IRR)"
+                      >
+                        {holding.mwr ? (
+                          <>
+                            {holding.mwr >= 0 ? "+" : ""}
+                            {Number(holding.mwr).toFixed(2)}%
+                          </>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <button

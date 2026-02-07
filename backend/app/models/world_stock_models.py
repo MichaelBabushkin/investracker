@@ -78,6 +78,12 @@ class WorldStockHolding(Base):
     currency = Column(String(10), default='USD')
     exchange_rate = Column(DECIMAL(10, 4), nullable=True)  # USD to ILS rate
     holding_date = Column(Date, nullable=True)
+    
+    # Return metrics
+    unrealized_gain = Column(DECIMAL(18, 4), nullable=True)  # current_value - purchase_cost
+    unrealized_gain_pct = Column(DECIMAL(10, 4), nullable=True)  # (unrealized_gain / purchase_cost) * 100
+    twr = Column(DECIMAL(10, 4), nullable=True)  # Time-Weighted Return
+    mwr = Column(DECIMAL(10, 4), nullable=True)  # Money-Weighted Return (IRR)
     source_pdf = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

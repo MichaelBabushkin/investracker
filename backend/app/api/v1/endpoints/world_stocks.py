@@ -133,7 +133,8 @@ async def get_world_stock_holdings(
                 SELECT id, user_id, ticker, symbol, company_name, quantity,
                        last_price, purchase_cost, current_value, portfolio_percentage,
                        currency, exchange_rate, holding_date, source_pdf,
-                       created_at, updated_at
+                       created_at, updated_at,
+                       unrealized_gain, unrealized_gain_pct, twr, mwr
                 FROM "WorldStockHolding"
                 WHERE user_id = :user_id
                 ORDER BY current_value DESC NULLS LAST
@@ -164,7 +165,11 @@ async def get_world_stock_holdings(
                     holding_date=row[12],
                     source_pdf=row[13],
                     created_at=row[14],
-                    updated_at=row[15]
+                    updated_at=row[15],
+                    unrealized_gain=row[16],
+                    unrealized_gain_pct=row[17],
+                    twr=row[18],
+                    mwr=row[19]
                 ))
             
             return holdings
@@ -1501,3 +1506,35 @@ async def get_holdings_with_prices(
             "total_gain_loss_pct": ((total_value - total_cost) / total_cost * 100) if total_value and total_cost else None
         }
     }
+
+
+@router.post("/holdings/refresh-returns")
+async def refresh_holdings_returns(
+    user_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Refresh return calculations (TWR, MWR, unrealized gains) for all user holdings
+    """
+    try:
+        from app.services.returns_calculator import ReturnsCalculator
+        
+        target_user_id = user_id or current_user.id
+        
+        calculator = ReturnsCalculator(db)
+        results = calculator.update_all_user_returns(target_user_id)
+        
+        return {
+            "success": True,
+            "message": f"Updated returns for {results['updated']} holdings",
+            "updated": results['updated'],
+            "failed": results['failed'],
+            "errors": results['errors']
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error refreshing returns: {str(e)}"
+        )

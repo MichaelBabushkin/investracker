@@ -45,6 +45,12 @@ class WorldStockHoldingResponse(BaseModel):
     source_pdf: str
     created_at: datetime
     updated_at: datetime
+    
+    # Return metrics
+    unrealized_gain: Optional[Decimal] = None
+    unrealized_gain_pct: Optional[Decimal] = None
+    twr: Optional[Decimal] = None  # Time-Weighted Return
+    mwr: Optional[Decimal] = None  # Money-Weighted Return (IRR)
 
 
 # Transaction schemas

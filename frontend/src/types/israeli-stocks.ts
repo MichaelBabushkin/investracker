@@ -22,6 +22,12 @@ export interface IsraeliStockHolding {
   source_pdf: string;
   created_at: string;
   logo_svg?: string | null;
+  
+  // Return metrics
+  unrealized_gain?: number;
+  unrealized_gain_pct?: number;
+  twr?: number;  // Time-Weighted Return
+  mwr?: number;  // Money-Weighted Return (IRR)
 }
 
 export interface IsraeliStockTransaction {
