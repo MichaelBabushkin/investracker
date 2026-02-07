@@ -14,6 +14,7 @@ import time
 
 from app.models.world_stock_models import WorldStock, WorldStockHolding
 from app.models.israeli_stock_models import IsraeliStock
+from app.models.stock_price_models import StockPrice
 
 logger = logging.getLogger(__name__)
 
@@ -49,18 +50,25 @@ class StockPriceService:
         )
         return [row[0] for row in result.fetchall()]
     
-    def get_stale_catalog_tickers(self, hours: int = 24, limit: int = 500) -> List[str]:
+    def get_stale_catalog_tickers(self, hours: int = 24, limit: int = 500, market: str = 'world') -> List[str]:
         """Get tickers not updated in the last N hours (Tier 2)"""
         cutoff = datetime.utcnow() - timedelta(hours=hours)
+        
+        if market == 'world':
+            table = '"WorldStocks"'
+        else:
+            table = '"IsraeliStocks"'
+        
         result = self.db.execute(
-            text("""
-                SELECT ticker 
-                FROM "WorldStocks" 
-                WHERE price_updated_at IS NULL OR price_updated_at < :cutoff
-                ORDER BY price_updated_at ASC NULLS FIRST
+            text(f"""
+                SELECT s.ticker 
+                FROM {table} s
+                LEFT JOIN "StockPrices" sp ON s.ticker = sp.ticker AND sp.market = :market
+                WHERE sp.updated_at IS NULL OR sp.updated_at < :cutoff
+                ORDER BY sp.updated_at ASC NULLS FIRST
                 LIMIT :limit
             """),
-            {"cutoff": cutoff, "limit": limit}
+            {"cutoff": cutoff, "limit": limit, "market": market}
         )
         return [row[0] for row in result.fetchall()]
     
@@ -137,9 +145,12 @@ class StockPriceService:
         
         return results
     
-    def update_world_stock_prices(self, tickers: Optional[List[str]] = None) -> Tuple[int, int]:
+    def update_world_stock_prices(self, tickers: Optional[List[str]] = None, market: str = 'world') -> Tuple[int, int]:
         """
-        Update prices for world stocks.
+        Update prices for stocks in the StockPrices table.
+        Args:
+            tickers: List of tickers to update
+            market: 'world' or 'israeli'
         Returns (updated_count, failed_count)
         """
         if tickers is None:
@@ -149,7 +160,7 @@ class StockPriceService:
             logger.info("No tickers to update")
             return 0, 0
         
-        logger.info(f"Updating prices for {len(tickers)} world stocks")
+        logger.info(f"Updating prices for {len(tickers)} {market} stocks")
         
         # Fetch prices
         price_data = self.fetch_prices_batch(tickers)
@@ -160,22 +171,28 @@ class StockPriceService:
         
         for ticker, data in price_data.items():
             try:
+                # Use INSERT ... ON CONFLICT to upsert
                 self.db.execute(
                     text("""
-                        UPDATE "WorldStocks"
-                        SET current_price = :current_price,
-                            previous_close = :previous_close,
-                            price_change = :price_change,
-                            price_change_pct = :price_change_pct,
-                            day_high = :day_high,
-                            day_low = :day_low,
-                            volume = :volume,
-                            market_cap = :market_cap,
-                            price_updated_at = :updated_at
-                        WHERE ticker = :ticker
+                        INSERT INTO "StockPrices" 
+                        (ticker, market, current_price, previous_close, price_change, price_change_pct,
+                         day_high, day_low, volume, market_cap, updated_at, created_at)
+                        VALUES (:ticker, :market, :current_price, :previous_close, :price_change, :price_change_pct,
+                                :day_high, :day_low, :volume, :market_cap, :updated_at, :created_at)
+                        ON CONFLICT (ticker, market) DO UPDATE SET
+                            current_price = EXCLUDED.current_price,
+                            previous_close = EXCLUDED.previous_close,
+                            price_change = EXCLUDED.price_change,
+                            price_change_pct = EXCLUDED.price_change_pct,
+                            day_high = EXCLUDED.day_high,
+                            day_low = EXCLUDED.day_low,
+                            volume = EXCLUDED.volume,
+                            market_cap = EXCLUDED.market_cap,
+                            updated_at = EXCLUDED.updated_at
                     """),
                     {
                         "ticker": ticker,
+                        "market": market,
                         "current_price": data.get('current_price'),
                         "previous_close": data.get('previous_close'),
                         "price_change": data.get('price_change'),
@@ -184,7 +201,8 @@ class StockPriceService:
                         "day_low": data.get('day_low'),
                         "volume": data.get('volume'),
                         "market_cap": data.get('market_cap'),
-                        "updated_at": now
+                        "updated_at": now,
+                        "created_at": now
                     }
                 )
                 updated += 1
@@ -196,26 +214,31 @@ class StockPriceService:
         logger.info(f"Updated {updated} stocks, {failed} failed")
         return updated, failed
     
-    def update_holdings_values(self, user_id: Optional[str] = None) -> int:
+    def update_holdings_values(self, user_id: Optional[str] = None, market: str = 'world') -> int:
         """
-        Recalculate current_value for holdings based on latest stock prices.
+        Recalculate current_value for holdings based on latest stock prices from StockPrices table.
+        Args:
+            user_id: Optional user ID to filter by
+            market: 'world' or 'israeli'
         Returns number of holdings updated.
         """
-        query = """
-            UPDATE "WorldStockHolding" h
-            SET current_value = h.quantity * s.current_price,
-                last_price = s.current_price,
+        table = '"WorldStockHolding"' if market == 'world' else '"IsraeliStockHolding"'
+        query = f"""
+            UPDATE {table} h
+            SET current_value = h.quantity * sp.current_price,
+                last_price = sp.current_price,
                 updated_at = :now
-            FROM "WorldStocks" s
-            WHERE h.ticker = s.ticker
-            AND s.current_price IS NOT NULL
+            FROM "StockPrices" sp
+            WHERE h.ticker = sp.ticker
+            AND sp.market = :market
+            AND sp.current_price IS NOT NULL
         """
         
         if user_id:
             query += " AND h.user_id = :user_id"
-            result = self.db.execute(text(query), {"now": datetime.utcnow(), "user_id": user_id})
+            result = self.db.execute(text(query), {"now": datetime.utcnow(), "market": market, "user_id": user_id})
         else:
-            result = self.db.execute(text(query), {"now": datetime.utcnow()})
+            result = self.db.execute(text(query), {"now": datetime.utcnow(), "market": market})
         
         self.db.commit()
         return result.rowcount
@@ -225,13 +248,13 @@ class StockPriceService:
         result = self.db.execute(
             text("""
                 SELECT 
-                    COUNT(*) as total,
-                    COUNT(current_price) as with_price,
-                    COUNT(CASE WHEN price_updated_at > NOW() - INTERVAL '15 minutes' THEN 1 END) as fresh_15m,
-                    COUNT(CASE WHEN price_updated_at > NOW() - INTERVAL '24 hours' THEN 1 END) as fresh_24h,
-                    MIN(price_updated_at) as oldest_update,
-                    MAX(price_updated_at) as newest_update
-                FROM "WorldStocks"
+                    (SELECT COUNT(*) FROM "WorldStocks") as total,
+                    COUNT(sp.current_price) as with_price,
+                    COUNT(CASE WHEN sp.updated_at > NOW() - INTERVAL '15 minutes' THEN 1 END) as fresh_15m,
+                    COUNT(CASE WHEN sp.updated_at > NOW() - INTERVAL '24 hours' THEN 1 END) as fresh_24h,
+                    MIN(sp.updated_at) as oldest_update,
+                    MAX(sp.updated_at) as newest_update
+                FROM "StockPrices" sp
             """)
         )
         row = result.fetchone()
@@ -252,14 +275,14 @@ def update_active_stocks_prices(db: Session) -> Tuple[int, int]:
     return service.update_world_stock_prices()
 
 
-def update_catalog_stocks_prices(db: Session, limit: int = 500) -> Tuple[int, int]:
+def update_catalog_stocks_prices(db: Session, limit: int = 500, market: str = 'world') -> Tuple[int, int]:
     """Update prices for catalog stocks (batch job)"""
     service = StockPriceService(db)
-    tickers = service.get_stale_catalog_tickers(hours=24, limit=limit)
-    return service.update_world_stock_prices(tickers)
+    tickers = service.get_stale_catalog_tickers(hours=24, limit=limit, market=market)
+    return service.update_world_stock_prices(tickers, market=market)
 
 
-def recalculate_holdings_values(db: Session) -> int:
+def recalculate_holdings_values(db: Session, market: str = 'world') -> int:
     """Recalculate all holdings values"""
     service = StockPriceService(db)
-    return service.update_holdings_values()
+    return service.update_holdings_values(market=market)
