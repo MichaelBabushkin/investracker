@@ -28,6 +28,12 @@ export interface WorldStockHolding {
   source_pdf: string;
   last_updated: string;
   created_at: string;
+  
+  // Return metrics
+  unrealized_gain?: number;
+  unrealized_gain_pct?: number;
+  twr?: number;  // Time-Weighted Return
+  mwr?: number;  // Money-Weighted Return (IRR)
 }
 
 export interface WorldStockTransaction {

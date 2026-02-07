@@ -56,14 +56,16 @@ class StockPriceService:
         
         if market == 'world':
             table = '"WorldStocks"'
+            ticker_field = 's.ticker'
         else:
             table = '"IsraeliStocks"'
+            ticker_field = 's.symbol'  # Use symbol (display ticker) for Israeli stocks
         
         result = self.db.execute(
             text(f"""
-                SELECT s.ticker 
+                SELECT {ticker_field}
                 FROM {table} s
-                LEFT JOIN "StockPrices" sp ON s.ticker = sp.ticker AND sp.market = :market
+                LEFT JOIN "StockPrices" sp ON {ticker_field} = sp.ticker AND sp.market = :market
                 WHERE sp.updated_at IS NULL OR sp.updated_at < :cutoff
                 ORDER BY sp.updated_at ASC NULLS FIRST
                 LIMIT :limit
@@ -71,6 +73,18 @@ class StockPriceService:
             {"cutoff": cutoff, "limit": limit, "market": market}
         )
         return [row[0] for row in result.fetchall()]
+    
+    def _get_israeli_ticker_map(self, display_tickers: List[str]) -> dict:
+        """Get mapping of display ticker (symbol) -> yfinance ticker for Israeli stocks"""
+        result = self.db.execute(
+            text("""
+                SELECT symbol, yfinance_ticker 
+                FROM "IsraeliStocks" 
+                WHERE symbol = ANY(:tickers)
+            """),
+            {"tickers": display_tickers}
+        )
+        return {row[0]: row[1] for row in result.fetchall()}
     
     def fetch_prices_batch(self, tickers: List[str]) -> Dict[str, Dict]:
         """
@@ -149,7 +163,7 @@ class StockPriceService:
         """
         Update prices for stocks in the StockPrices table.
         Args:
-            tickers: List of tickers to update
+            tickers: List of display tickers to update
             market: 'world' or 'israeli'
         Returns (updated_count, failed_count)
         """
@@ -162,15 +176,28 @@ class StockPriceService:
         
         logger.info(f"Updating prices for {len(tickers)} {market} stocks")
         
-        # Fetch prices
-        price_data = self.fetch_prices_batch(tickers)
+        # For Israeli stocks, map display tickers to yfinance tickers
+        if market == 'israeli':
+            ticker_map = self._get_israeli_ticker_map(tickers)  # display -> yfinance
+            yfinance_tickers = list(ticker_map.values())
+            reverse_map = {v: k for k, v in ticker_map.items()}  # yfinance -> display
+        else:
+            ticker_map = {t: t for t in tickers}
+            yfinance_tickers = tickers
+            reverse_map = ticker_map
+        
+        # Fetch prices using yfinance tickers
+        price_data = self.fetch_prices_batch(yfinance_tickers)
         
         updated = 0
         failed = 0
         now = datetime.utcnow()
         
-        for ticker, data in price_data.items():
+        for yf_ticker, data in price_data.items():
             try:
+                # Get display ticker for storage
+                display_ticker = reverse_map.get(yf_ticker, yf_ticker)
+                
                 # Use INSERT ... ON CONFLICT to upsert
                 self.db.execute(
                     text("""
@@ -191,7 +218,7 @@ class StockPriceService:
                             updated_at = EXCLUDED.updated_at
                     """),
                     {
-                        "ticker": ticker,
+                        "ticker": display_ticker,  # Store with display ticker
                         "market": market,
                         "current_price": data.get('current_price'),
                         "previous_close": data.get('previous_close'),
@@ -207,7 +234,7 @@ class StockPriceService:
                 )
                 updated += 1
             except Exception as e:
-                logger.error(f"Failed to update {ticker}: {e}")
+                logger.error(f"Failed to update {yf_ticker}: {e}")
                 failed += 1
         
         self.db.commit()

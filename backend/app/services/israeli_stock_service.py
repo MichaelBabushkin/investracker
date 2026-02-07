@@ -1606,7 +1606,8 @@ class IsraeliStockService:
             query = '''
                 SELECT h.id, h.security_no, h.symbol, h.company_name, h.quantity, 
                        h.last_price, h.current_value, h.holding_date, 
-                       h.currency, h.purchase_cost, s.logo_svg
+                       h.currency, h.purchase_cost, s.logo_svg,
+                       h.unrealized_gain, h.unrealized_gain_pct, h.twr, h.mwr
                 FROM "IsraeliStockHolding" h
                 LEFT JOIN "IsraeliStocks" s ON h.security_no = s.security_no
                 WHERE h.user_id = %s AND h.quantity > 0
@@ -1655,7 +1656,11 @@ class IsraeliStockService:
                     'overall_portfolio_percentage': round(portfolio_percentage, 2),
                     'currency': row[8],
                     'holding_date': row[7].isoformat() if row[7] else None,
-                    'logo_svg': row[10] if len(row) > 10 else None
+                    'logo_svg': row[10] if len(row) > 10 else None,
+                    'unrealized_gain': float(row[11]) if row[11] else None,
+                    'unrealized_gain_pct': float(row[12]) if row[12] else None,
+                    'twr': float(row[13]) if row[13] else None,
+                    'mwr': float(row[14]) if row[14] else None
                 })
             
             cursor.close()

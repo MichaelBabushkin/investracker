@@ -1354,3 +1354,35 @@ async def delete_report(
         "message": f"Report '{filename}' deleted successfully",
         "transactions_deleted": transactions_deleted
     }
+
+
+@router.post("/holdings/refresh-returns")
+async def refresh_israeli_holdings_returns(
+    user_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Refresh return calculations (TWR, MWR, unrealized gains) for all Israeli stock holdings
+    """
+    try:
+        from app.services.returns_calculator import ReturnsCalculator
+        
+        target_user_id = user_id or current_user.id
+        
+        calculator = ReturnsCalculator(db)
+        results = calculator.update_all_user_returns(target_user_id, market='israeli')
+        
+        return {
+            "success": True,
+            "message": f"Updated returns for {results['updated']} Israeli holdings",
+            "updated": results['updated'],
+            "failed": results['failed'],
+            "errors": results['errors']
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error refreshing Israeli returns: {str(e)}"
+        )

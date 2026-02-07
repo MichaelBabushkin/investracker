@@ -20,6 +20,7 @@ class IsraeliStock(Base):
     id = Column(Integer, primary_key=True, index=True)
     security_no = Column(String(20), unique=True, nullable=False, index=True)
     symbol = Column(String(10), nullable=False, index=True)
+    yfinance_ticker = Column(String(20), nullable=False, index=True)  # Symbol with .TA suffix for yfinance
     name = Column(String(100), nullable=False)
     # URL source for the logo (e.g., TradingView S3), stored for traceability
     logo_url = Column(String(255), nullable=True)
@@ -47,7 +48,7 @@ class IsraeliStock(Base):
     )
     
     def __repr__(self):
-        return f"<IsraeliStock(security_no='{self.security_no}', symbol='{self.symbol}', name='{self.name}', index='{self.index_name}')>"
+        return f"<IsraeliStock(security_no='{self.security_no}', symbol='{self.symbol}', yfinance='{self.yfinance_ticker}', name='{self.name}', index='{self.index_name}')>"
 
 
 class IsraeliStockHolding(Base):
@@ -67,6 +68,13 @@ class IsraeliStockHolding(Base):
     currency = Column(String(3), default='ILS')
     holding_date = Column(Date)  # Date from PDF header
     source_pdf = Column(String(255), nullable=False)  # Original PDF filename
+    
+    # Return metrics
+    unrealized_gain = Column(DECIMAL(18, 4), nullable=True)  # current_value - purchase_cost
+    unrealized_gain_pct = Column(DECIMAL(10, 4), nullable=True)  # (unrealized_gain / purchase_cost) * 100
+    twr = Column(DECIMAL(10, 4), nullable=True)  # Time-Weighted Return
+    mwr = Column(DECIMAL(10, 4), nullable=True)  # Money-Weighted Return (IRR)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Constraints
