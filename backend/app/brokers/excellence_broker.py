@@ -233,28 +233,22 @@ class ExcellenceBrokerParser(BaseBrokerParser):
         transaction_date = None
         transaction_time = None
         
-        # For deposits, prefer the execution date (rightmost column) over transaction date
-        if is_deposit and len(row_values) >= 12:
+        # Priority 1: Execution date (Col 12) - this is the actual transaction date
+        # Settlement date (Col 1) is when money clears, not when transaction occurred
+        if len(row_values) >= 12:
             exec_date = str(row_values[self.COL_EXECUTION_DATE]).strip()
             date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', exec_date)
             if date_match:
                 transaction_date = date_match.group(1)
+                print(f"DEBUG: Using execution date from Col 12: {transaction_date}")
         
-        # If no date found yet, check Column 1: Transaction date (DD/MM/YY format)
+        # Priority 2: Settlement date (Col 1) - only if execution date not found
         if not transaction_date and len(row_values) > self.COL_DATE:
             date_candidate = str(row_values[self.COL_DATE]).strip()
             date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', date_candidate)
             if date_match:
                 transaction_date = date_match.group(1)
-        
-        # Column 11 or rightmost: Execution date (also DD/MM/YY) - for non-deposits
-        if not transaction_date and len(row_values) >= 12:
-            exec_date = str(row_values[self.COL_EXECUTION_DATE]).strip()
-            # Use execution date if no transaction date found
-            if not transaction_date:
-                date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', exec_date)
-                if date_match:
-                    transaction_date = date_match.group(1)
+                print(f"DEBUG: Using settlement date from Col 1: {transaction_date}")
         
         # Fallback: scan all columns for date
         if not transaction_date:
@@ -263,6 +257,7 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                 date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', value_str)
                 if date_match:
                     transaction_date = date_match.group(1)
+                    print(f"DEBUG: Using fallback date: {transaction_date}")
                     break
         
         # Extract numeric values

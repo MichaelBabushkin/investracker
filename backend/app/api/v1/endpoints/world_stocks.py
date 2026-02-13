@@ -33,11 +33,14 @@ router = APIRouter()
 @router.post("/upload-pdf", response_model=WorldStockUploadResponse)
 async def upload_and_analyze_world_stock_pdf(
     file: UploadFile = File(...),
+    broker: str = Query("excellence", description="Broker ID (excellence for Hebrew CSV format, or other US brokers)"),
     user_id: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
     """
     Upload and analyze investment PDF for world/US broker stocks
+    - excellence: Hebrew CSV format (Excellence broker)
+    - other: English table format (US brokers)
     """
     # Import WorldStockService locally to avoid circular imports
     from app.services.world_stock_service import WorldStockService
@@ -54,12 +57,12 @@ async def upload_and_analyze_world_stock_pdf(
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # Initialize service
-        service = WorldStockService()
+        # Initialize service with broker parameter
+        service = WorldStockService(broker=broker)
         
         # Process PDF
         target_user_id = user_id or current_user.id
-        result = service.process_pdf_report(temp_path, target_user_id)
+        result = service.process_pdf_report(temp_path, target_user_id, broker=broker)
         
         return WorldStockUploadResponse(**result)
         

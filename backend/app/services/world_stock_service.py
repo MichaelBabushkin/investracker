@@ -7,6 +7,8 @@ import os
 import sys
 import re
 import json
+import uuid
+import pandas as pd
 import pdfplumber
 import psycopg2
 from datetime import datetime
@@ -16,6 +18,10 @@ from typing import List, Dict, Tuple, Optional
 
 # Add the project root to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+# Import broker parsers
+from app.brokers import get_broker_parser
+from app.brokers.base_broker import BaseBrokerParser
 
 # Import SQLAlchemy models
 try:
@@ -35,7 +41,7 @@ except ImportError:
 class WorldStockService:
     """Service for processing world stock data from PDF reports"""
     
-    def __init__(self):
+    def __init__(self, broker: str = 'excellence'):
         load_dotenv()
         self.db_url = os.getenv('DATABASE_URL')
         self.db_config = {
@@ -45,6 +51,10 @@ class WorldStockService:
             'user': os.getenv('DB_USER', 'postgres'),
             'password': os.getenv('DB_PASSWORD', 'postgres')
         }
+        
+        # Get broker-specific parser
+        self.broker_name = broker
+        self.broker_parser: BaseBrokerParser = get_broker_parser(broker)
         
     def create_database_connection(self):
         """Create and return a database connection"""
@@ -941,6 +951,323 @@ class WorldStockService:
                 'errors': [str(e)]
             }
     
+    def extract_world_stocks_from_excellence_csv(self, csv_files: List[str], pdf_name: str, holding_date: Optional[datetime]) -> List[Dict]:
+        """Extract ONLY world stock transactions from Excellence broker CSV files (Hebrew format)
+        
+        Args:
+            csv_files: List of CSV file paths
+            pdf_name: PDF filename for reference
+            holding_date: Date from PDF
+            
+        Returns:
+            List of world stock transaction dictionaries
+        """
+        all_world_transactions = []
+        
+        # Hebrew transaction type prefixes that might be merged into stock name
+        hebrew_prefixes = [
+            'ביד/פה', 'סמ/שמ', 'למע/שמ', 'חסמ/שמ', 'ל"וח/ק', 'ל"וח/מ',
+            'הפ/דיב', 'מש/מסח', 'מש/עמל', 'ק/חו"ל', 'מ/חו"ל',
+            'ביד/', 'חסמ/', 'ח"טמ.ע', 'סמ/', 'הפ/', 'מש/',
+            'הינק', 'הריכמ', 'ףיצר/ק', 'ףיצר/מ',
+        ]
+        
+        for csv_file in csv_files:
+            try:
+                df = pd.read_csv(csv_file, encoding='utf-8')
+                filename = os.path.basename(csv_file)
+                
+                # Check if this is the transactions table
+                csv_type = self.broker_parser.determine_table_type(df, csv_file)
+                
+                if csv_type != 'transactions':
+                    continue
+                
+                print(f"DEBUG: {filename} - Scanning for world stocks...")
+                
+                # Two-pass approach: first collect all transactions, then process commissions
+                all_rows = []
+                
+                # First pass: collect all world stock rows
+                for idx, row in df.iterrows():
+                    try:
+                        # Extract security number and name from specific columns
+                        security_no_raw = row.iloc[10] if len(row) > 10 else None
+                        name_raw = row.iloc[9] if len(row) > 9 else None
+                        
+                        if pd.isna(security_no_raw) or pd.isna(name_raw):
+                            continue
+                        
+                        security_no = str(security_no_raw).replace('.0', '').strip()
+                        name = str(name_raw).strip()
+                        
+                        # Clean the name by removing Hebrew transaction type prefixes
+                        for prefix in hebrew_prefixes:
+                            if name.startswith(prefix):
+                                name = name[len(prefix):].strip()
+                                break
+                        
+                        # Skip if security_no is 0 or empty, or name is too short
+                        if not security_no or security_no == '0' or len(name) < 2:
+                            continue
+                        
+                        # Check if it's a world stock (NOT Israeli)
+                        is_world = self.broker_parser._is_world_stock(name, security_no)
+                        
+                        if is_world:
+                            all_rows.append({
+                                'row': row,
+                                'security_no': security_no,
+                                'name': name,
+                                'pdf_name': pdf_name,
+                                'holding_date': holding_date
+                            })
+                    except Exception as e:
+                        continue
+                
+                # Second pass: process transactions and build lookup dictionary
+                transactions_by_stock = {}
+                commission_rows = []
+                tax_rows = []
+                
+                for row_data in all_rows:
+                    try:
+                        transaction = self.broker_parser.parse_transaction_row(
+                            row_data['row'], row_data['security_no'], 
+                            row_data['security_no'], row_data['name'], 
+                            row_data['pdf_name'], row_data['holding_date']
+                        )
+                        
+                        if not transaction or not transaction.get('is_world_stock'):
+                            continue
+                        
+                        txn_type = transaction.get('transaction_type', 'UNKNOWN')
+                        
+                        # Store commission rows for later processing
+                        if txn_type == 'COMMISSION':
+                            commission_rows.append({
+                                'transaction': transaction,
+                                'name': row_data['name']
+                            })
+                            continue
+                        
+                        # Store TAX rows for later processing
+                        if txn_type == 'TAX':
+                            tax_rows.append({
+                                'transaction': transaction,
+                                'name': row_data['name']
+                            })
+                            continue
+                        
+                        # Fix amounts for BUY/SELL transactions
+                        if txn_type in ('BUY', 'SELL'):
+                            quantity = transaction.get('quantity', 0)
+                            price = transaction.get('price', 0)
+                            if quantity and price:
+                                transaction['amount'] = abs(quantity * price)
+                        
+                        # Fix dividend amounts - quantity field contains the dividend amount
+                        elif txn_type == 'DIVIDEND':
+                            dividend_amount = transaction.get('quantity', 0)
+                            if dividend_amount:
+                                transaction['amount'] = float(dividend_amount)
+                                transaction['total_value'] = float(dividend_amount)
+                                # Clear quantity for dividends
+                                transaction['quantity'] = None
+                        
+                        # Normalize field names for database compatibility
+                        if 'symbol' in transaction and 'ticker' not in transaction:
+                            transaction['ticker'] = transaction['symbol']
+                        if 'name' in transaction and 'stock_name' not in transaction:
+                            transaction['stock_name'] = transaction['name']
+                        
+                        # Store transaction by name for commission matching
+                        stock_name = row_data['name']
+                        if stock_name not in transactions_by_stock:
+                            transactions_by_stock[stock_name] = []
+                        transactions_by_stock[stock_name].append(transaction)
+                        all_world_transactions.append(transaction)
+                    
+                    except Exception as e:
+                        continue
+                
+                # Third pass: process commission rows and match to transactions
+                # Key insight: Different Hebrew types mean different things:
+                # - 'חסמ/שמ' = dividend withholding tax (should go to DIVIDEND.tax)
+                # - 'מש/עמל' or 'למע/שמ' = trading commission (should go to BUY/SELL.commission)
+                for comm_row in commission_rows:
+                    comm_transaction = comm_row['transaction']
+                    comm_name = comm_row['name']
+                    comm_amt = abs(comm_transaction.get('quantity', 0.0) or 0.0)
+                    raw_hebrew_type = comm_transaction.get('raw_hebrew_type', '')
+                    
+                    # Determine if this is a dividend withholding tax or trading commission
+                    is_dividend_tax = raw_hebrew_type in ('חסמ/שמ',)  # These are withholding tax for dividends
+                    is_trading_commission = raw_hebrew_type in ('מש/עמל', 'למע/שמ', 'עמל')  # These are trading fees
+                    
+                    if comm_amt > 0:
+                        matched = False
+                        target_txn = None
+                        
+                        # Try exact match first
+                        if comm_name in transactions_by_stock:
+                            txn_list = transactions_by_stock[comm_name]
+                            # Match based on Hebrew type:
+                            # - Dividend tax (חסמ/שמ) should match DIVIDEND
+                            # - Trading commission (מש/עמל, למע/שמ) should match BUY/SELL
+                            if is_dividend_tax:
+                                # Look for DIVIDEND transactions
+                                for txn in txn_list:
+                                    if txn.get('transaction_type') == 'DIVIDEND':
+                                        target_txn = txn
+                                        break
+                            else:
+                                # Look for BUY/SELL transactions (trading commission)
+                                for txn in txn_list:
+                                    if txn.get('transaction_type') in ('BUY', 'SELL'):
+                                        target_txn = txn
+                                        break
+                        
+                        # If no match found, try partial matching
+                        if not target_txn:
+                            # Try partial matching - check if stock ticker appears in either name
+                            for stored_name, stored_txn_list in transactions_by_stock.items():
+                                # Extract ticker symbols
+                                stored_tickers = re.findall(r'\b([A-Z]{2,5})\b|\(([A-Z]+)\)', stored_name)
+                                stored_tickers = [t[0] or t[1] for t in stored_tickers if (t[0] or t[1]) not in ('US', 'UK', 'JP')]
+                                
+                                # For commission names like "F US", extract the non-US part
+                                comm_parts = comm_name.split()
+                                if len(comm_parts) == 2 and comm_parts[1] in ('US', 'UK', 'JP') and len(comm_parts[0]) == 1:
+                                    current_tickers = [comm_parts[0]]
+                                else:
+                                    current_tickers = re.findall(r'\b([A-Z]{2,5})\b|\(([A-Z]+)\)', comm_name)
+                                    current_tickers = [t[0] or t[1] for t in current_tickers if (t[0] or t[1]) not in ('US', 'UK', 'JP')]
+                                
+                                # Check if any ticker matches
+                                if stored_tickers and current_tickers:
+                                    if any(t in current_tickers for t in stored_tickers):
+                                        # Match based on Hebrew type
+                                        if is_dividend_tax:
+                                            for txn in stored_txn_list:
+                                                if txn.get('transaction_type') == 'DIVIDEND':
+                                                    target_txn = txn
+                                                    break
+                                        else:
+                                            for txn in stored_txn_list:
+                                                if txn.get('transaction_type') in ('BUY', 'SELL'):
+                                                    target_txn = txn
+                                                    break
+                                        if target_txn:
+                                            break
+                        
+                        # Apply to the correct field based on Hebrew type
+                        if target_txn:
+                            if is_dividend_tax:
+                                current_tax = target_txn.get('tax', 0.0) or 0.0
+                                target_txn['tax'] = current_tax + comm_amt
+                            else:
+                                current_comm = target_txn.get('commission', 0.0) or 0.0
+                                target_txn['commission'] = current_comm + comm_amt
+                            matched = True
+                
+                # Fourth pass: process tax rows and match to dividends
+                for tax_row in tax_rows:
+                    tax_transaction = tax_row['transaction']
+                    tax_name = tax_row['name']
+                    tax_amt = abs(tax_transaction.get('quantity', 0.0) or 0.0)
+                    
+                    if tax_amt > 0:
+                        # Try exact match first
+                        matched = False
+                        if tax_name in transactions_by_stock:
+                            txn_list = transactions_by_stock[tax_name]
+                            # Only add tax to DIVIDEND transactions
+                            for target_txn in txn_list:
+                                if target_txn.get('transaction_type') == 'DIVIDEND':
+                                    current_tax = target_txn.get('tax', 0.0) or 0.0
+                                    target_txn['tax'] = current_tax + tax_amt
+                                    matched = True
+                                    break
+                        else:
+                            # Try partial matching for dividends only
+                            for stored_name, stored_txn_list in transactions_by_stock.items():
+                                stored_tickers = re.findall(r'\b([A-Z]{2,5})\b|\(([A-Z]+)\)', stored_name)
+                                stored_tickers = [t[0] or t[1] for t in stored_tickers if (t[0] or t[1]) not in ('US', 'UK', 'JP')]
+                                
+                                tax_parts = tax_name.split()
+                                if len(tax_parts) == 2 and tax_parts[1] in ('US', 'UK', 'JP') and len(tax_parts[0]) == 1:
+                                    current_tickers = [tax_parts[0]]
+                                else:
+                                    current_tickers = re.findall(r'\b([A-Z]{2,5})\b|\(([A-Z]+)\)', tax_name)
+                                    current_tickers = [t[0] or t[1] for t in current_tickers if (t[0] or t[1]) not in ('US', 'UK', 'JP')]
+                                
+                                if stored_tickers and current_tickers:
+                                    if any(t in current_tickers for t in stored_tickers):
+                                        for target_txn in stored_txn_list:
+                                            if target_txn.get('transaction_type') == 'DIVIDEND':
+                                                current_tax = target_txn.get('tax', 0.0) or 0.0
+                                                target_txn['tax'] = current_tax + tax_amt
+                                                matched = True
+                                                break
+                                        if matched:
+                                            break
+                
+                # Update total_value for transactions with commissions
+                for transaction in all_world_transactions:
+                    commission = transaction.get('commission', 0) or 0
+                    amount = transaction.get('amount', 0) or 0
+                    txn_type = transaction.get('transaction_type')
+                    
+                    if commission and amount and txn_type in ('BUY', 'SELL'):
+                        if txn_type == 'BUY':
+                            transaction['total_value'] = amount + commission
+                        else:  # SELL
+                            transaction['total_value'] = amount - commission
+                
+                if all_world_transactions:
+                    print(f"DEBUG: {filename} - Extracted {len(all_world_transactions)} world stock transactions")
+                    
+            except Exception as e:
+                print(f"Error scanning {csv_file} for world stocks: {e}")
+                continue
+        
+        return all_world_transactions
+    
+    def extract_tables_from_pdf(self, pdf_path: str) -> List[List[List[str]]]:
+        """Extract all tables from PDF"""
+        try:
+            with pdfplumber.open(pdf_path) as pdf:
+                tables = []
+                for page in pdf.pages:
+                    page_tables = page.extract_tables()
+                    if page_tables:
+                        tables.extend(page_tables)
+                return tables
+        except Exception as e:
+            print(f"Error extracting tables from PDF: {e}")
+            return []
+    
+    def save_tables_to_csv(self, tables: List[List[List[str]]], output_dir: str) -> List[str]:
+        """Save extracted tables to CSV files"""
+        os.makedirs(output_dir, exist_ok=True)
+        csv_files = []
+        
+        for i, table in enumerate(tables):
+            if not table:
+                continue
+            csv_file = os.path.join(output_dir, f'table_{i+1}.csv')
+            try:
+                with open(csv_file, 'w', encoding='utf-8', newline='') as f:
+                    import csv
+                    writer = csv.writer(f)
+                    writer.writerows(table)
+                csv_files.append(csv_file)
+            except Exception as e:
+                print(f"Error saving table {i+1} to CSV: {e}")
+        
+        return csv_files
+    
     def process_pdf_report(self, pdf_path: str, user_id: str, broker: str = 'excellence') -> Dict:
         """Main function to process a PDF world stock report and save to pending transactions"""
         try:
@@ -950,20 +1277,60 @@ class WorldStockService:
             
             print(f"\n{'='*80}")
             print(f"Processing PDF: {pdf_name}")
+            print(f"Broker: {broker}")
             print(f"Batch ID: {batch_id}")
             print(f"{'='*80}\n")
             
-            print(f"Step 1: Extracting holdings...")
-            holdings = self.extract_holdings_from_tables(pdf_path, pdf_name)
-            print(f"  Found {len(holdings)} holdings")
+            holdings = []
+            transactions = []
+            dividends = []
             
-            print(f"Step 2: Extracting transactions...")
-            transactions = self.extract_transactions_from_tables(pdf_path, pdf_name)
-            print(f"  Found {len(transactions)} transactions")
-            
-            print(f"Step 3: Extracting dividends...")
-            dividends = self.extract_dividends_from_tables(pdf_path, pdf_name)
-            print(f"  Found {len(dividends)} dividends")
+            # Detect format: Excellence broker uses Hebrew CSV format
+            if broker == 'excellence':
+                print(f"Detected Excellence broker format (Hebrew CSV)")
+                print(f"Step 1: Extracting tables from PDF...")
+                tables = self.extract_tables_from_pdf(pdf_path)
+                print(f"  Found {len(tables)} tables")
+                
+                if not tables:
+                    return {'success': False, 'error': 'No tables found in PDF'}
+                
+                print(f"Step 2: Saving tables to CSV...")
+                import shutil
+                temp_dir = f"temp_csv_world_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                csv_files = self.save_tables_to_csv(tables, temp_dir)
+                print(f"  Saved {len(csv_files)} CSV files")
+                
+                try:
+                    print(f"Step 3: Extracting WORLD stocks only from CSV...")
+                    holding_date = None  # TODO: Extract date from PDF if needed
+                    all_transactions = self.extract_world_stocks_from_excellence_csv(csv_files, pdf_name, holding_date)
+                    print(f"  Found {len(all_transactions)} world stock transactions")
+                    
+                    # Separate dividends from transactions
+                    dividends = [t for t in all_transactions if t.get('transaction_type') == 'DIVIDEND']
+                    transactions = [t for t in all_transactions if t.get('transaction_type') != 'DIVIDEND']
+                    
+                    print(f"  Transactions: {len(transactions)}, Dividends: {len(dividends)}")
+                    
+                finally:
+                    # Clean up temp files
+                    if os.path.exists(temp_dir):
+                        shutil.rmtree(temp_dir)
+            else:
+                # US broker format with English tables
+                print(f"Detected US broker format (English tables)")
+                print(f"Step 1: Extracting holdings...")
+                holdings = self.extract_holdings_from_tables(pdf_path, pdf_name)
+                print(f"  Found {len(holdings)} holdings")
+                
+                print(f"Step 2: Extracting transactions...")
+                transactions = self.extract_transactions_from_tables(pdf_path, pdf_name)
+                print(f"  Found {len(transactions)} transactions")
+                
+                print(f"Step 3: Extracting dividends...")
+                dividends = self.extract_dividends_from_tables(pdf_path, pdf_name)
+                print(f"  Found {len(dividends)} dividends")
             
             print(f"Step 4: Saving to pending transactions...")
             save_result = self.save_to_pending_transactions(
@@ -998,7 +1365,7 @@ class WorldStockService:
                 'invalid_count': save_result['invalid_count'],
                 'validation_warnings': save_result['warnings'],
                 'validation_errors': save_result['errors'],
-                'message': f"Extracted {save_result['saved_count']} transactions. " +
+                'message': f"Extracted {save_result['saved_count']} world stock transactions. " +
                           (f"{save_result['invalid_count']} have validation issues. " if save_result['invalid_count'] > 0 else "") +
                           "Please review and approve them."
             }
