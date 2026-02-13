@@ -85,7 +85,11 @@ export default function WorldStockHoldings({
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "N/A";
-    return new Date(dateStr).toLocaleDateString("en-US");
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
   };
 
   // Calculate metrics
@@ -99,6 +103,10 @@ export default function WorldStockHoldings({
     totalValue > 0
       ? (totalUnrealizedPL / (totalValue - totalUnrealizedPL)) * 100
       : 0;
+  
+  // TODO: Calculate from actual realized transactions (dividends, sales)
+  const totalRealizedPL = 0;
+  const totalCash = 0;
 
   // Prepare pie chart data
   const pieChartData = Array.isArray(holdings)
@@ -251,7 +259,7 @@ export default function WorldStockHoldings({
 
       {/* Summary Cards */}
       {Array.isArray(holdings) && holdings.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-lg shadow-md">
             <div className="flex items-center">
               <BuildingOfficeIcon className="h-8 w-8 opacity-80" />
@@ -315,6 +323,40 @@ export default function WorldStockHoldings({
                 <p className="text-sm opacity-80">Return %</p>
                 <p className="text-2xl font-bold">
                   {totalUnrealizedPLPercent.toFixed(2)}%
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className={`bg-gradient-to-r ${
+              totalRealizedPL >= 0
+                ? "from-teal-500 to-teal-600"
+                : "from-orange-500 to-orange-600"
+            } text-white p-6 rounded-lg shadow-md`}
+          >
+            <div className="flex items-center">
+              {totalRealizedPL >= 0 ? (
+                <ArrowUpIcon className="h-8 w-8 opacity-80" />
+              ) : (
+                <ArrowDownIcon className="h-8 w-8 opacity-80" />
+              )}
+              <div className="ml-3">
+                <p className="text-sm opacity-80">Realized P/L</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(totalRealizedPL)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-gray-700 to-gray-800 text-white p-6 rounded-lg shadow-md">
+            <div className="flex items-center">
+              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <div className="ml-3">
+                <p className="text-sm opacity-80">Cash</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(totalCash)}
                 </p>
               </div>
             </div>
