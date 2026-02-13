@@ -1,7 +1,7 @@
 """add_education_progress_table
 
 Revision ID: 2026_02_13_2200
-Revises: 2026_02_07_1930
+Revises: b7c8d9e0f1g2
 Create Date: 2026-02-13 22:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import JSON
 
 # revision identifiers, used by Alembic.
 revision = '2026_02_13_2200'
-down_revision = '2026_02_07_1930'
+down_revision = 'b7c8d9e0f1g2'
 branch_labels = None
 depends_on = None
 

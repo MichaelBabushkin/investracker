@@ -83,10 +83,14 @@ export function getProgress(): EducationProgress {
 // Update progress on server
 async function syncProgressToServer(progress: EducationProgress): Promise<void> {
   const token = getAuthToken();
-  if (!token) return;
+  if (!token) {
+    console.log("No auth token, skipping server sync");
+    return;
+  }
 
   try {
-    await fetch(`${API_BASE_URL}/education/progress`, {
+    console.log("Syncing progress to server:", progress);
+    const response = await fetch(`${API_BASE_URL}/education/progress`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -98,6 +102,12 @@ async function syncProgressToServer(progress: EducationProgress): Promise<void> 
         quiz_scores: progress.quizScores,
       }),
     });
+
+    if (response.ok) {
+      console.log("Progress synced successfully");
+    } else {
+      console.error("Failed to sync progress:", response.status, await response.text());
+    }
   } catch (error) {
     console.error("Failed to sync progress to server:", error);
   }
@@ -105,7 +115,7 @@ async function syncProgressToServer(progress: EducationProgress): Promise<void> 
 
 export function saveProgress(progress: EducationProgress): void {
   saveLocalProgress(progress);
-  syncProgressToServer(progress); // Sync to backend
+  syncProgressToServer(progress); // Sync to backend (fire and forget)
 }
 
 export function markTopicComplete(topicId: string): EducationProgress {
