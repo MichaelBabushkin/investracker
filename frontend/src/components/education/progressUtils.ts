@@ -7,12 +7,13 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/a
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    const auth = localStorage.getItem("auth");
-    if (auth) {
-      const parsed = JSON.parse(auth);
-      return parsed.token || null;
-    }
-  } catch {}
+    // Token is stored directly as "token" in localStorage
+    const token = localStorage.getItem("token");
+    console.log("Checking token in localStorage:", token ? "✅ found" : "❌ not found");
+    return token;
+  } catch (e) {
+    console.error("Error getting auth token:", e);
+  }
   return null;
 }
 
@@ -114,15 +115,20 @@ async function syncProgressToServer(progress: EducationProgress): Promise<void> 
 }
 
 export function saveProgress(progress: EducationProgress): void {
+  console.log("💾 saveProgress called");
   saveLocalProgress(progress);
+  console.log("💾 Local progress saved, now syncing to server...");
   syncProgressToServer(progress); // Sync to backend (fire and forget)
+  console.log("💾 syncProgressToServer initiated");
 }
 
 export function markTopicComplete(topicId: string): EducationProgress {
+  console.log("📚 markTopicComplete called for:", topicId);
   const progress = getLocalProgress();
   if (!progress.completed.includes(topicId)) {
     progress.completed.push(topicId);
   }
+  console.log("📚 Calling saveProgress with:", progress);
   saveProgress(progress);
   return progress;
 }
