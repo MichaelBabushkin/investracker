@@ -1537,21 +1537,36 @@ class IsraeliStockService:
     # Tables are now managed by SQLAlchemy models only
     
     def get_user_holdings(self, user_id: str, limit: Optional[int] = None) -> List[Dict]:
-        """Get user's current Israeli stock holdings"""
+        """Get user's current Israeli stock holdings with real-time prices from StockPrices table"""
         try:
             conn = self.create_database_connection()
             cursor = conn.cursor()
             
-            # Get holdings with quantity > 0 (one per stock now)
+            # Get holdings with quantity > 0, join with StockPrices for current prices
             query = '''
                 SELECT h.id, h.security_no, h.symbol, h.company_name, h.quantity, 
-                       h.last_price, h.current_value, h.holding_date, 
+                       COALESCE(sp.current_price, h.last_price) as last_price,
+                       CASE 
+                           WHEN sp.current_price IS NOT NULL THEN h.quantity * sp.current_price
+                           ELSE h.current_value
+                       END as current_value,
+                       h.holding_date, 
                        h.currency, h.purchase_cost, s.logo_svg,
-                       h.unrealized_gain, h.unrealized_gain_pct, h.twr, h.mwr
+                       CASE 
+                           WHEN sp.current_price IS NOT NULL THEN (h.quantity * sp.current_price) - h.purchase_cost
+                           ELSE h.unrealized_gain
+                       END as unrealized_gain,
+                       CASE 
+                           WHEN sp.current_price IS NOT NULL AND h.purchase_cost > 0 
+                           THEN (((h.quantity * sp.current_price) - h.purchase_cost) / h.purchase_cost) * 100
+                           ELSE h.unrealized_gain_pct
+                       END as unrealized_gain_pct,
+                       h.twr, h.mwr
                 FROM "IsraeliStockHolding" h
                 LEFT JOIN "IsraeliStocks" s ON h.security_no = s.security_no
+                LEFT JOIN "StockPrices" sp ON h.symbol = sp.ticker AND sp.market = 'israeli'
                 WHERE h.user_id = %s AND h.quantity > 0
-                ORDER BY h.symbol
+                ORDER BY current_value DESC NULLS LAST
             '''
             
             params = (user_id,)
@@ -1574,7 +1589,7 @@ class IsraeliStockService:
             for row in rows:
                 quantity = float(row[4]) if row[4] else 0
                 last_price = float(row[5]) if row[5] else 0
-                current_value = quantity * last_price  # Recalculate to ensure accuracy
+                current_value = float(row[6]) if row[6] else 0  # Use calculated value from query
                 purchase_cost = float(row[9]) if row[9] else 0
                 
                 # Calculate average purchase price per share

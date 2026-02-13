@@ -550,30 +550,64 @@ def refresh_active_stock_prices(
 ):
     """
     Manually trigger price update for stocks in user holdings (Admin only)
-    This updates Tier 1 stocks (actively held by users)
+    This updates Tier 1 stocks (actively held by users) for both World and Israeli markets
     """
     from app.services.stock_price_service import StockPriceService
+    import logging
+    logger = logging.getLogger(__name__)
     
-    service = StockPriceService(db)
-    tickers = service.get_active_tickers()
-    
-    if not tickers:
+    try:
+        service = StockPriceService(db)
+        
+        # Get active tickers for both markets
+        world_tickers = service.get_active_tickers(market='world')
+        israeli_tickers = service.get_active_tickers(market='israeli')
+        
+        logger.info(f"Found {len(world_tickers)} world tickers and {len(israeli_tickers)} israeli tickers")
+        
+        if not world_tickers and not israeli_tickers:
+            return {
+                "message": "No active holdings found",
+                "updated": 0,
+                "failed": 0
+            }
+        
+        total_updated = 0
+        total_failed = 0
+        
+        # Update world stocks
+        if world_tickers:
+            logger.info(f"Updating {len(world_tickers)} world stocks...")
+            world_updated, world_failed = service.update_world_stock_prices(world_tickers, market='world')
+            total_updated += world_updated
+            total_failed += world_failed
+            logger.info(f"World stocks: {world_updated} updated, {world_failed} failed")
+        
+        # Update Israeli stocks
+        if israeli_tickers:
+            logger.info(f"Updating {len(israeli_tickers)} Israeli stocks...")
+            israeli_updated, israeli_failed = service.update_world_stock_prices(israeli_tickers, market='israeli')
+            total_updated += israeli_updated
+            total_failed += israeli_failed
+            logger.info(f"Israeli stocks: {israeli_updated} updated, {israeli_failed} failed")
+        
+        # Recalculate holdings for both markets
+        world_holdings_updated = service.update_holdings_values(market='world')
+        israeli_holdings_updated = service.update_holdings_values(market='israeli')
+        logger.info(f"Holdings recalculated: {world_holdings_updated} world, {israeli_holdings_updated} israeli")
+        
         return {
-            "message": "No active holdings found",
-            "updated": 0,
-            "failed": 0
+            "message": f"Updated prices for {len(world_tickers)} world stocks and {len(israeli_tickers)} Israeli stocks",
+            "tickers_processed": len(world_tickers) + len(israeli_tickers),
+            "world_tickers": len(world_tickers),
+            "israeli_tickers": len(israeli_tickers),
+            "updated": total_updated,
+            "failed": total_failed,
+            "holdings_recalculated": world_holdings_updated + israeli_holdings_updated
         }
-    
-    updated, failed = service.update_world_stock_prices(tickers)
-    holdings_updated = service.update_holdings_values()
-    
-    return {
-        "message": f"Updated prices for {len(tickers)} active stocks",
-        "tickers_processed": len(tickers),
-        "updated": updated,
-        "failed": failed,
-        "holdings_recalculated": holdings_updated
-    }
+    except Exception as e:
+        logger.error(f"Error in refresh_active_stock_prices: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to refresh prices: {str(e)}")
 
 
 @router.post("/prices/refresh-catalog")
@@ -632,3 +666,155 @@ def get_price_stats(
         "newest_update": stats["newest_update"].isoformat() if stats["newest_update"] else None
     }
 
+
+@router.get("/prices/stats/detailed")
+def get_detailed_price_stats(
+    current_admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed statistics about price data for both markets
+    """
+    from app.services.stock_price_service import StockPriceService
+    
+    # World stocks stats
+    world_result = db.execute(text("""
+        SELECT 
+            COUNT(DISTINCT ws.ticker) as total_stocks,
+            COUNT(DISTINCT CASE WHEN sp.current_price IS NOT NULL THEN ws.ticker END) as with_price,
+            COUNT(DISTINCT CASE WHEN sp.updated_at > NOW() - INTERVAL '15 minutes' THEN ws.ticker END) as fresh_15m,
+            COUNT(DISTINCT CASE WHEN sp.updated_at > NOW() - INTERVAL '1 hour' THEN ws.ticker END) as fresh_1h,
+            COUNT(DISTINCT CASE WHEN sp.updated_at > NOW() - INTERVAL '24 hours' THEN ws.ticker END) as fresh_24h,
+            COUNT(DISTINCT CASE WHEN wsh.ticker IS NOT NULL THEN ws.ticker END) as in_holdings,
+            MIN(sp.updated_at) as oldest_update,
+            MAX(sp.updated_at) as newest_update
+        FROM "WorldStocks" ws
+        LEFT JOIN "StockPrices" sp ON ws.ticker = sp.ticker AND sp.market = 'world'
+        LEFT JOIN "WorldStockHolding" wsh ON ws.ticker = wsh.ticker AND wsh.quantity > 0
+    """))
+    world_row = world_result.fetchone()
+    
+    # Israeli stocks stats
+    israeli_result = db.execute(text("""
+        SELECT 
+            COUNT(DISTINCT is2.symbol) as total_stocks,
+            COUNT(DISTINCT CASE WHEN sp.current_price IS NOT NULL THEN is2.symbol END) as with_price,
+            COUNT(DISTINCT CASE WHEN sp.updated_at > NOW() - INTERVAL '15 minutes' THEN is2.symbol END) as fresh_15m,
+            COUNT(DISTINCT CASE WHEN sp.updated_at > NOW() - INTERVAL '1 hour' THEN is2.symbol END) as fresh_1h,
+            COUNT(DISTINCT CASE WHEN sp.updated_at > NOW() - INTERVAL '24 hours' THEN is2.symbol END) as fresh_24h,
+            COUNT(DISTINCT CASE WHEN ish.symbol IS NOT NULL THEN is2.symbol END) as in_holdings,
+            MIN(sp.updated_at) as oldest_update,
+            MAX(sp.updated_at) as newest_update
+        FROM "IsraeliStocks" is2
+        LEFT JOIN "StockPrices" sp ON is2.symbol = sp.ticker AND sp.market = 'israeli'
+        LEFT JOIN "IsraeliStockHolding" ish ON is2.symbol = ish.symbol AND ish.quantity > 0
+    """))
+    israeli_row = israeli_result.fetchone()
+    
+    return {
+        "world": {
+            "total_stocks": world_row[0] or 0,
+            "stocks_with_price": world_row[1] or 0,
+            "stocks_without_price": (world_row[0] or 0) - (world_row[1] or 0),
+            "fresh_15_minutes": world_row[2] or 0,
+            "fresh_1_hour": world_row[3] or 0,
+            "fresh_24_hours": world_row[4] or 0,
+            "stale_24_hours": (world_row[0] or 0) - (world_row[4] or 0),
+            "in_holdings": world_row[5] or 0,
+            "oldest_update": world_row[6].isoformat() if world_row[6] else None,
+            "newest_update": world_row[7].isoformat() if world_row[7] else None
+        },
+        "israeli": {
+            "total_stocks": israeli_row[0] or 0,
+            "stocks_with_price": israeli_row[1] or 0,
+            "stocks_without_price": (israeli_row[0] or 0) - (israeli_row[1] or 0),
+            "fresh_15_minutes": israeli_row[2] or 0,
+            "fresh_1_hour": israeli_row[3] or 0,
+            "fresh_24_hours": israeli_row[4] or 0,
+            "stale_24_hours": (israeli_row[0] or 0) - (israeli_row[4] or 0),
+            "in_holdings": israeli_row[5] or 0,
+            "oldest_update": israeli_row[6].isoformat() if israeli_row[6] else None,
+            "newest_update": israeli_row[7].isoformat() if israeli_row[7] else None
+        }
+    }
+
+
+@router.post("/prices/refresh/{market}")
+def refresh_market_prices(
+    market: str,
+    limit: int = Query(100, ge=1, le=500),
+    force: bool = Query(False, description="Force update even if recently updated"),
+    current_admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Refresh prices for specific market (world or israeli)
+    """
+    if market not in ['world', 'israeli']:
+        raise HTTPException(status_code=400, detail="Market must be 'world' or 'israeli'")
+    
+    from app.services.stock_price_service import StockPriceService
+    
+    service = StockPriceService(db)
+    
+    # Get stale tickers
+    hours = 0 if force else 24
+    tickers = service.get_stale_catalog_tickers(hours=hours, limit=limit, market=market)
+    
+    if not tickers:
+        return {
+            "message": f"All {market} stocks are up to date",
+            "market": market,
+            "updated": 0,
+            "failed": 0
+        }
+    
+    updated, failed = service.update_world_stock_prices(tickers, market=market)
+    
+    # Update holdings values
+    if updated > 0:
+        holdings_updated = service.update_holdings_values(market=market)
+    else:
+        holdings_updated = 0
+    
+    return {
+        "message": f"Updated {updated} {market} stock prices",
+        "market": market,
+        "tickers_processed": len(tickers),
+        "updated": updated,
+        "failed": failed,
+        "holdings_recalculated": holdings_updated
+    }
+
+
+@router.post("/prices/refresh-single/{ticker}")
+def refresh_single_stock_price(
+    ticker: str,
+    market: str = Query("world", regex="^(world|israeli)$"),
+    current_admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Refresh price for a single stock
+    """
+    from app.services.stock_price_service import StockPriceService
+    
+    service = StockPriceService(db)
+    updated, failed = service.update_world_stock_prices([ticker], market=market)
+    
+    if updated > 0:
+        service.update_holdings_values(market=market)
+        return {
+            "message": f"Successfully updated {ticker}",
+            "ticker": ticker,
+            "market": market,
+            "success": True
+        }
+    else:
+        return {
+            "message": f"Failed to update {ticker}",
+            "ticker": ticker,
+            "market": market,
+            "success": False,
+            "error": "Price fetch failed or ticker not found"
+        }

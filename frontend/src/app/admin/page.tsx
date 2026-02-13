@@ -8,6 +8,7 @@ import AdminLayout, { AdminSection } from "@/components/admin/AdminLayout";
 import UsersSection from "@/components/admin/UsersSection";
 import StocksSection from "@/components/admin/StocksSection";
 import JobsSection from "@/components/admin/JobsSection";
+import StockPriceManagement from "@/components/admin/StockPriceManagement";
 
 // Ensure this route is always treated as dynamic (no static optimization)
 export const dynamic = "force-dynamic";
@@ -53,6 +54,8 @@ export default function AdminPage() {
         return <UsersSection />;
       case "stocks":
         return <StocksSection />;
+      case "prices":
+        return <StockPriceManagement />;
       case "jobs":
         return <JobsSection />;
       default:

@@ -7,9 +7,10 @@ import {
   ClockIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
 
-export type AdminSection = "users" | "stocks" | "jobs";
+export type AdminSection = "users" | "stocks" | "jobs" | "prices";
 
 interface AdminCategory {
   id: AdminSection;
@@ -51,6 +52,17 @@ const adminCategories: AdminCategory[] = [
       { id: "world", name: "World Stocks", description: "Manage international stocks" },
       { id: "logos", name: "Logo Crawler", description: "Fetch and update stock logos" },
       { id: "metadata", name: "Metadata", description: "Edit stock information manually" },
+    ],
+  },
+  {
+    id: "prices",
+    name: "Stock Prices",
+    icon: CurrencyDollarIcon,
+    description: "Monitor and refresh real-time stock prices",
+    subcategories: [
+      { id: "dashboard", name: "Dashboard", description: "View price statistics and freshness" },
+      { id: "refresh", name: "Manual Refresh", description: "Trigger price updates on demand" },
+      { id: "monitoring", name: "Monitoring", description: "Track update history and errors" },
     ],
   },
   {

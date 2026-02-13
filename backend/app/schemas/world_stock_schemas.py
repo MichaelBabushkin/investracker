@@ -4,7 +4,7 @@ These schemas are used for request/response validation and serialization
 """
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer
 from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
@@ -51,6 +51,13 @@ class WorldStockHoldingResponse(BaseModel):
     unrealized_gain_pct: Optional[Decimal] = None
     twr: Optional[Decimal] = None  # Time-Weighted Return
     mwr: Optional[Decimal] = None  # Money-Weighted Return (IRR)
+    
+    # Serialize Decimal fields as float for JSON
+    @field_serializer('quantity', 'last_price', 'purchase_cost', 'current_value', 
+                      'portfolio_percentage', 'exchange_rate', 'unrealized_gain', 
+                      'unrealized_gain_pct', 'twr', 'mwr')
+    def serialize_decimal(self, value: Optional[Decimal], _info):
+        return float(value) if value is not None else None
 
 
 # Transaction schemas
@@ -75,6 +82,10 @@ class WorldStockTransactionResponse(BaseModel):
     source_pdf: str
     created_at: datetime
     updated_at: datetime
+    
+    @field_serializer('quantity', 'price', 'total_value', 'commission', 'tax', 'exchange_rate')
+    def serialize_decimal(self, value: Optional[Decimal], _info):
+        return float(value) if value is not None else None
 
 
 # Dividend schemas
@@ -99,6 +110,10 @@ class WorldStockDividendResponse(BaseModel):
     source_pdf: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    
+    @field_serializer('amount_per_share', 'total_amount', 'amount', 'withholding_tax', 'net_amount', 'exchange_rate')
+    def serialize_decimal(self, value: Optional[Decimal], _info):
+        return float(value) if value is not None else None
 
 
 # Upload response

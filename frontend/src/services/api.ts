@@ -731,6 +731,32 @@ export const adminAPI = {
     const response = await api.get("/admin/stats");
     return response.data;
   },
+
+  // Stock Price Management
+  getPriceStatsDetailed: async () => {
+    const response = await api.get("/admin/prices/stats/detailed");
+    return response.data;
+  },
+
+  refreshActivePrices: async () => {
+    const response = await api.post("/admin/prices/refresh-active");
+    return response.data;
+  },
+
+  refreshCatalogPrices: async (limit: number = 500) => {
+    const response = await api.post("/admin/prices/refresh-catalog", { limit });
+    return response.data;
+  },
+
+  refreshMarketPrices: async (market: "world" | "israeli", limit: number = 100, force: boolean = false) => {
+    const response = await api.post(`/admin/prices/refresh/${market}`, { limit, force });
+    return response.data;
+  },
+
+  refreshSinglePrice: async (ticker: string, market: "world" | "israeli") => {
+    const response = await api.post(`/admin/prices/refresh-single/${ticker}`, { market });
+    return response.data;
+  },
 };
 
 export default api;
