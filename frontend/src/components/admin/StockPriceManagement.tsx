@@ -248,7 +248,7 @@ const StockPriceManagement: React.FC = () => {
             </span>
           </div>
           <div className="flex items-center justify-between py-2 border-t border-gray-100">
-            <span className="text-sm text-gray-600">Stale (>24h)</span>
+            <span className="text-sm text-gray-600">Stale (&gt;24h)</span>
             <span className="font-semibold text-red-600">
               {data.stale_24_hours}
             </span>
@@ -332,7 +332,7 @@ const StockPriceManagement: React.FC = () => {
                 Catalog Stocks
               </h3>
               <p className="text-sm text-gray-600 mt-1">
-                Update stale prices (>24h old, up to 500 stocks)
+                Update stale prices (&gt;24h old, up to 500 stocks)
               </p>
             </div>
             <ClockIcon className="w-6 h-6 text-blue-600" />

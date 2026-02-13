@@ -19,6 +19,7 @@ export interface WorldStockHolding {
   description?: string;
   quantity?: number;
   avg_entry_price?: number;
+  last_price?: number;
   current_price?: number;
   current_value?: number;
   purchase_cost?: number;
@@ -26,6 +27,7 @@ export interface WorldStockHolding {
   unrealized_pl_percent?: number;
   currency: string;
   source_pdf: string;
+  holding_date?: string;
   last_updated: string;
   created_at: string;
   
