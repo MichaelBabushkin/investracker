@@ -124,7 +124,7 @@ async def get_world_stock_holdings(
     limit: Optional[int] = 100,
     current_user: User = Depends(get_current_user)
 ):
-    """Get world stock holdings for a user"""
+    """Get world stock holdings for a user with real-time prices from StockPrices table"""
     try:
         from sqlalchemy import text
         from app.core.database import engine
@@ -133,13 +133,29 @@ async def get_world_stock_holdings(
         
         with engine.connect() as conn:
             query = text("""
-                SELECT id, user_id, ticker, symbol, company_name, quantity,
-                       last_price, purchase_cost, current_value, portfolio_percentage,
-                       currency, exchange_rate, holding_date, source_pdf,
-                       created_at, updated_at,
-                       unrealized_gain, unrealized_gain_pct, twr, mwr
-                FROM "WorldStockHolding"
-                WHERE user_id = :user_id
+                SELECT h.id, h.user_id, h.ticker, h.symbol, h.company_name, h.quantity,
+                       COALESCE(sp.current_price, h.last_price) as last_price, 
+                       h.purchase_cost, 
+                       CASE 
+                           WHEN sp.current_price IS NOT NULL THEN h.quantity * sp.current_price
+                           ELSE h.current_value
+                       END as current_value,
+                       h.portfolio_percentage,
+                       h.currency, h.exchange_rate, h.holding_date, h.source_pdf,
+                       h.created_at, h.updated_at,
+                       CASE 
+                           WHEN sp.current_price IS NOT NULL THEN (h.quantity * sp.current_price) - h.purchase_cost
+                           ELSE h.unrealized_gain
+                       END as unrealized_gain,
+                       CASE 
+                           WHEN sp.current_price IS NOT NULL AND h.purchase_cost > 0 
+                           THEN (((h.quantity * sp.current_price) - h.purchase_cost) / h.purchase_cost) * 100
+                           ELSE h.unrealized_gain_pct
+                       END as unrealized_gain_pct,
+                       h.twr, h.mwr
+                FROM "WorldStockHolding" h
+                LEFT JOIN "StockPrices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
+                WHERE h.user_id = :user_id
                 ORDER BY current_value DESC NULLS LAST
                 LIMIT :limit
             """)
@@ -1451,16 +1467,16 @@ async def get_holdings_with_prices(
     db: Session = Depends(get_db)
 ):
     """
-    Get user's holdings with current price data and calculated values
+    Get user's holdings with current price data and calculated values from StockPrices table
     """
     result = db.execute(
         text("""
             SELECT h.ticker, h.symbol, h.company_name, h.quantity, 
                    h.purchase_cost, h.current_value, h.last_price,
-                   s.current_price, s.previous_close, s.price_change_pct,
-                   s.price_updated_at
+                   sp.current_price, sp.previous_close, sp.price_change_pct,
+                   sp.updated_at as price_updated_at
             FROM "WorldStockHolding" h
-            LEFT JOIN "WorldStocks" s ON h.ticker = s.ticker
+            LEFT JOIN "StockPrices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
             WHERE h.user_id = :user_id AND h.quantity > 0
             ORDER BY h.current_value DESC NULLS LAST
         """),
@@ -1472,6 +1488,7 @@ async def get_holdings_with_prices(
     total_cost = 0
     
     for row in result.fetchall():
+        # Use current_price from StockPrices, fallback to last_price from holding
         current_price = float(row[7]) if row[7] else float(row[6]) if row[6] else None
         quantity = float(row[3]) if row[3] else 0
         market_value = current_price * quantity if current_price else None
