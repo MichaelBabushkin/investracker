@@ -422,7 +422,7 @@ export default function WorldStockHoldings({
                         {formatCurrency(holding.unrealized_gain)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">
-                        {holding.holding_date || "-"}
+                        {holding.holding_date ? formatDate(holding.holding_date) : "-"}
                       </td>
                       <td
                         className={`px-6 py-4 whitespace-nowrap text-right text-sm font-medium ${
