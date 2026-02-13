@@ -350,8 +350,8 @@ export default function WorldStockHoldings({
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Unrealized P/L
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Purchase
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Since
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <div className="flex items-center justify-end space-x-1">
@@ -421,7 +421,7 @@ export default function WorldStockHoldings({
                       >
                         {formatCurrency(holding.unrealized_gain)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-600" title="Position opened">
                         {holding.holding_date ? formatDate(holding.holding_date) : "-"}
                       </td>
                       <td

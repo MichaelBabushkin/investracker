@@ -141,7 +141,12 @@ async def get_world_stock_holdings(
                            ELSE h.current_value
                        END as current_value,
                        h.portfolio_percentage,
-                       h.currency, h.exchange_rate, h.holding_date, h.source_pdf,
+                       h.currency, h.exchange_rate, 
+                       (SELECT MIN(transaction_date) 
+                        FROM "WorldStockTransaction" 
+                        WHERE ticker = h.ticker AND user_id = h.user_id 
+                        AND transaction_type IN ('BUY', 'PURCHASE')) as first_purchase_date,
+                       h.source_pdf,
                        h.created_at, h.updated_at,
                        CASE 
                            WHEN sp.current_price IS NOT NULL THEN (h.quantity * sp.current_price) - h.purchase_cost
