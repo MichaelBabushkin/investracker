@@ -15,6 +15,7 @@ import {
   getProgress,
   setLastVisited,
   isTopicComplete,
+  fetchProgress,
 } from "./progressUtils";
 import CategoryCard from "./CategoryCard";
 import TopicList from "./TopicList";
@@ -29,6 +30,22 @@ export default function EducationCenter() {
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [progress, setProgress] = useState(getProgress());
+  const [loading, setLoading] = useState(true);
+
+  // Fetch progress from API on mount
+  useEffect(() => {
+    fetchProgress().then((apiProgress) => {
+      setProgress(apiProgress);
+      setLoading(false);
+    });
+
+    // Listen for progress updates
+    const handleProgressUpdate = () => {
+      fetchProgress().then(setProgress);
+    };
+    window.addEventListener("education-progress-updated", handleProgressUpdate);
+    return () => window.removeEventListener("education-progress-updated", handleProgressUpdate);
+  }, []);
 
   // Refresh progress on view changes
   useEffect(() => {
