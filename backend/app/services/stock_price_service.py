@@ -39,15 +39,24 @@ class StockPriceService:
     def __init__(self, db: Session):
         self.db = db
     
-    def get_active_tickers(self) -> List[str]:
+    def get_active_tickers(self, market: str = 'world') -> List[str]:
         """Get tickers that are in user holdings (Tier 1)"""
-        result = self.db.execute(
-            text("""
-                SELECT DISTINCT ticker 
-                FROM "WorldStockHolding" 
-                WHERE quantity > 0
-            """)
-        )
+        if market == 'world':
+            result = self.db.execute(
+                text("""
+                    SELECT DISTINCT ticker 
+                    FROM "WorldStockHolding" 
+                    WHERE quantity > 0
+                """)
+            )
+        else:
+            result = self.db.execute(
+                text("""
+                    SELECT DISTINCT symbol 
+                    FROM "IsraeliStockHolding" 
+                    WHERE quantity > 0
+                """)
+            )
         return [row[0] for row in result.fetchall()]
     
     def get_stale_catalog_tickers(self, hours: int = 24, limit: int = 500, market: str = 'world') -> List[str]:
