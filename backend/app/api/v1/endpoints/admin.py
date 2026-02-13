@@ -553,48 +553,61 @@ def refresh_active_stock_prices(
     This updates Tier 1 stocks (actively held by users) for both World and Israeli markets
     """
     from app.services.stock_price_service import StockPriceService
+    import logging
+    logger = logging.getLogger(__name__)
     
-    service = StockPriceService(db)
-    
-    # Get active tickers for both markets
-    world_tickers = service.get_active_tickers(market='world')
-    israeli_tickers = service.get_active_tickers(market='israeli')
-    
-    if not world_tickers and not israeli_tickers:
+    try:
+        service = StockPriceService(db)
+        
+        # Get active tickers for both markets
+        world_tickers = service.get_active_tickers(market='world')
+        israeli_tickers = service.get_active_tickers(market='israeli')
+        
+        logger.info(f"Found {len(world_tickers)} world tickers and {len(israeli_tickers)} israeli tickers")
+        
+        if not world_tickers and not israeli_tickers:
+            return {
+                "message": "No active holdings found",
+                "updated": 0,
+                "failed": 0
+            }
+        
+        total_updated = 0
+        total_failed = 0
+        
+        # Update world stocks
+        if world_tickers:
+            logger.info(f"Updating {len(world_tickers)} world stocks...")
+            world_updated, world_failed = service.update_world_stock_prices(world_tickers, market='world')
+            total_updated += world_updated
+            total_failed += world_failed
+            logger.info(f"World stocks: {world_updated} updated, {world_failed} failed")
+        
+        # Update Israeli stocks
+        if israeli_tickers:
+            logger.info(f"Updating {len(israeli_tickers)} Israeli stocks...")
+            israeli_updated, israeli_failed = service.update_world_stock_prices(israeli_tickers, market='israeli')
+            total_updated += israeli_updated
+            total_failed += israeli_failed
+            logger.info(f"Israeli stocks: {israeli_updated} updated, {israeli_failed} failed")
+        
+        # Recalculate holdings for both markets
+        world_holdings_updated = service.update_holdings_values(market='world')
+        israeli_holdings_updated = service.update_holdings_values(market='israeli')
+        logger.info(f"Holdings recalculated: {world_holdings_updated} world, {israeli_holdings_updated} israeli")
+        
         return {
-            "message": "No active holdings found",
-            "updated": 0,
-            "failed": 0
+            "message": f"Updated prices for {len(world_tickers)} world stocks and {len(israeli_tickers)} Israeli stocks",
+            "tickers_processed": len(world_tickers) + len(israeli_tickers),
+            "world_tickers": len(world_tickers),
+            "israeli_tickers": len(israeli_tickers),
+            "updated": total_updated,
+            "failed": total_failed,
+            "holdings_recalculated": world_holdings_updated + israeli_holdings_updated
         }
-    
-    total_updated = 0
-    total_failed = 0
-    
-    # Update world stocks
-    if world_tickers:
-        world_updated, world_failed = service.update_world_stock_prices(world_tickers, market='world')
-        total_updated += world_updated
-        total_failed += world_failed
-    
-    # Update Israeli stocks
-    if israeli_tickers:
-        israeli_updated, israeli_failed = service.update_world_stock_prices(israeli_tickers, market='israeli')
-        total_updated += israeli_updated
-        total_failed += israeli_failed
-    
-    # Recalculate holdings for both markets
-    world_holdings_updated = service.update_holdings_values(market='world')
-    israeli_holdings_updated = service.update_holdings_values(market='israeli')
-    
-    return {
-        "message": f"Updated prices for {len(world_tickers)} world stocks and {len(israeli_tickers)} Israeli stocks",
-        "tickers_processed": len(world_tickers) + len(israeli_tickers),
-        "world_tickers": len(world_tickers),
-        "israeli_tickers": len(israeli_tickers),
-        "updated": total_updated,
-        "failed": total_failed,
-        "holdings_recalculated": world_holdings_updated + israeli_holdings_updated
-    }
+    except Exception as e:
+        logger.error(f"Error in refresh_active_stock_prices: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to refresh prices: {str(e)}")
 
 
 @router.post("/prices/refresh-catalog")
