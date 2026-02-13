@@ -17,9 +17,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Create education_progress table
+    # Create EducationProgress table
     op.create_table(
-        'education_progress',
+        'EducationProgress',
         sa.Column('user_id', sa.String(25), primary_key=True, index=True),
         sa.Column('completed_topics', JSON, nullable=False, server_default='[]'),
         sa.Column('last_visited_topic', sa.String(100), nullable=True),
@@ -30,4 +30,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table('education_progress')
+    op.drop_table('EducationProgress')
