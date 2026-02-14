@@ -1,12 +1,23 @@
 import React from "react";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
 import { Toaster } from "react-hot-toast";
 import AppLayout from "@/components/AppLayout";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const dmSans = DM_Sans({ 
+  subsets: ["latin"],
+  variable: "--font-dm-sans",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "Investracker - Investment Portfolio Tracker",
@@ -30,8 +41,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" className={`${inter.variable} ${dmSans.variable} dark`}>
+      <body className="font-body antialiased bg-surface-dark text-gray-100">
         <Providers>
           <AppLayout>{children}</AppLayout>
           <Toaster
@@ -39,20 +50,22 @@ export default function RootLayout({
             toastOptions={{
               duration: 4000,
               style: {
-                background: "#363636",
-                color: "#fff",
+                background: "#1F2937",
+                color: "#F9FAFB",
+                border: "1px solid #374151",
+                borderRadius: "12px",
               },
               success: {
                 duration: 3000,
                 iconTheme: {
-                  primary: "#10b981",
-                  secondary: "#fff",
+                  primary: "#4ADE80",
+                  secondary: "#052E16",
                 },
               },
               error: {
                 duration: 5000,
                 iconTheme: {
-                  primary: "#ef4444",
+                  primary: "#F43F5E",
                   secondary: "#fff",
                 },
               },

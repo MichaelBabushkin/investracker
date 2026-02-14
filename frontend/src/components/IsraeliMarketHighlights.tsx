@@ -3,12 +3,12 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { israeliStocksAPI } from "@/services/api";
 import {
-  CurrencyDollarIcon,
-  BuildingOfficeIcon,
-  ArrowRightIcon,
-  BanknotesIcon,
-  ChartBarIcon,
-} from "@heroicons/react/24/outline";
+  DollarSign,
+  Building2,
+  ArrowRight,
+  Banknote,
+  BarChart3,
+} from "lucide-react";
 
 interface IsraeliHolding {
   id: number;
@@ -137,11 +137,11 @@ export default function IsraeliMarketHighlights() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6 animate-pulse">
-        <div className="h-4 bg-gray-200 rounded w-1/3 mb-4" />
+      <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6 animate-pulse">
+        <div className="h-4 bg-white/10 rounded w-1/3 mb-4" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-20 bg-gray-100 rounded" />
+            <div key={i} className="h-20 bg-white/5 rounded" />
           ))}
         </div>
       </div>
@@ -150,17 +150,17 @@ export default function IsraeliMarketHighlights() {
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg border border-red-300 p-6">
-        <h3 className="text-lg font-medium text-red-700 mb-2">
+      <div className="bg-surface-dark-secondary rounded-xl border border-loss/30 p-6">
+        <h3 className="text-lg font-medium text-loss mb-2">
           Israeli Market Highlights
         </h3>
-        <p className="text-sm text-red-600 mb-2">{error}</p>
+        <p className="text-sm text-loss mb-2">{error}</p>
         <button
           onClick={() => {
             setLoading(true);
             setError(null);
           }}
-          className="text-sm text-blue-600 font-medium"
+          className="text-sm text-brand-400 font-medium"
         >
           Retry
         </button>
@@ -169,22 +169,22 @@ export default function IsraeliMarketHighlights() {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
+    <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-lg font-semibold text-gray-100">
           Israeli Market Highlights
         </h3>
         <a
           href="/israeli-stocks"
-          className="text-sm text-blue-600 hover:text-blue-500 font-medium flex items-center gap-1"
+          className="text-sm text-brand-400 hover:text-brand-500 font-medium flex items-center gap-1"
         >
-          View Dashboard <ArrowRightIcon className="h-4 w-4" />
+          View Dashboard <ArrowRight className="h-4 w-4" />
         </a>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <div className="metric-card bg-gradient-to-r from-blue-500 to-blue-600">
           <div className="flex items-center">
-            <BuildingOfficeIcon className="h-8 w-8 opacity-80" />
+            <Building2 className="h-8 w-8 opacity-80" />
             <div className="ml-3">
               <p className="text-xs opacity-80">Holdings</p>
               <p className="text-xl font-bold">{metrics.totalHoldings}</p>
@@ -194,7 +194,7 @@ export default function IsraeliMarketHighlights() {
         {/* Unified Dividends Card */}
         <div className="metric-card bg-gradient-to-r from-green-500 to-green-600">
           <div className="flex items-center">
-            <CurrencyDollarIcon className="h-8 w-8 opacity-80" />
+            <DollarSign className="h-8 w-8 opacity-80" />
             <div className="ml-3">
               <p className="text-xs opacity-80">Dividends (Gross / Net)</p>
               <p className="text-sm font-semibold leading-tight">
@@ -209,7 +209,7 @@ export default function IsraeliMarketHighlights() {
         {/* Current Value Card */}
         <div className="metric-card bg-gradient-to-r from-amber-500 to-amber-600">
           <div className="flex items-center">
-            <BanknotesIcon className="h-8 w-8 opacity-80" />
+            <Banknote className="h-8 w-8 opacity-80" />
             <div className="ml-3">
               <p className="text-xs opacity-80">Current Value</p>
               <p className="text-xl font-bold">
@@ -220,7 +220,7 @@ export default function IsraeliMarketHighlights() {
         </div>
         <div className="metric-card bg-gradient-to-r from-purple-500 to-purple-600">
           <div className="flex items-center">
-            <ChartBarIcon className="h-8 w-8 opacity-80" />
+            <BarChart3 className="h-8 w-8 opacity-80" />
             <div className="ml-3">
               <p className="text-xs opacity-80">Commission Paid</p>
               <p className="text-xl font-bold">
@@ -238,7 +238,7 @@ export default function IsraeliMarketHighlights() {
           }`}
         >
           <div className="flex items-center">
-            <ChartBarIcon className="h-8 w-8 opacity-80" />
+            <BarChart3 className="h-8 w-8 opacity-80" />
             <div className="ml-3">
               <p className="text-xs opacity-80">Total Return</p>
               <p className="text-sm font-semibold leading-tight">
@@ -253,13 +253,13 @@ export default function IsraeliMarketHighlights() {
       </div>
 
       <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-2">
+        <h4 className="text-sm font-medium text-gray-300 mb-2">
           Recent Activity
         </h4>
         {metrics.recent.length === 0 ? (
           <p className="text-xs text-gray-500">No recent transactions</p>
         ) : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-white/5">
             {metrics.recent.map((t) => (
               <li
                 key={t.id}
@@ -269,13 +269,13 @@ export default function IsraeliMarketHighlights() {
                   <span
                     className={`px-2 py-0.5 rounded-full text-white font-medium ${
                       t.transaction_type === "BUY"
-                        ? "bg-green-600"
-                        : "bg-red-600"
+                        ? "bg-gain"
+                        : "bg-loss"
                     }`}
                   >
                     {t.transaction_type}
                   </span>
-                  <span className="font-medium">{t.symbol || "-"}</span>
+                  <span className="font-medium text-gray-100">{t.symbol || "-"}</span>
                   <span className="text-gray-500">
                     {t.quantity || 0} @ {t.price || 0}
                   </span>
@@ -283,8 +283,8 @@ export default function IsraeliMarketHighlights() {
                 <div
                   className={`font-medium ${
                     t.transaction_type === "BUY"
-                      ? "text-red-600"
-                      : "text-green-600"
+                      ? "text-loss"
+                      : "text-gain"
                   }`}
                 >
                   {formatCurrency(t.total_value || 0)}

@@ -2,192 +2,217 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design Tokens ─── */
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --color-bg: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-surface-secondary: #F1F5F9;
+  --color-border: #E2E8F0;
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #64748B;
+  --color-text-muted: #94A3B8;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+.dark {
+  --color-bg: #0B0F1A;
+  --color-surface: #111827;
+  --color-surface-secondary: #1F2937;
+  --color-border: #1E293B;
+  --color-text-primary: #F9FAFB;
+  --color-text-secondary: #9CA3AF;
+  --color-text-muted: #6B7280;
 }
 
+/* ─── Base ─── */
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom styles for Investracker */
-.investment-card {
-  @apply bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow;
+/* ─── Financial Figures ─── */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
-.metric-card {
-  @apply bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg p-4 shadow-md;
+.financial-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
 }
 
-.btn-primary {
-  @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+/* ─── Scrollbar (dark mode) ─── */
+.dark ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4B5563;
 }
 
-.btn-secondary {
-  @apply bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+/* ─── Selection ─── */
+::selection {
+  background-color: #4ADE8033;
+  color: inherit;
 }
 
-.input-field {
-  @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500;
+/* ─── Focus Ring ─── */
+*:focus-visible {
+  outline: 2px solid #4ADE80;
+  outline-offset: 2px;
 }
 
-.sidebar-nav {
-  @apply bg-gray-900 text-white w-64 min-h-screen p-4;
-}
-
-.nav-item {
-  @apply flex items-center px-4 py-2 text-sm font-medium rounded-md hover:bg-gray-700 transition-colors;
-}
-
-.nav-item.active {
-  @apply bg-primary-600 text-white;
-}
-
-.dashboard-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
-}
-
-.chart-container {
-  @apply bg-white p-6 rounded-lg shadow-md border border-gray-200;
-}
-
-/* Animations */
-@keyframes blob {
-  0% {
-    transform: translate(0px, 0px) scale(1);
-  }
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-  100% {
-    transform: translate(0px, 0px) scale(1);
-  }
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-
-.animation-delay-4000 {
-  animation-delay: 4s;
-}
-
-/* Marquee animation for event banner */
-@keyframes marquee {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-.animate-marquee {
-  display: inline-block;
-  padding-left: 100%;
-  animation: marquee 15s linear infinite;
-}
-
-.animate-marquee:hover {
-  animation-play-state: paused;
-}
-
-/* Custom Calendar Styles */
+/* ─── Calendar ─── */
 .custom-calendar {
   width: 100%;
   border: none !important;
   font-family: inherit;
+  background: transparent !important;
 }
 
 .custom-calendar .react-calendar__tile {
-  padding: 1.5em 0.5em;
-  min-height: 90px;
+  padding: 1.2em 0.5em;
+  min-height: 80px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  font-size: 1rem;
-  color: #1f2937;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  border-radius: 8px;
+  transition: all 0.15s ease;
 }
 
 .custom-calendar .react-calendar__month-view__weekdays {
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .custom-calendar .react-calendar__month-view__weekdays__weekday {
   padding: 0.75em;
-  color: #374151;
+  color: var(--color-text-muted);
 }
 
 .custom-calendar .react-calendar__navigation {
-  margin-bottom: 1em;
-  height: 50px;
+  margin-bottom: 0.5em;
+  height: 44px;
 }
 
 .custom-calendar .react-calendar__tile--active {
-  background: #3b82f6 !important;
-  color: white !important;
+  background: #4ADE80 !important;
+  color: #052E16 !important;
+  font-weight: 600;
 }
 
 .custom-calendar .react-calendar__tile--now {
-  background: #dbeafe;
-  color: #1f2937;
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+  font-weight: 600;
 }
 
 .custom-calendar .react-calendar__tile:hover {
-  background: #f3f4f6;
-  color: #1f2937;
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
 }
 
 .custom-calendar .react-calendar__tile--active:hover {
-  background: #2563eb !important;
-  color: white !important;
+  background: #22C55E !important;
+  color: #052E16 !important;
 }
 
 .custom-calendar .react-calendar__month-view__days__day--weekend {
-  color: #ef4444 !important;
-}
-
-.custom-calendar .react-calendar__tile--now.react-calendar__month-view__days__day--weekend {
-  color: #dc2626 !important;
+  color: #F43F5E !important;
 }
 
 .custom-calendar .react-calendar__navigation button {
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-primary);
+  border-radius: 8px;
 }
 
 .custom-calendar .react-calendar__navigation button:enabled:hover,
 .custom-calendar .react-calendar__navigation button:enabled:focus {
-  background-color: #f3f4f6;
+  background-color: var(--color-surface-secondary);
 }
 
 .react-calendar {
-  width: 100%!important;
+  width: 100% !important;
+}
+
+/* ─── Gradient overlays for charts ─── */
+.chart-gradient-green {
+  fill: url(#greenGradient);
+}
+
+/* ─── Marquee ─── */
+.animate-marquee-text {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marquee 15s linear infinite;
+}
+.animate-marquee-text:hover {
+  animation-play-state: paused;
+}
+
+/* ─── Skeleton shimmer ─── */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-surface-secondary);
+  border-radius: 8px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+/* ─── Glass morphism ─── */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ─── Noise overlay ─── */
+.noise-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* ─── Dot grid pattern ─── */
+.dot-grid {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ─── Safe area for mobile bottom bar ─── */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

@@ -3,12 +3,12 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { worldStocksAPI } from "@/services/api";
 import {
-  CurrencyDollarIcon,
-  BuildingOfficeIcon,
-  ArrowRightIcon,
-  BanknotesIcon,
-  GlobeAmericasIcon,
-} from "@heroicons/react/24/outline";
+  DollarSign,
+  Building2,
+  ArrowRight,
+  Banknote,
+  Globe,
+} from "lucide-react";
 import Link from "next/link";
 
 interface WorldStockSummary {
@@ -64,16 +64,16 @@ export default function WorldMarketHighlights() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
         <div className="flex items-center space-x-3 mb-6">
-          <GlobeAmericasIcon className="h-6 w-6 text-blue-600" />
-          <h2 className="text-xl font-semibold text-gray-900">
+          <Globe className="h-6 w-6 text-brand-400" />
+          <h2 className="text-xl font-semibold text-gray-100">
             World Market Portfolio
           </h2>
         </div>
         <div className="animate-pulse space-y-4">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 bg-gray-200 rounded"></div>
+            <div key={i} className="h-16 bg-white/10 rounded"></div>
           ))}
         </div>
       </div>
@@ -82,14 +82,14 @@ export default function WorldMarketHighlights() {
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
         <div className="flex items-center space-x-3 mb-4">
-          <GlobeAmericasIcon className="h-6 w-6 text-blue-600" />
-          <h2 className="text-xl font-semibold text-gray-900">
+          <Globe className="h-6 w-6 text-brand-400" />
+          <h2 className="text-xl font-semibold text-gray-100">
             World Market Portfolio
           </h2>
         </div>
-        <div className="text-sm text-red-600 bg-red-50 p-4 rounded-lg">
+        <div className="text-sm text-loss bg-loss/10 p-4 rounded-lg">
           {error}
         </div>
       </div>
@@ -98,19 +98,19 @@ export default function WorldMarketHighlights() {
 
   if (!summary || summary.total_holdings === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
         <div className="flex items-center space-x-3 mb-4">
-          <GlobeAmericasIcon className="h-6 w-6 text-blue-600" />
-          <h2 className="text-xl font-semibold text-gray-900">
+          <Globe className="h-6 w-6 text-brand-400" />
+          <h2 className="text-xl font-semibold text-gray-100">
             World Market Portfolio
           </h2>
         </div>
         <div className="text-center py-8">
-          <BuildingOfficeIcon className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-          <p className="text-gray-600 mb-4">No world stock data yet</p>
+          <Building2 className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+          <p className="text-gray-400 mb-4">No world stock data yet</p>
           <Link
             href="/world-stocks"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            className="inline-flex items-center px-4 py-2 bg-brand-400 text-surface-dark rounded-lg hover:bg-brand-500 transition-colors text-sm font-medium"
           >
             Upload Broker Statement
           </Link>
@@ -127,17 +127,17 @@ export default function WorldMarketHighlights() {
       : 0;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
-          <GlobeAmericasIcon className="h-6 w-6 text-blue-600" />
-          <h2 className="text-xl font-semibold text-gray-900">
+          <Globe className="h-6 w-6 text-brand-400" />
+          <h2 className="text-xl font-semibold text-gray-100">
             World Market Portfolio
           </h2>
         </div>
         <Link
           href="/world-stocks"
-          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+          className="text-sm text-brand-400 hover:text-brand-500 font-medium"
         >
           View Details →
         </Link>
@@ -145,23 +145,23 @@ export default function WorldMarketHighlights() {
 
       <div className="space-y-4">
         {/* Portfolio Value */}
-        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+        <div className="flex items-center justify-between p-4 bg-brand-400/10 rounded-xl border border-brand-400/20">
           <div className="flex items-center space-x-3">
-            <BanknotesIcon className="h-8 w-8 text-blue-600" />
+            <Banknote className="h-8 w-8 text-brand-400" />
             <div>
-              <p className="text-sm text-blue-700 font-medium">
+              <p className="text-sm text-brand-400 font-medium">
                 Portfolio Value
               </p>
-              <p className="text-2xl font-bold text-blue-900">
+              <p className="text-2xl font-bold text-gray-100">
                 {formatCurrency(summary.total_current_value)}
               </p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm text-blue-700">
+            <p className="text-sm text-brand-400">
               {summary.total_holdings} holdings
             </p>
-            <p className="text-xs text-blue-600">
+            <p className="text-xs text-brand-400/70">
               {summary.total_accounts} account
               {summary.total_accounts !== 1 ? "s" : ""}
             </p>
@@ -170,26 +170,26 @@ export default function WorldMarketHighlights() {
 
         {/* Unrealized P/L */}
         <div
-          className={`flex items-center justify-between p-4 rounded-lg border ${
+          className={`flex items-center justify-between p-4 rounded-xl border ${
             summary.total_unrealized_pl >= 0
-              ? "bg-gradient-to-r from-green-50 to-green-100 border-green-200"
-              : "bg-gradient-to-r from-red-50 to-red-100 border-red-200"
+              ? "bg-gain/10 border-gain/20"
+              : "bg-loss/10 border-loss/20"
           }`}
         >
           <div className="flex items-center space-x-3">
-            <BuildingOfficeIcon
+            <Building2
               className={`h-8 w-8 ${
                 summary.total_unrealized_pl >= 0
-                  ? "text-green-600"
-                  : "text-red-600"
+                  ? "text-gain"
+                  : "text-loss"
               }`}
             />
             <div>
               <p
                 className={`text-sm font-medium ${
                   summary.total_unrealized_pl >= 0
-                    ? "text-green-700"
-                    : "text-red-700"
+                    ? "text-gain"
+                    : "text-loss"
                 }`}
               >
                 Unrealized P/L
@@ -197,8 +197,8 @@ export default function WorldMarketHighlights() {
               <p
                 className={`text-2xl font-bold ${
                   summary.total_unrealized_pl >= 0
-                    ? "text-green-900"
-                    : "text-red-900"
+                    ? "text-gain"
+                    : "text-loss"
                 }`}
               >
                 {formatCurrency(summary.total_unrealized_pl)}
@@ -208,7 +208,7 @@ export default function WorldMarketHighlights() {
           <div className="text-right">
             <p
               className={`text-lg font-bold ${
-                plPercentage >= 0 ? "text-green-700" : "text-red-700"
+                plPercentage >= 0 ? "text-gain" : "text-loss"
               }`}
             >
               {plPercentage >= 0 ? "+" : ""}
@@ -218,14 +218,14 @@ export default function WorldMarketHighlights() {
         </div>
 
         {/* Dividends */}
-        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+        <div className="flex items-center justify-between p-4 bg-purple-500/10 rounded-xl border border-purple-500/20">
           <div className="flex items-center space-x-3">
-            <CurrencyDollarIcon className="h-8 w-8 text-purple-600" />
+            <DollarSign className="h-8 w-8 text-purple-400" />
             <div>
-              <p className="text-sm text-purple-700 font-medium">
+              <p className="text-sm text-purple-400 font-medium">
                 Total Dividends
               </p>
-              <p className="text-2xl font-bold text-purple-900">
+              <p className="text-2xl font-bold text-gray-100">
                 {formatCurrency(summary.total_dividends)}
               </p>
             </div>
@@ -233,12 +233,12 @@ export default function WorldMarketHighlights() {
         </div>
 
         {/* Transactions */}
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
           <div className="flex items-center space-x-3">
-            <ArrowRightIcon className="h-6 w-6 text-gray-600" />
+            <ArrowRight className="h-6 w-6 text-gray-400" />
             <div>
-              <p className="text-sm text-gray-700 font-medium">Transactions</p>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-sm text-gray-300 font-medium">Transactions</p>
+              <p className="text-lg font-semibold text-gray-100">
                 {summary.total_transactions}
               </p>
             </div>
@@ -247,10 +247,10 @@ export default function WorldMarketHighlights() {
       </div>
 
       {/* Action Button */}
-      <div className="mt-6 pt-6 border-t border-gray-200">
+      <div className="mt-6 pt-6 border-t border-white/10">
         <Link
           href="/world-stocks"
-          className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          className="block w-full text-center px-4 py-2 bg-brand-400 text-surface-dark rounded-lg hover:bg-brand-500 transition-colors font-medium"
         >
           Manage World Stocks
         </Link>

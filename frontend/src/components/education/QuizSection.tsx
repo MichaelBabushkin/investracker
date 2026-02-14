@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { QuizQuestion } from "./types";
-import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/solid";
+import { CheckCircle, XCircle } from "lucide-react";
 
 interface QuizSectionProps {
   questions: QuizQuestion[];
@@ -46,12 +46,12 @@ const QuizSection: React.FC<QuizSectionProps> = ({ questions, onComplete }) => {
   if (finished) {
     const pct = Math.round((score / questions.length) * 100);
     return (
-      <div className="mt-8 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-8 border border-indigo-100 text-center">
+      <div className="mt-8 bg-brand-400/10 rounded-xl p-8 border border-brand-400/20 text-center">
         <div className="text-5xl mb-4">{pct >= 70 ? "🎉" : pct >= 40 ? "👍" : "📚"}</div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2">Quiz Complete!</h3>
-        <p className="text-lg text-gray-700">
+        <h3 className="text-xl font-bold text-gray-100 mb-2">Quiz Complete!</h3>
+        <p className="text-lg text-gray-300">
           You scored{" "}
-          <span className="font-bold text-indigo-600">
+          <span className="font-bold text-brand-400">
             {score}/{questions.length}
           </span>{" "}
           ({pct}%)
@@ -68,9 +68,9 @@ const QuizSection: React.FC<QuizSectionProps> = ({ questions, onComplete }) => {
   }
 
   return (
-    <div className="mt-8 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-100">
+    <div className="mt-8 bg-brand-400/10 rounded-xl p-6 border border-brand-400/20">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+        <h3 className="text-lg font-bold text-gray-100 flex items-center gap-2">
           🧠 Quick Quiz
         </h3>
         <span className="text-sm text-gray-500">
@@ -78,38 +78,38 @@ const QuizSection: React.FC<QuizSectionProps> = ({ questions, onComplete }) => {
         </span>
       </div>
 
-      <p className="text-gray-800 font-medium mb-4">{question.question}</p>
+      <p className="text-gray-200 font-medium mb-4">{question.question}</p>
 
       <div className="space-y-2 mb-4">
         {question.options.map((option, idx) => {
-          let style = "border-gray-200 bg-white hover:border-indigo-300";
+          let style = "border-white/10 bg-surface-dark-secondary hover:border-brand-400/30";
           if (revealed) {
             if (idx === question.correctIndex) {
-              style = "border-green-400 bg-green-50";
+              style = "border-gain/40 bg-gain/10";
             } else if (idx === selected) {
-              style = "border-red-400 bg-red-50";
+              style = "border-loss/40 bg-loss/10";
             } else {
-              style = "border-gray-200 bg-gray-50 opacity-60";
+              style = "border-white/10 bg-surface-dark opacity-60";
             }
           } else if (idx === selected) {
-            style = "border-indigo-400 bg-indigo-50";
+            style = "border-brand-400/40 bg-brand-400/10";
           }
 
           return (
             <button
               key={idx}
               onClick={() => handleSelect(idx)}
-              className={`w-full text-left p-3 rounded-lg border-2 transition-all ${style} flex items-center gap-3`}
+              className={`w-full text-left p-3 rounded-xl border-2 transition-all ${style} flex items-center gap-3`}
             >
               <span className="flex-shrink-0 w-7 h-7 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold">
                 {String.fromCharCode(65 + idx)}
               </span>
-              <span className="text-sm text-gray-800">{option}</span>
+              <span className="text-sm text-gray-200">{option}</span>
               {revealed && idx === question.correctIndex && (
-                <CheckCircleIcon className="w-5 h-5 text-green-500 ml-auto flex-shrink-0" />
+                <CheckCircle className="w-5 h-5 text-gain ml-auto flex-shrink-0" />
               )}
               {revealed && idx === selected && idx !== question.correctIndex && (
-                <XCircleIcon className="w-5 h-5 text-red-500 ml-auto flex-shrink-0" />
+                <XCircle className="w-5 h-5 text-loss ml-auto flex-shrink-0" />
               )}
             </button>
           );
@@ -117,9 +117,9 @@ const QuizSection: React.FC<QuizSectionProps> = ({ questions, onComplete }) => {
       </div>
 
       {revealed && (
-        <div className="bg-white rounded-lg p-3 mb-4 border border-indigo-100">
-          <p className="text-sm text-gray-700">
-            <span className="font-semibold text-indigo-600">💡 Explanation: </span>
+        <div className="bg-surface-dark-secondary rounded-xl p-3 mb-4 border border-white/10">
+          <p className="text-sm text-gray-300">
+            <span className="font-semibold text-brand-400">💡 Explanation: </span>
             {question.explanation}
           </p>
         </div>
@@ -130,14 +130,14 @@ const QuizSection: React.FC<QuizSectionProps> = ({ questions, onComplete }) => {
           <button
             onClick={handleCheck}
             disabled={selected === null}
-            className="px-5 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-5 py-2 bg-brand-400 text-surface-dark rounded-xl font-medium hover:bg-brand-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Check Answer
           </button>
         ) : (
           <button
             onClick={handleNext}
-            className="px-5 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+            className="px-5 py-2 bg-brand-400 text-surface-dark rounded-xl font-medium hover:bg-brand-500 transition-colors"
           >
             {currentQ < questions.length - 1 ? "Next Question →" : "Finish Quiz"}
           </button>

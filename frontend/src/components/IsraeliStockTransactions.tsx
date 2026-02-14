@@ -2,20 +2,20 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  ArrowRightIcon,
-  ArrowLeftIcon,
-  CalendarIcon,
-  BanknotesIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  CurrencyDollarIcon,
-  PlusIcon,
-  PencilIcon,
-  TrashIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
-  ChevronUpDownIcon,
-} from "@heroicons/react/24/outline";
+  ArrowRight,
+  ArrowLeft,
+  Calendar,
+  Banknote,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
+} from "lucide-react";
 import { israeliStocksAPI } from "@/services/api";
 import { IsraeliStockTransaction } from "@/types/israeli-stocks";
 import StockLogo from "./StockLogo";
@@ -150,34 +150,34 @@ export default function IsraeliStockTransactions({
     const sizeClass = size === "sm" ? "h-4 w-4" : "h-5 w-5";
     switch (type) {
       case "BUY":
-        return <ArrowTrendingUpIcon className={`${sizeClass} text-green-600`} />;
+        return <TrendingUp className={`${sizeClass} text-gain`} />;
       case "SELL":
-        return <ArrowTrendingDownIcon className={`${sizeClass} text-red-600`} />;
+        return <TrendingDown className={`${sizeClass} text-loss`} />;
       case "DIVIDEND":
-        return <CurrencyDollarIcon className={`${sizeClass} text-blue-600`} />;
+        return <DollarSign className={`${sizeClass} text-brand-400`} />;
       case "DEPOSIT":
-        return <BanknotesIcon className={`${sizeClass} text-purple-600`} />;
+        return <Banknote className={`${sizeClass} text-purple-400`} />;
       case "WITHDRAWAL":
-        return <BanknotesIcon className={`${sizeClass} text-orange-600`} />;
+        return <Banknote className={`${sizeClass} text-orange-400`} />;
       default:
-        return <ArrowRightIcon className={`${sizeClass} text-gray-600`} />;
+        return <ArrowRight className={`${sizeClass} text-gray-400`} />;
     }
   };
 
   const getTransactionColor = (type: string) => {
     switch (type) {
       case "BUY":
-        return "text-green-600 bg-green-50 border-green-200";
+        return "text-gain bg-gain/10 border-gain/20";
       case "SELL":
-        return "text-red-600 bg-red-50 border-red-200";
+        return "text-loss bg-loss/10 border-loss/20";
       case "DIVIDEND":
-        return "text-blue-600 bg-blue-50 border-blue-200";
+        return "text-brand-400 bg-brand-400/10 border-brand-400/20";
       case "DEPOSIT":
-        return "text-purple-600 bg-purple-50 border-purple-200";
+        return "text-purple-400 bg-purple-400/10 border-purple-400/20";
       case "WITHDRAWAL":
-        return "text-orange-600 bg-orange-50 border-orange-200";
+        return "text-orange-400 bg-orange-400/10 border-orange-400/20";
       default:
-        return "text-gray-600 bg-gray-50 border-gray-200";
+        return "text-gray-400 bg-surface-dark border-white/10";
     }
   };
 
@@ -194,12 +194,12 @@ export default function IsraeliStockTransactions({
 
   const getSortIcon = (field: string) => {
     if (sortField !== field) {
-      return <ChevronUpDownIcon className="h-4 w-4 text-gray-400" />;
+      return <ChevronsUpDown className="h-4 w-4 text-gray-400" />;
     }
     return sortDirection === "asc" ? (
-      <ChevronUpIcon className="h-4 w-4 text-blue-600" />
+      <ChevronUp className="h-4 w-4 text-brand-400" />
     ) : (
-      <ChevronDownIcon className="h-4 w-4 text-blue-600" />
+      <ChevronDown className="h-4 w-4 text-brand-400" />
     );
   };
 
@@ -279,7 +279,7 @@ export default function IsraeliStockTransactions({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             Israeli Stock Transactions
           </h2>
         </div>
@@ -287,13 +287,13 @@ export default function IsraeliStockTransactions({
           {[...Array(3)].map((_, i) => (
             <div
               key={i}
-              className="bg-white p-6 rounded-lg shadow-md border border-gray-200"
+              className="bg-surface-dark-secondary p-6 rounded-xl border border-white/10"
             >
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="h-4 bg-white/10 rounded w-1/4 mb-2"></div>
+              <div className="h-3 bg-white/10 rounded w-1/2 mb-4"></div>
               <div className="grid grid-cols-4 gap-4">
                 {[...Array(4)].map((_, j) => (
-                  <div key={j} className="h-3 bg-gray-200 rounded"></div>
+                  <div key={j} className="h-3 bg-white/10 rounded"></div>
                 ))}
               </div>
             </div>
@@ -307,15 +307,15 @@ export default function IsraeliStockTransactions({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             Israeli Stock Transactions
           </h2>
           <button onClick={fetchTransactions} className="btn-primary text-sm">
             Retry
           </button>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">{error}</p>
+        <div className="bg-loss/10 border border-loss/20 rounded-xl p-4">
+          <p className="text-loss">{error}</p>
         </div>
       </div>
     );
@@ -325,20 +325,20 @@ export default function IsraeliStockTransactions({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             Israeli Stock Transactions
           </h2>
         </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
-          <CurrencyDollarIcon className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <div className="bg-surface-dark border border-white/10 rounded-xl p-12 text-center">
+          <DollarSign className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-100 mb-2">
             No Transactions Found
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-400 mb-4">
             Upload an Israeli investment PDF to see your transaction history
             here.
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-400">
             We support buy, sell, and dividend transactions from Israeli
             brokers.
           </p>
@@ -351,7 +351,7 @@ export default function IsraeliStockTransactions({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-xl font-semibold text-gray-100">
           Israeli Stock Transactions
         </h2>
         <div className="flex space-x-2">
@@ -359,7 +359,7 @@ export default function IsraeliStockTransactions({
             onClick={() => setShowAddForm(true)}
             className="btn-primary text-sm flex items-center space-x-1"
           >
-            <PlusIcon className="h-4 w-4" />
+            <Plus className="h-4 w-4" />
             <span>Add</span>
           </button>
           <button onClick={fetchTransactions} className="btn-secondary text-sm">
@@ -373,7 +373,7 @@ export default function IsraeliStockTransactions({
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="metric-card">
             <div className="flex items-center">
-              <ArrowRightIcon className="h-8 w-8 opacity-80" />
+              <ArrowRight className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Transactions</p>
                 <p className="text-2xl font-bold">{transactions.length}</p>
@@ -383,7 +383,7 @@ export default function IsraeliStockTransactions({
 
           <div className="metric-card bg-gradient-to-r from-green-500 to-green-600">
             <div className="flex items-center">
-              <ArrowTrendingUpIcon className="h-8 w-8 opacity-80" />
+              <TrendingUp className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Overall Bought</p>
                 <p className="text-2xl font-bold">
@@ -395,7 +395,7 @@ export default function IsraeliStockTransactions({
 
           <div className="metric-card bg-gradient-to-r from-red-500 to-red-600">
             <div className="flex items-center">
-              <ArrowTrendingDownIcon className="h-8 w-8 opacity-80" />
+              <TrendingDown className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Overall Sold</p>
                 <p className="text-2xl font-bold">
@@ -407,7 +407,7 @@ export default function IsraeliStockTransactions({
 
           <div className="metric-card bg-gradient-to-r from-blue-500 to-blue-600">
             <div className="flex items-center">
-              <CurrencyDollarIcon className="h-8 w-8 opacity-80" />
+              <DollarSign className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Total Commission Paid</p>
                 <p className="text-2xl font-bold">
@@ -424,7 +424,7 @@ export default function IsraeliStockTransactions({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="metric-card bg-gradient-to-r from-purple-500 to-purple-600">
             <div className="flex items-center">
-              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <Banknote className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Total Deposits</p>
                 <p className="text-2xl font-bold">
@@ -436,7 +436,7 @@ export default function IsraeliStockTransactions({
 
           <div className="metric-card bg-gradient-to-r from-orange-500 to-orange-600">
             <div className="flex items-center">
-              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <Banknote className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Total Withdrawals</p>
                 <p className="text-2xl font-bold">
@@ -450,9 +450,9 @@ export default function IsraeliStockTransactions({
 
       {/* Monthly Activity Chart */}
       {monthlyData.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+        <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-gray-700">
+            <h3 className="text-sm font-medium text-gray-300">
               Monthly Trading Activity (Buy vs Sell)
             </h3>
             <span className="text-xs text-gray-400">
@@ -489,10 +489,10 @@ export default function IsraeliStockTransactions({
       )}
 
       {/* Filter Controls */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+      <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-gray-300 mb-1">
               Search Symbol or Company
             </label>
             <input
@@ -500,17 +500,17 @@ export default function IsraeliStockTransactions({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-700"
+              className="w-full px-3 py-2 border border-white/10 rounded-md text-sm focus:ring-brand-400/40 focus:border-brand-400 text-gray-300"
             />
           </div>
           <div className="md:w-48">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-gray-300 mb-1">
               Transaction Type
             </label>
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-700"
+              className="w-full px-3 py-2 border border-white/10 rounded-md text-sm focus:ring-brand-400/40 focus:border-brand-400 text-gray-300"
             >
               <option value="ALL">All Types</option>
               <option value="BUY">Buy</option>
@@ -525,24 +525,24 @@ export default function IsraeliStockTransactions({
 
       {/* Transactions Table */}
       {transactions.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <ArrowRightIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <div className="text-center py-12 bg-surface-dark rounded-xl">
+          <ArrowRight className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-100 mb-2">
             No Transactions Found
           </h3>
-          <p className="text-gray-500">
+          <p className="text-gray-400">
             Upload a PDF report to import your Israeli stock transactions.
           </p>
         </div>
       ) : (
         <>
-          <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+          <div className="bg-surface-dark-secondary border border-white/10 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-white/5">
+                <thead className="bg-surface-dark">
                   <tr>
                     <th 
-                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-white/5 select-none"
                       onClick={() => handleSort("transaction_date")}
                     >
                       <div className="flex items-center space-x-1">
@@ -551,7 +551,7 @@ export default function IsraeliStockTransactions({
                       </div>
                     </th>
                     <th 
-                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-white/5 select-none"
                       onClick={() => handleSort("symbol")}
                     >
                       <div className="flex items-center space-x-1">
@@ -560,7 +560,7 @@ export default function IsraeliStockTransactions({
                       </div>
                     </th>
                     <th 
-                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-white/5 select-none"
                       onClick={() => handleSort("transaction_type")}
                     >
                       <div className="flex items-center space-x-1">
@@ -569,7 +569,7 @@ export default function IsraeliStockTransactions({
                       </div>
                     </th>
                     <th 
-                      className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-white/5 select-none"
                       onClick={() => handleSort("quantity")}
                     >
                       <div className="flex items-center justify-end space-x-1">
@@ -578,7 +578,7 @@ export default function IsraeliStockTransactions({
                       </div>
                     </th>
                     <th 
-                      className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-white/5 select-none"
                       onClick={() => handleSort("price")}
                     >
                       <div className="flex items-center justify-end space-x-1">
@@ -587,7 +587,7 @@ export default function IsraeliStockTransactions({
                       </div>
                     </th>
                     <th 
-                      className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                      className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-white/5 select-none"
                       onClick={() => handleSort("total_value")}
                     >
                       <div className="flex items-center justify-end space-x-1">
@@ -595,15 +595,15 @@ export default function IsraeliStockTransactions({
                         {getSortIcon("total_value")}
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                       Fees
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-surface-dark-secondary divide-y divide-white/5">
                   {(() => {
                     // Apply filters
                     let filteredTransactions = transactions.filter((t) => {
@@ -650,13 +650,13 @@ export default function IsraeliStockTransactions({
                       const isDeposit = transaction.transaction_type === "DEPOSIT" || transaction.transaction_type === "WITHDRAWAL";
                       
                       return (
-                        <tr key={transaction.id} className="hover:bg-gray-50">
+                        <tr key={transaction.id} className="hover:bg-white/5">
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
+                            <div className="text-sm text-gray-100">
                               {formatDate(transaction.transaction_date)}
                             </div>
                             {transaction.transaction_time && (
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-gray-400">
                                 {formatTime(transaction.transaction_time)}
                               </div>
                             )}
@@ -670,10 +670,10 @@ export default function IsraeliStockTransactions({
                                 className="flex-shrink-0"
                               />
                               <div className="min-w-0">
-                                <div className="text-sm font-medium text-gray-900 truncate">
+                                <div className="text-sm font-medium text-gray-100 truncate">
                                   {transaction.symbol}
                                 </div>
-                                <div className="text-xs text-gray-500 truncate">
+                                <div className="text-xs text-gray-400 truncate">
                                   {transaction.company_name}
                                 </div>
                               </div>
@@ -689,16 +689,16 @@ export default function IsraeliStockTransactions({
                               <span className="ml-1">{transaction.transaction_type}</span>
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right text-sm text-gray-900">
+                          <td className="px-4 py-3 text-right text-sm text-gray-100">
                             {isDeposit ? "-" : formatNumber(transaction.quantity)}
                           </td>
-                          <td className="px-4 py-3 text-right text-sm text-gray-900">
+                          <td className="px-4 py-3 text-right text-sm text-gray-100">
                             {isDeposit ? "-" : formatCurrency(transaction.price)}
                           </td>
-                          <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
+                          <td className="px-4 py-3 text-right text-sm font-medium text-gray-100">
                             {formatCurrency(transaction.total_value)}
                           </td>
-                          <td className="px-4 py-3 text-right text-xs text-gray-600">
+                          <td className="px-4 py-3 text-right text-xs text-gray-400">
                             {(transaction.commission && Number(transaction.commission) > 0) || (transaction.tax && Number(transaction.tax) > 0) ? (
                               <div>
                                 {transaction.commission && Number(transaction.commission) > 0 && (
@@ -716,17 +716,17 @@ export default function IsraeliStockTransactions({
                             <div className="flex justify-end space-x-2">
                               <button
                                 onClick={() => setEditingTransaction(transaction)}
-                                className="text-blue-600 hover:text-blue-800 p-1 rounded"
+                                className="text-brand-400 hover:text-brand-300 p-1 rounded"
                                 title="Edit transaction"
                               >
-                                <PencilIcon className="h-4 w-4" />
+                                <Pencil className="h-4 w-4" />
                               </button>
                               <button
                                 onClick={() => handleDeleteTransaction(transaction.id)}
-                                className="text-red-600 hover:text-red-800 p-1 rounded"
+                                className="text-loss hover:text-loss p-1 rounded"
                                 title="Delete transaction"
                               >
-                                <TrashIcon className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4" />
                               </button>
                             </div>
                           </td>
@@ -753,8 +753,8 @@ export default function IsraeliStockTransactions({
             if (totalPages <= 1) return null;
 
             return (
-              <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex items-center justify-between">
-                <div className="text-sm text-gray-700">
+              <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                <div className="text-sm text-gray-300">
                   Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
                   {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of{" "}
                   {filteredTransactions.length} transactions
@@ -763,7 +763,7 @@ export default function IsraeliStockTransactions({
                   <button
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 border border-white/10 rounded-md text-sm font-medium text-gray-300 hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Previous
                   </button>
@@ -781,15 +781,15 @@ export default function IsraeliStockTransactions({
                             onClick={() => setCurrentPage(page)}
                             className={`px-3 py-1 border rounded-md text-sm font-medium ${
                               currentPage === page
-                                ? "bg-blue-600 text-white border-blue-600"
-                                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                                ? "bg-brand-400 text-white border-brand-400"
+                                : "border-white/10 text-gray-300 hover:bg-white/5"
                             }`}
                           >
                             {page}
                           </button>
                         );
                       } else if (page === currentPage - 2 || page === currentPage + 2) {
-                        return <span key={page} className="px-2 text-gray-500">...</span>;
+                        return <span key={page} className="px-2 text-gray-400">...</span>;
                       }
                       return null;
                     })}
@@ -797,7 +797,7 @@ export default function IsraeliStockTransactions({
                   <button
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 border border-white/10 rounded-md text-sm font-medium text-gray-300 hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
                   </button>

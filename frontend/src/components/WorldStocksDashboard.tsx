@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  BuildingOfficeIcon,
-  ArrowRightIcon,
-  CurrencyDollarIcon,
-  GlobeAmericasIcon,
-} from "@heroicons/react/24/outline";
+  Building2,
+  ArrowRight,
+  DollarSign,
+  Globe,
+} from "lucide-react";
 import WorldStockHoldings from "./WorldStockHoldings";
 import WorldStockTransactions from "./WorldStockTransactions";
 import WorldStockDividends from "./WorldStockDividends";
@@ -46,36 +46,36 @@ export default function WorldStocksDashboard() {
     {
       id: "holdings" as TabType,
       name: "Holdings",
-      icon: BuildingOfficeIcon,
+      icon: Building2,
       description: "View your stock holdings with P/L",
     },
     {
       id: "transactions" as TabType,
       name: "Transactions",
-      icon: ArrowRightIcon,
+      icon: ArrowRight,
       description: "View transaction history",
     },
     {
       id: "dividends" as TabType,
       name: "Dividends",
-      icon: CurrencyDollarIcon,
+      icon: DollarSign,
       description: "View dividend income",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-dark">
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <GlobeAmericasIcon className="h-8 w-8 text-blue-600" />
+              <Globe className="h-8 w-8 text-brand-400" />
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">
+                <h1 className="text-3xl font-bold text-gray-100">
                   World Stocks
                 </h1>
-                <p className="text-gray-600">
+                <p className="text-gray-400">
                   Manage your international stock portfolio
                 </p>
               </div>
@@ -84,7 +84,7 @@ export default function WorldStocksDashboard() {
             {/* Account Selector */}
             {accounts.length > 0 && (
               <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-gray-300">
                   Account:
                 </label>
                 <select
@@ -94,7 +94,7 @@ export default function WorldStocksDashboard() {
                       e.target.value ? Number(e.target.value) : undefined
                     )
                   }
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="px-3 py-2 border border-white/10 rounded-lg text-sm bg-surface-dark-secondary text-gray-100 focus:ring-2 focus:ring-brand-400/40 focus:border-transparent"
                 >
                   <option value="">All Accounts</option>
                   {accounts.map((account) => (
@@ -113,7 +113,7 @@ export default function WorldStocksDashboard() {
 
         {/* Navigation Tabs */}
         <div className="mb-8">
-          <div className="border-b border-gray-200">
+          <div className="border-b border-white/10">
             <nav className="-mb-px flex space-x-8">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -125,8 +125,8 @@ export default function WorldStocksDashboard() {
                       flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm
                       ${
                         activeTab === tab.id
-                          ? "border-blue-500 text-blue-600"
-                          : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                          ? "border-brand-400/40 text-brand-400"
+                          : "border-transparent text-gray-500 hover:text-gray-300 hover:border-white/10"
                       }
                     `}
                   >
@@ -143,7 +143,7 @@ export default function WorldStocksDashboard() {
             {tabs.map(
               (tab) =>
                 activeTab === tab.id && (
-                  <p key={tab.id} className="text-sm text-gray-600">
+                  <p key={tab.id} className="text-sm text-gray-400">
                     {tab.description}
                   </p>
                 )
@@ -152,7 +152,7 @@ export default function WorldStocksDashboard() {
         </div>
 
         {/* Tab Content */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
           {activeTab === "holdings" && (
             <WorldStockHoldings
               refreshTrigger={refreshTrigger}

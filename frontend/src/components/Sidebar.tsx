@@ -6,35 +6,37 @@ import { RootState, AppDispatch } from "@/store";
 import { logout } from "@/store/slices/authSlice";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  HomeIcon,
-  BriefcaseIcon,
-  ChartBarIcon,
-  DocumentTextIcon,
-  Cog6ToothIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  ShieldCheckIcon,
-  ArrowLeftOnRectangleIcon,
-  GlobeAmericasIcon,
-  BuildingLibraryIcon,
-  ChartPieIcon,
-  CalendarIcon,
-  AcademicCapIcon,
-} from "@heroicons/react/24/outline";
+  Home,
+  Briefcase,
+  BarChart3,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Shield,
+  LogOut,
+  Globe2,
+  Landmark,
+  PieChart,
+  Calendar,
+  GraduationCap,
+  X,
+} from "lucide-react";
 import Image from "next/image";
+
+import type { LucideIcon } from "lucide-react";
 
 interface SubItem {
   name: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
 }
 
 interface NavItem {
   name: string;
   href?: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   requiredRole?: "admin" | "user" | "viewer";
   subItems?: SubItem[];
 }
@@ -42,9 +44,11 @@ interface NavItem {
 interface SidebarProps {
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
+  mobileOpen: boolean;
+  setMobileOpen: (open: boolean) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen }) => {
   const { user } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
@@ -71,86 +75,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
   };
 
   const navItems: NavItem[] = [
-    {
-      name: "Home",
-      href: "/",
-      icon: HomeIcon,
-    },
+    { name: "Home", href: "/", icon: Home },
     {
       name: "Portfolio",
-      icon: BriefcaseIcon,
+      icon: Briefcase,
       requiredRole: "viewer",
       subItems: [
-        {
-          name: "Overview",
-          href: "/portfolio",
-          icon: ChartPieIcon,
-        },
-        {
-          name: "World Stocks",
-          href: "/world-stocks",
-          icon: GlobeAmericasIcon,
-        },
-        {
-          name: "Israeli Stocks",
-          href: "/israeli-stocks",
-          icon: BuildingLibraryIcon,
-        },
+        { name: "Overview", href: "/portfolio", icon: PieChart },
+        { name: "World Stocks", href: "/world-stocks", icon: Globe2 },
+        { name: "Israeli Stocks", href: "/israeli-stocks", icon: Landmark },
       ],
     },
-    {
-      name: "Analytics",
-      href: "/analytics",
-      icon: ChartBarIcon,
-      requiredRole: "viewer",
-    },
-    {
-      name: "Calendar",
-      href: "/calendar",
-      icon: CalendarIcon,
-      requiredRole: "viewer",
-    },
-    {
-      name: "Education",
-      href: "/education",
-      icon: AcademicCapIcon,
-      requiredRole: "viewer",
-    },
-    {
-      name: "Reports",
-      href: "/reports",
-      icon: DocumentTextIcon,
-      requiredRole: "user",
-    },
-    {
-      name: "Settings",
-      href: "/settings",
-      icon: Cog6ToothIcon,
-      requiredRole: "viewer",
-    },
-    {
-      name: "Admin Panel",
-      href: "/admin",
-      icon: ShieldCheckIcon,
-      requiredRole: "admin",
-    },
+    { name: "Analytics", href: "/analytics", icon: BarChart3, requiredRole: "viewer" },
+    { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "viewer" },
+    { name: "Education", href: "/education", icon: GraduationCap, requiredRole: "viewer" },
+    { name: "Settings", href: "/settings", icon: Settings, requiredRole: "viewer" },
+    { name: "Admin", href: "/admin", icon: Shield, requiredRole: "admin" },
   ];
 
-  const roleHierarchy: Record<string, number> = {
-    admin: 3,
-    user: 2,
-    viewer: 1,
-  };
+  const roleHierarchy: Record<string, number> = { admin: 3, user: 2, viewer: 1 };
 
   const canAccessItem = (item: NavItem): boolean => {
     if (!item.requiredRole) return true;
     if (!user) return false;
-
     const userRole = user.role?.toLowerCase() || "viewer";
-    const userLevel = roleHierarchy[userRole] || 0;
-    const requiredLevel = roleHierarchy[item.requiredRole] || 0;
-
-    return userLevel >= requiredLevel;
+    return (roleHierarchy[userRole] || 0) >= (roleHierarchy[item.requiredRole] || 0);
   };
 
   const filteredNavItems = navItems.filter(canAccessItem);
@@ -163,59 +112,43 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
 
   const isMenuActive = (item: NavItem) => {
     if (item.href) return isActive(item.href);
-    if (item.subItems) {
-      return item.subItems.some((sub) => isActive(sub.href));
-    }
+    if (item.subItems) return item.subItems.some((sub) => isActive(sub.href));
     return false;
   };
 
   const handleNavigation = (href: string) => {
     router.push(href);
+    setMobileOpen(false);
   };
 
-  return (
-    <div
-      className={`${
-        isCollapsed ? "w-20" : "w-64"
-      } bg-gray-900 text-white h-screen fixed left-0 top-0 transition-all duration-300 ease-in-out flex flex-col shadow-2xl z-50`}
-    >
+  const sidebarContent = (
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-800">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-white/5">
         {!isCollapsed ? (
-          <div className="flex items-center space-x-2">
-            <Image
-              src="/images/investracker_logo.svg"
-              alt="Investracker"
-              width={100}
-              height={100}
-              className="w-[100%] h-[auto]"
-            />
-          </div>
+          <Image src="/images/investracker_logo-dark.svg" alt="Investracker" width={140} height={36} className="h-8 w-auto" />
         ) : (
-          <Image
-            src="/images/small_logo.svg"
-            alt="Investracker"
-            width={32}
-            height={32}
-            className="w-8 h-8"
-          />
+          <Image src="/images/small_logo.svg" alt="Investracker" width={32} height={32} className="w-8 h-8 mx-auto" />
         )}
+        {/* Desktop collapse toggle */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="hidden lg:flex p-1.5 rounded-lg hover:bg-white/5 transition-colors text-gray-400"
         >
-          {isCollapsed ? (
-            <ChevronRightIcon className="w-5 h-5" />
-          ) : (
-            <ChevronLeftIcon className="w-5 h-5" />
-          )}
+          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
+        {/* Mobile close */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="lg:hidden p-1.5 rounded-lg hover:bg-white/5 transition-colors text-gray-400"
+        >
+          <X size={18} />
         </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-6 overflow-y-auto">
-        <ul className="space-y-2">
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        <ul className="space-y-1">
           {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const active = isMenuActive(item);
@@ -227,42 +160,38 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                 <button
                   onClick={() => {
                     if (hasSubItems) {
-                      if (!isCollapsed) {
-                        toggleMenu(item.name);
-                      }
+                      if (!isCollapsed) toggleMenu(item.name);
                     } else if (item.href) {
                       handleNavigation(item.href);
                     }
                   }}
                   className={`w-full flex items-center ${
                     isCollapsed ? "justify-center" : "justify-start"
-                  } px-3 py-3 rounded-lg transition-all duration-200 group ${
+                  } px-3 py-2.5 rounded-lg transition-all duration-150 group ${
                     active && !hasSubItems
-                      ? "bg-blue-600 text-white shadow-lg shadow-blue-600/50"
-                      : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                      ? "bg-brand-400/10 text-brand-400"
+                      : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
                   }`}
                   title={isCollapsed ? item.name : undefined}
                 >
                   <Icon
-                    className={`w-6 h-6 ${
+                    size={20}
+                    className={
                       active && !hasSubItems
-                        ? "text-white"
-                        : "text-gray-400 group-hover:text-white"
-                    }`}
+                        ? "text-brand-400"
+                        : "text-gray-500 group-hover:text-gray-300"
+                    }
                   />
                   {!isCollapsed && (
                     <>
-                      <span className="ml-3 font-medium flex-1 text-left">
+                      <span className="ml-3 text-sm font-medium flex-1 text-left">
                         {item.name}
                       </span>
-                      {hasSubItems &&
-                        (isExpanded ? (
-                          <ChevronUpIcon className="w-4 h-4" />
-                        ) : (
-                          <ChevronDownIcon className="w-4 h-4" />
-                        ))}
+                      {hasSubItems && (
+                        isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                      )}
                       {!hasSubItems && active && (
-                        <div className="ml-auto w-1 h-6 bg-white rounded-full" />
+                        <div className="w-1.5 h-1.5 bg-brand-400 rounded-full" />
                       )}
                     </>
                   )}
@@ -270,29 +199,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
 
                 {/* Sub-items */}
                 {hasSubItems && !isCollapsed && isExpanded && (
-                  <ul className="mt-2 ml-3 space-y-1 border-l-2 border-gray-800 pl-4">
+                  <ul className="mt-1 ml-4 space-y-0.5 border-l border-white/5 pl-3">
                     {item.subItems!.map((subItem) => {
                       const SubIcon = subItem.icon;
                       const subActive = isActive(subItem.href);
-
                       return (
                         <li key={subItem.name}>
                           <button
                             onClick={() => handleNavigation(subItem.href)}
-                            className={`w-full flex items-center px-3 py-2 rounded-lg transition-all duration-200 text-sm group ${
+                            className={`w-full flex items-center px-3 py-2 rounded-lg transition-all duration-150 text-sm group ${
                               subActive
-                                ? "bg-blue-600 text-white shadow-md"
-                                : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                                ? "bg-brand-400/10 text-brand-400"
+                                : "text-gray-500 hover:bg-white/5 hover:text-gray-300"
                             }`}
                           >
-                            <SubIcon
-                              className={`w-5 h-5 ${
-                                subActive
-                                  ? "text-white"
-                                  : "text-gray-500 group-hover:text-white"
-                              }`}
-                            />
-                            <span className="ml-2">{subItem.name}</span>
+                            <SubIcon size={16} className={subActive ? "text-brand-400" : "text-gray-600 group-hover:text-gray-400"} />
+                            <span className="ml-2.5">{subItem.name}</span>
                           </button>
                         </li>
                       );
@@ -307,43 +229,56 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
 
       {/* User Info */}
       {user && (
-        <div className="border-t border-gray-800 p-4">
-          <div
-            className={`flex items-center ${
-              isCollapsed ? "justify-center" : ""
-            }`}
-          >
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold shadow-lg">
+        <div className="border-t border-white/5 p-3">
+          <div className={`flex items-center ${isCollapsed ? "justify-center" : ""}`}>
+            <div className="w-9 h-9 rounded-full bg-brand-400/20 flex items-center justify-center text-brand-400 font-semibold text-sm">
               {user.first_name?.[0] || user.email[0].toUpperCase()}
             </div>
             {!isCollapsed && (
               <div className="ml-3 flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
+                <p className="text-sm font-medium text-gray-200 truncate">
                   {user.first_name || user.email.split("@")[0]}
                 </p>
-                <p className="text-xs text-gray-400 capitalize">
-                  {user.role?.toLowerCase()}
-                </p>
+                <p className="text-xs text-gray-500 capitalize">{user.role?.toLowerCase()}</p>
               </div>
             )}
           </div>
-
-          {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className={`mt-3 w-full flex items-center ${
+            className={`mt-2 w-full flex items-center ${
               isCollapsed ? "justify-center" : "justify-start"
-            } px-3 py-2 rounded-lg text-gray-300 hover:bg-red-600 hover:text-white transition-all duration-200 group`}
+            } px-3 py-2 rounded-lg text-gray-500 hover:bg-loss/10 hover:text-loss transition-all duration-150 group`}
             title={isCollapsed ? "Logout" : undefined}
           >
-            <ArrowLeftOnRectangleIcon className="w-5 h-5 text-gray-400 group-hover:text-white" />
-            {!isCollapsed && (
-              <span className="ml-3 text-sm font-medium">Logout</span>
-            )}
+            <LogOut size={18} className="group-hover:text-loss" />
+            {!isCollapsed && <span className="ml-3 text-sm">Logout</span>}
           </button>
         </div>
       )}
     </div>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside
+        className={`hidden lg:flex flex-col fixed left-0 top-0 h-screen z-40 transition-all duration-300 ease-in-out ${
+          isCollapsed ? "w-[72px]" : "w-64"
+        } bg-surface-dark-secondary border-r border-white/5`}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile/Tablet overlay */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute left-0 top-0 h-full w-72 bg-surface-dark-secondary border-r border-white/5 animate-slide-in-left">
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+    </>
   );
 };
 

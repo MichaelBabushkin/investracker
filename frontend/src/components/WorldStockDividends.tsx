@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  CurrencyDollarIcon,
-  CalendarIcon,
-  BanknotesIcon,
-  ChartBarIcon,
-  ExclamationTriangleIcon,
-} from "@heroicons/react/24/outline";
+  DollarSign,
+  Calendar,
+  Banknote,
+  BarChart3,
+  AlertTriangle,
+} from "lucide-react";
 import { worldStocksAPI } from "@/services/api";
 import { WorldStockDividend } from "@/types/world-stocks";
 import {
@@ -164,7 +164,7 @@ export default function WorldStockDividends({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             World Stock Dividends
           </h2>
         </div>
@@ -172,10 +172,10 @@ export default function WorldStockDividends({
           {[...Array(3)].map((_, i) => (
             <div
               key={i}
-              className="bg-white p-4 rounded-lg shadow-md border border-gray-200"
+              className="bg-surface-dark-secondary p-4 rounded-xl border border-white/10"
             >
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              <div className="h-4 bg-white/10 rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-white/10 rounded w-1/2"></div>
             </div>
           ))}
         </div>
@@ -187,19 +187,19 @@ export default function WorldStockDividends({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             World Stock Dividends
           </h2>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-400 mb-4" />
-          <h3 className="text-lg font-medium text-red-800 mb-2">
+        <div className="bg-loss/10 border border-loss/20 rounded-xl p-6 text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-loss mb-4" />
+          <h3 className="text-lg font-medium text-loss mb-2">
             Error Loading Dividends
           </h3>
-          <p className="text-red-600">{error}</p>
+          <p className="text-loss">{error}</p>
           <button
             onClick={fetchDividends}
-            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-loss/80 transition-colors"
           >
             Try Again
           </button>
@@ -212,16 +212,16 @@ export default function WorldStockDividends({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             World Stock Dividends
           </h2>
         </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
-          <CurrencyDollarIcon className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <div className="bg-surface-dark border border-white/10 rounded-xl p-12 text-center">
+          <DollarSign className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-100 mb-2">
             No Dividends Found
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-400 mb-4">
             Upload a world stock broker statement to see your dividend income.
           </p>
         </div>
@@ -233,12 +233,12 @@ export default function WorldStockDividends({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-xl font-semibold text-gray-100">
           World Stock Dividends
         </h2>
         <button
           onClick={fetchDividends}
-          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+          className="px-4 py-2 bg-surface-dark text-gray-300 rounded-xl hover:bg-white/10 transition-colors text-sm font-medium"
         >
           Refresh
         </button>
@@ -246,9 +246,9 @@ export default function WorldStockDividends({
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-lg shadow-md">
+        <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-xl">
           <div className="flex items-center">
-            <CalendarIcon className="h-8 w-8 opacity-80" />
+            <Calendar className="h-8 w-8 opacity-80" />
             <div className="ml-3">
               <p className="text-sm opacity-80">Total Payments</p>
               <p className="text-2xl font-bold">{dividends.length}</p>
@@ -256,9 +256,9 @@ export default function WorldStockDividends({
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-lg shadow-md">
+        <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-xl">
           <div className="flex items-center">
-            <BanknotesIcon className="h-8 w-8 opacity-80" />
+            <Banknote className="h-8 w-8 opacity-80" />
             <div className="ml-3">
               <p className="text-sm opacity-80">Gross Dividends</p>
               <p className="text-2xl font-bold">
@@ -268,9 +268,9 @@ export default function WorldStockDividends({
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-red-500 to-red-600 text-white p-6 rounded-lg shadow-md">
+        <div className="bg-gradient-to-r from-red-500 to-red-600 text-white p-6 rounded-xl">
           <div className="flex items-center">
-            <ChartBarIcon className="h-8 w-8 opacity-80" />
+            <BarChart3 className="h-8 w-8 opacity-80" />
             <div className="ml-3">
               <p className="text-sm opacity-80">Withholding Tax</p>
               <p className="text-2xl font-bold">
@@ -280,9 +280,9 @@ export default function WorldStockDividends({
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-lg shadow-md">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl">
           <div className="flex items-center">
-            <CurrencyDollarIcon className="h-8 w-8 opacity-80" />
+            <DollarSign className="h-8 w-8 opacity-80" />
             <div className="ml-3">
               <p className="text-sm opacity-80">Net Dividends</p>
               <p className="text-2xl font-bold">
@@ -295,8 +295,8 @@ export default function WorldStockDividends({
 
       {/* Monthly Chart */}
       {monthlyData.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
+          <h3 className="text-lg font-semibold text-gray-100 mb-4">
             Monthly Dividend Income
           </h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -321,74 +321,74 @@ export default function WorldStockDividends({
       )}
 
       {/* Dividends Table */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+      <div className="bg-surface-dark-secondary rounded-xl border border-white/10 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-white/5">
+            <thead className="bg-surface-dark">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Payment Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Symbol
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Description
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Gross Amount
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Withholding Tax
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Net Amount
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-surface-dark-secondary divide-y divide-white/5">
               {dividends.map((dividend) => (
-                <tr key={dividend.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <tr key={dividend.id} className="hover:bg-white/5">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                     {formatDate(dividend.payment_date)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-semibold text-gray-900">
+                    <div className="font-semibold text-gray-100">
                       {dividend.symbol}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900 max-w-xs truncate">
+                    <div className="text-sm text-gray-100 max-w-xs truncate">
                       {dividend.description || "-"}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
                     {formatCurrency(dividend.amount || dividend.gross_amount)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-red-600">
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-loss">
                     {formatCurrency(dividend.withholding_tax)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-green-600">
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gain">
                     {formatCurrency(dividend.net_amount)}
                   </td>
                 </tr>
               ))}
             </tbody>
-            <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+            <tfoot className="bg-surface-dark border-t-2 border-white/10">
               <tr>
                 <td
                   colSpan={3}
-                  className="px-6 py-4 text-right text-sm font-semibold text-gray-700"
+                  className="px-6 py-4 text-right text-sm font-semibold text-gray-300"
                 >
                   Totals:
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-bold text-gray-900">
+                <td className="px-6 py-4 text-right text-sm font-bold text-gray-100">
                   {formatCurrency(totalGrossDividends)}
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-bold text-red-600">
+                <td className="px-6 py-4 text-right text-sm font-bold text-loss">
                   {formatCurrency(totalWithholdingTax)}
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-bold text-green-600">
+                <td className="px-6 py-4 text-right text-sm font-bold text-gain">
                   {formatCurrency(totalNetDividends)}
                 </td>
               </tr>

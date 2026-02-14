@@ -2,17 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  BuildingOfficeIcon,
-  ArrowTrendingUpIcon,
-  BanknotesIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
-  CalendarIcon,
-  ClockIcon,
-  ExclamationTriangleIcon,
-  TableCellsIcon,
-  ChartPieIcon,
-} from "@heroicons/react/24/outline";
+  Building2,
+  TrendingUp,
+  Banknote,
+  ArrowUp,
+  ArrowDown,
+  Calendar,
+  Clock,
+  AlertTriangle,
+  Table2,
+  PieChart as PieChartLucide,
+} from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -178,7 +178,7 @@ export default function IsraeliStockHoldings({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             Israeli Stock Holdings
           </h2>
         </div>
@@ -186,13 +186,13 @@ export default function IsraeliStockHoldings({
           {[...Array(3)].map((_, i) => (
             <div
               key={i}
-              className="bg-white p-6 rounded-lg shadow-md border border-gray-200"
+              className="bg-surface-dark-secondary p-6 rounded-xl border border-white/10"
             >
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="h-4 bg-white/10 rounded w-1/4 mb-2"></div>
+              <div className="h-3 bg-white/10 rounded w-1/2 mb-4"></div>
               <div className="grid grid-cols-4 gap-4">
                 {[...Array(4)].map((_, j) => (
-                  <div key={j} className="h-3 bg-gray-200 rounded"></div>
+                  <div key={j} className="h-3 bg-white/10 rounded"></div>
                 ))}
               </div>
             </div>
@@ -206,19 +206,19 @@ export default function IsraeliStockHoldings({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             Israeli Stock Holdings
           </h2>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-400 mb-4" />
-          <h3 className="text-lg font-medium text-red-800 mb-2">
+        <div className="bg-loss/10 border border-loss/20 rounded-xl p-6 text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-loss mb-4" />
+          <h3 className="text-lg font-medium text-loss mb-2">
             Error Loading Holdings
           </h3>
-          <p className="text-red-600">{error}</p>
+          <p className="text-loss">{error}</p>
           <button
             onClick={fetchHoldings}
-            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-loss/80 transition-colors"
           >
             Try Again
           </button>
@@ -231,19 +231,19 @@ export default function IsraeliStockHoldings({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             Israeli Stock Holdings
           </h2>
         </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
-          <BuildingOfficeIcon className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <div className="bg-surface-dark border border-white/10 rounded-xl p-12 text-center">
+          <Building2 className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-100 mb-2">
             No Holdings Found
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-400 mb-4">
             Upload an Israeli investment PDF to see your stock holdings here.
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-400">
             We support TA-125 and SME-60 stocks from Israeli brokers.
           </p>
         </div>
@@ -255,15 +255,15 @@ export default function IsraeliStockHoldings({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             Israeli Stock Holdings
           </h2>
           <button onClick={fetchHoldings} className="btn-primary text-sm">
             Retry
           </button>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">{error}</p>
+        <div className="bg-loss/10 border border-loss/20 rounded-xl p-4">
+          <p className="text-loss">{error}</p>
         </div>
       </div>
     );
@@ -273,32 +273,32 @@ export default function IsraeliStockHoldings({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-xl font-semibold text-gray-100">
           Israeli Stock Holdings
         </h2>
         <div className="flex items-center space-x-3">
           {/* View Mode Toggle */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+          <div className="flex items-center bg-surface-dark rounded-xl p-1">
             <button
               onClick={() => setViewMode("table")}
               className={`flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                 viewMode === "table"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
+                  ? "bg-surface-dark-secondary text-gray-100"
+                  : "text-gray-400 hover:text-gray-100"
               }`}
             >
-              <TableCellsIcon className="h-4 w-4 mr-1" />
+              <Table2 className="h-4 w-4 mr-1" />
               Table
             </button>
             <button
               onClick={() => setViewMode("chart")}
               className={`flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                 viewMode === "chart"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
+                  ? "bg-surface-dark-secondary text-gray-100"
+                  : "text-gray-400 hover:text-gray-100"
               }`}
             >
-              <ChartPieIcon className="h-4 w-4 mr-1" />
+              <PieChartLucide className="h-4 w-4 mr-1" />
               Chart
             </button>
           </div>
@@ -314,7 +314,7 @@ export default function IsraeliStockHoldings({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="metric-card">
             <div className="flex items-center">
-              <BuildingOfficeIcon className="h-8 w-8 opacity-80" />
+              <Building2 className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Total Holdings</p>
                 <p className="text-2xl font-bold">
@@ -326,7 +326,7 @@ export default function IsraeliStockHoldings({
 
           <div className="metric-card bg-gradient-to-r from-blue-500 to-blue-600">
             <div className="flex items-center">
-              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <Banknote className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Current Value</p>
                 <p className="text-2xl font-bold">
@@ -338,7 +338,7 @@ export default function IsraeliStockHoldings({
 
           <div className="metric-card bg-gradient-to-r from-gray-500 to-gray-600">
             <div className="flex items-center">
-              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <Banknote className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Total Cost</p>
                 <p className="text-2xl font-bold">
@@ -357,9 +357,9 @@ export default function IsraeliStockHoldings({
           >
             <div className="flex items-center">
               {totalReturn >= 0 ? (
-                <ArrowUpIcon className="h-8 w-8 opacity-80" />
+                <ArrowUp className="h-8 w-8 opacity-80" />
               ) : (
-                <ArrowDownIcon className="h-8 w-8 opacity-80" />
+                <ArrowDown className="h-8 w-8 opacity-80" />
               )}
               <div className="ml-3">
                 <p className="text-sm opacity-80">Total Return</p>
@@ -378,7 +378,7 @@ export default function IsraeliStockHoldings({
             }`}
           >
             <div className="flex items-center">
-              <ArrowTrendingUpIcon className="h-8 w-8 opacity-80" />
+              <TrendingUp className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Return %</p>
                 <p className="text-2xl font-bold">
@@ -395,7 +395,7 @@ export default function IsraeliStockHoldings({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="metric-card bg-gradient-to-r from-indigo-500 to-indigo-600">
             <div className="flex items-center">
-              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <Banknote className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Net Cash Flow</p>
                 <p className="text-2xl font-bold">
@@ -410,7 +410,7 @@ export default function IsraeliStockHoldings({
 
           <div className="metric-card bg-gradient-to-r from-teal-500 to-teal-600">
             <div className="flex items-center">
-              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <Banknote className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Available Cash</p>
                 <p className="text-2xl font-bold">
@@ -427,12 +427,12 @@ export default function IsraeliStockHoldings({
 
       {/* Content Area */}
       {!Array.isArray(holdings) || holdings.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <BuildingOfficeIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <div className="text-center py-12 bg-surface-dark rounded-xl">
+          <Building2 className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-100 mb-2">
             No Holdings Found
           </h3>
-          <p className="text-gray-500">
+          <p className="text-gray-400">
             Upload a PDF report to import your Israeli stock holdings.
           </p>
         </div>
@@ -440,45 +440,45 @@ export default function IsraeliStockHoldings({
         <>
           {viewMode === "table" ? (
             /* Holdings Table */
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+            <div className="bg-surface-dark-secondary rounded-xl border border-white/10 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-white/5">
+                  <thead className="bg-surface-dark">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Stock
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Quantity
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Current Value
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Purchase Cost
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Return
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Portfolio %
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Last Price
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-surface-dark-secondary divide-y divide-white/5">
                     {holdings.map((holding) => {
                       const returnData = calculateReturn(
                         holding.current_value,
                         holding.purchase_cost
                       );
                       return (
-                        <tr key={holding.id} className="hover:bg-gray-50">
+                        <tr key={holding.id} className="hover:bg-white/5">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <StockLogo
@@ -488,30 +488,30 @@ export default function IsraeliStockHoldings({
                                 className="flex-shrink-0 mr-3"
                               />
                               <div>
-                                <div className="text-sm font-medium text-gray-900">
+                                <div className="text-sm font-medium text-gray-100">
                                   {holding.symbol}
                                 </div>
-                                <div className="text-sm text-gray-500 max-w-xs truncate">
+                                <div className="text-sm text-gray-400 max-w-xs truncate">
                                   {holding.company_name}
                                 </div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                             {formatNumber(holding.quantity)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
                             {formatCurrency(holding.current_value)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                             {formatCurrency(holding.purchase_cost)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             <div
                               className={`font-medium ${
                                 returnData.amount >= 0
-                                  ? "text-green-600"
-                                  : "text-red-600"
+                                  ? "text-gain"
+                                  : "text-loss"
                               }`}
                             >
                               {formatCurrency(returnData.amount)}
@@ -519,29 +519,29 @@ export default function IsraeliStockHoldings({
                             <div
                               className={`text-xs ${
                                 returnData.percentage >= 0
-                                  ? "text-green-600"
-                                  : "text-red-600"
+                                  ? "text-gain"
+                                  : "text-loss"
                               }`}
                             >
                               {formatPercentage(returnData.percentage)}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                             {holding.portfolio_percentage
                               ? `${holding.portfolio_percentage.toFixed(2)}%`
                               : "N/A"}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                             {formatCurrency(
                               typeof holding.last_price === "number"
                                 ? holding.last_price / 100
                                 : holding.last_price
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
                             <button
                               onClick={() => handleDeleteHolding(holding.id)}
-                              className="text-red-600 hover:text-red-800 text-sm font-medium"
+                              className="text-loss hover:text-loss text-sm font-medium"
                             >
                               Delete
                             </button>
@@ -557,8 +557,8 @@ export default function IsraeliStockHoldings({
             /* Portfolio Pie Chart */
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Pie Chart */}
-              <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
+                <h3 className="text-lg font-semibold text-gray-100 mb-4">
                   Portfolio Distribution
                 </h3>
                 <div className="h-80">
@@ -595,8 +595,8 @@ export default function IsraeliStockHoldings({
               </div>
 
               {/* Holdings Summary List */}
-              <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
+                <h3 className="text-lg font-semibold text-gray-100 mb-4">
                   Holdings Summary
                 </h3>
                 <div className="space-y-3 max-h-80 overflow-y-auto">
@@ -611,7 +611,7 @@ export default function IsraeliStockHoldings({
                     return (
                       <div
                         key={item.name}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                        className="flex items-center justify-between p-3 bg-surface-dark rounded-xl"
                       >
                         <div className="flex items-center space-x-3">
                           <div
@@ -621,23 +621,23 @@ export default function IsraeliStockHoldings({
                             }}
                           />
                           <div>
-                            <p className="font-medium text-gray-900">
+                            <p className="font-medium text-gray-100">
                               {item.name}
                             </p>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-gray-400">
                               {holding?.company_name}
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium text-gray-100">
                             {formatCurrency(item.value)}
                           </p>
                           <p
                             className={`text-sm ${
                               returnData.percentage >= 0
-                                ? "text-green-600"
-                                : "text-red-600"
+                                ? "text-gain"
+                                : "text-loss"
                             }`}
                           >
                             {formatPercentage(returnData.percentage)}

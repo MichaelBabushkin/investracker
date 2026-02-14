@@ -3,13 +3,13 @@
 import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import {
-  CloudArrowUpIcon,
-  DocumentIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  XMarkIcon,
-  ArrowPathIcon,
-} from "@heroicons/react/24/outline";
+  Upload,
+  FileText,
+  CheckCircle,
+  AlertTriangle,
+  X,
+  RefreshCw,
+} from "lucide-react";
 import { israeliStocksAPI } from "@/services/api";
 import { UploadResult } from "@/types/israeli-stocks";
 
@@ -183,21 +183,21 @@ export default function IsraeliStockUploader({
       <div
         {...getRootProps()}
         className={`
-          relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
+          relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors
           ${
             isDragActive
-              ? "border-blue-400 bg-blue-50"
-              : "border-gray-300 hover:border-gray-400 bg-gray-50"
+              ? "border-brand-400 bg-brand-400/10"
+              : "border-white/10 hover:border-white/20 bg-surface-dark"
           }
           ${isUploading ? "pointer-events-none opacity-50" : ""}
         `}
       >
         <input {...getInputProps()} />
 
-        <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+        <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
 
         <div className="space-y-2">
-          <p className="text-lg font-medium text-gray-900">
+          <p className="text-lg font-medium text-gray-100">
             {isDragActive
               ? "Drop your Israeli investment PDFs here..."
               : "Upload Israeli Investment Reports"}
@@ -212,8 +212,8 @@ export default function IsraeliStockUploader({
         </div>
 
         {isUploading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded-lg">
-            <ArrowPathIcon className="h-8 w-8 text-blue-500 animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center bg-surface-dark/75 rounded-xl">
+            <RefreshCw className="h-8 w-8 text-brand-400 animate-spin" />
           </div>
         )}
       </div>
@@ -222,12 +222,12 @@ export default function IsraeliStockUploader({
       {uploadedFiles.length > 0 && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 className="text-lg font-medium text-gray-100">
               Uploaded Files ({uploadedFiles.length})
             </h3>
             <button
               onClick={clearFiles}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              className="text-sm text-gray-500 hover:text-gray-300"
               disabled={isUploading}
             >
               Clear All
@@ -238,31 +238,31 @@ export default function IsraeliStockUploader({
             {uploadedFiles.map((uploadedFile, index) => (
               <div
                 key={index}
-                className="flex items-center space-x-4 p-4 bg-white border border-gray-200 rounded-lg"
+                className="flex items-center space-x-4 p-4 bg-surface-dark-secondary border border-white/10 rounded-xl"
               >
-                <DocumentIcon className="h-8 w-8 text-gray-400 flex-shrink-0" />
+                <FileText className="h-8 w-8 text-gray-400 flex-shrink-0" />
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-sm font-medium text-gray-100 truncate">
                       {uploadedFile.file.name}
                     </p>
 
                     <div className="flex items-center space-x-2">
                       {uploadedFile.status === "uploading" && (
-                        <ArrowPathIcon className="h-4 w-4 text-blue-500 animate-spin" />
+                        <RefreshCw className="h-4 w-4 text-brand-400 animate-spin" />
                       )}
 
                       {uploadedFile.status === "success" && (
-                        <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                        <CheckCircle className="h-4 w-4 text-gain" />
                       )}
 
                       {uploadedFile.status === "error" && (
                         <div className="flex space-x-1">
-                          <ExclamationTriangleIcon className="h-4 w-4 text-red-500" />
+                          <AlertTriangle className="h-4 w-4 text-loss" />
                           <button
                             onClick={() => retryUpload(index)}
-                            className="text-xs text-blue-600 hover:text-blue-800"
+                            className="text-xs text-brand-400 hover:text-brand-500"
                           >
                             Retry
                           </button>
@@ -271,10 +271,10 @@ export default function IsraeliStockUploader({
 
                       <button
                         onClick={() => removeFile(index)}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-gray-400 hover:text-gray-300"
                         disabled={uploadedFile.status === "uploading"}
                       >
-                        <XMarkIcon className="h-4 w-4" />
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
@@ -285,9 +285,9 @@ export default function IsraeliStockUploader({
                     </div>
 
                     {uploadedFile.status === "uploading" && (
-                      <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                      <div className="w-full bg-white/10 rounded-full h-1.5 mt-2">
                         <div
-                          className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                          className="bg-brand-400 h-1.5 rounded-full transition-all duration-300"
                           style={{ width: `${uploadedFile.progress}%` }}
                         />
                       </div>
@@ -296,10 +296,10 @@ export default function IsraeliStockUploader({
                     {uploadedFile.status === "success" &&
                       uploadedFile.result && (
                         <div className="mt-2 text-xs">
-                          <div className="text-green-600">
+                          <div className="text-gain">
                             ✅ Processing completed successfully
                           </div>
-                          <div className="text-gray-600 mt-1">
+                          <div className="text-gray-400 mt-1">
                             Holdings: {uploadedFile.result.holdings_found}{" "}
                             found, {uploadedFile.result.holdings_saved} saved |
                             Transactions:{" "}
@@ -315,7 +315,7 @@ export default function IsraeliStockUploader({
                       )}
 
                     {uploadedFile.status === "error" && (
-                      <div className="mt-2 text-xs text-red-600">
+                      <div className="mt-2 text-xs text-loss">
                         ❌ {uploadedFile.error}
                       </div>
                     )}

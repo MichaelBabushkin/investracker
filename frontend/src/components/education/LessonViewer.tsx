@@ -2,13 +2,7 @@ import React, { useEffect } from "react";
 import { Topic, Category, ContentSection, Difficulty } from "./types";
 import { isTopicComplete, markTopicComplete, setLastVisited, saveQuizScore } from "./progressUtils";
 import QuizSection from "./QuizSection";
-import {
-  ArrowLeftIcon,
-  ClockIcon,
-  CheckIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowLeft, Clock, Check, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface LessonViewerProps {
   topic: Topic;
@@ -19,31 +13,31 @@ interface LessonViewerProps {
 }
 
 const diffBadge: Record<Difficulty, { label: string; cls: string }> = {
-  beginner: { label: "Beginner", cls: "bg-green-100 text-green-700" },
-  intermediate: { label: "Intermediate", cls: "bg-yellow-100 text-yellow-700" },
-  advanced: { label: "Advanced", cls: "bg-red-100 text-red-700" },
+  beginner: { label: "Beginner", cls: "bg-gain/10 text-gain" },
+  intermediate: { label: "Intermediate", cls: "bg-warn/10 text-warn" },
+  advanced: { label: "Advanced", cls: "bg-loss/10 text-loss" },
 };
 
 function renderSection(section: ContentSection, idx: number) {
   switch (section.type) {
     case "heading":
       return (
-        <h3 key={idx} className="text-xl font-bold text-gray-900 mt-8 mb-3">
+        <h3 key={idx} className="text-xl font-bold text-gray-100 mt-8 mb-3">
           {section.content}
         </h3>
       );
     case "text":
       return (
-        <p key={idx} className="text-gray-700 leading-relaxed mb-4">
+        <p key={idx} className="text-gray-300 leading-relaxed mb-4">
           {section.content}
         </p>
       );
     case "callout": {
       const variants: Record<string, { icon: string; bg: string; border: string; title: string }> = {
-        tip: { icon: "💡", bg: "bg-blue-50", border: "border-blue-200", title: "Pro Tip" },
-        warning: { icon: "⚠️", bg: "bg-amber-50", border: "border-amber-200", title: "Important" },
-        "key-concept": { icon: "🔑", bg: "bg-indigo-50", border: "border-indigo-200", title: "Key Concept" },
-        example: { icon: "📋", bg: "bg-green-50", border: "border-green-200", title: "Example" },
+        tip: { icon: "💡", bg: "bg-brand-400/10", border: "border-brand-400/20", title: "Pro Tip" },
+        warning: { icon: "⚠️", bg: "bg-warn/10", border: "border-warn/20", title: "Important" },
+        "key-concept": { icon: "🔑", bg: "bg-purple-500/10", border: "border-purple-500/20", title: "Key Concept" },
+        example: { icon: "📋", bg: "bg-gain/10", border: "border-gain/20", title: "Example" },
       };
       const v = variants[section.variant || "tip"] || variants.tip;
       return (
@@ -51,7 +45,7 @@ function renderSection(section: ContentSection, idx: number) {
           <p className="font-semibold text-sm mb-1">
             {v.icon} {v.title}
           </p>
-          <p className="text-sm text-gray-700">{section.content}</p>
+          <p className="text-sm text-gray-300">{section.content}</p>
         </div>
       );
     }
@@ -63,7 +57,7 @@ function renderSection(section: ContentSection, idx: number) {
       );
     case "list":
       return (
-        <ul key={idx} className="list-disc list-inside space-y-2 my-4 text-gray-700">
+        <ul key={idx} className="list-disc list-inside space-y-2 my-4 text-gray-300">
           {(section.items || []).map((item, i) => (
             <li key={i} className="leading-relaxed">
               {item}
@@ -111,27 +105,27 @@ const LessonViewer: React.FC<LessonViewerProps> = ({
       <div className="mb-6">
         <button
           onClick={onBack}
-          className="flex items-center text-sm text-gray-500 hover:text-indigo-600 transition-colors mb-4"
+          className="flex items-center text-sm text-gray-500 hover:text-brand-400 transition-colors mb-4"
         >
-          <ArrowLeftIcon className="w-4 h-4 mr-1" />
+          <ArrowLeft className="w-4 h-4 mr-1" />
           Back to {category.name}
         </button>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">{topic.title}</h1>
+              <h1 className="text-2xl font-bold text-gray-100 mb-2">{topic.title}</h1>
               <div className="flex items-center gap-3">
                 <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${badge.cls}`}>
                   {badge.label}
                 </span>
                 <span className="flex items-center text-sm text-gray-400">
-                  <ClockIcon className="w-4 h-4 mr-1" />
+                  <Clock className="w-4 h-4 mr-1" />
                   {topic.readTime} min read
                 </span>
                 {completed && (
-                  <span className="flex items-center text-sm text-green-600 font-medium">
-                    <CheckIcon className="w-4 h-4 mr-1" />
+                  <span className="flex items-center text-sm text-gain font-medium">
+                    <Check className="w-4 h-4 mr-1" />
                     Completed
                   </span>
                 )}
@@ -143,7 +137,7 @@ const LessonViewer: React.FC<LessonViewerProps> = ({
       </div>
 
       {/* Content */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 mb-6">
+      <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-8 mb-6">
         {topic.content.map((section, idx) => renderSection(section, idx))}
       </div>
 
@@ -157,9 +151,9 @@ const LessonViewer: React.FC<LessonViewerProps> = ({
         {!completed && (
           <button
             onClick={handleMarkComplete}
-            className="w-full py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 bg-gain text-surface-dark rounded-xl font-semibold hover:bg-gain/90 transition-colors flex items-center justify-center gap-2"
           >
-            <CheckIcon className="w-5 h-5" />
+            <Check className="w-5 h-5" />
             Mark as Complete
           </button>
         )}
@@ -168,9 +162,9 @@ const LessonViewer: React.FC<LessonViewerProps> = ({
           {prevTopic ? (
             <button
               onClick={() => onNavigate(prevTopic.id)}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600 transition-colors"
+              className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-400 transition-colors"
             >
-              <ChevronLeftIcon className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4" />
               {prevTopic.title}
             </button>
           ) : (
@@ -179,10 +173,10 @@ const LessonViewer: React.FC<LessonViewerProps> = ({
           {nextTopic ? (
             <button
               onClick={() => onNavigate(nextTopic.id)}
-              className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600 transition-colors"
+              className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-400 transition-colors"
             >
               {nextTopic.title}
-              <ChevronRightIcon className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
             <div />

@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  CloudArrowUpIcon,
-  ClockIcon,
-  ChartPieIcon,
-  BuildingLibraryIcon,
-  GlobeAmericasIcon,
-  CurrencyDollarIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-} from "@heroicons/react/24/outline";
+  Upload,
+  Clock,
+  PieChart,
+  Landmark,
+  Globe,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 import BrokerUploader from "./BrokerUploader";
 import WorldStockUploader from "./WorldStockUploader";
 import PendingTransactionsReview from "./PendingTransactionsReview";
@@ -126,36 +126,36 @@ export default function PortfolioOverview() {
     {
       id: "summary" as ViewType,
       name: "Portfolio Summary",
-      icon: ChartPieIcon,
+      icon: PieChart,
       description: "Overview of all your investments",
     },
     {
       id: "upload" as ViewType,
       name: "Upload Reports",
-      icon: CloudArrowUpIcon,
+      icon: Upload,
       description: "Upload broker statements (Israeli or international)",
     },
     {
       id: "review" as ViewType,
       name: "Review Pending",
-      icon: ClockIcon,
+      icon: Clock,
       description: "Review and approve pending transactions",
       badge: totalPendingCount > 0 ? totalPendingCount : undefined,
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-dark">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-3">
-            <ChartPieIcon className="h-8 w-8 text-blue-600" />
+            <PieChart className="h-8 w-8 text-brand-400" />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-gray-100">
                 Portfolio Overview
               </h1>
-              <p className="text-gray-600">
+              <p className="text-gray-400">
                 Manage your Israeli and international investments
               </p>
             </div>
@@ -172,54 +172,54 @@ export default function PortfolioOverview() {
                 key={view.id}
                 onClick={() => setActiveView(view.id)}
                 className={`
-                  relative p-4 rounded-lg border-2 transition-all
+                  relative p-4 rounded-xl border-2 transition-all
                   ${
                     isActive
-                      ? "border-blue-500 bg-blue-50 shadow-md"
-                      : "border-gray-200 bg-white hover:border-blue-300 hover:shadow"
+                      ? "border-brand-400/40 bg-brand-400/10"
+                      : "border-white/10 bg-surface-dark-secondary hover:border-brand-400/30 hover:bg-white/5"
                   }
                 `}
               >
                 <div className="flex items-start justify-between">
                   <Icon
                     className={`h-6 w-6 ${
-                      isActive ? "text-blue-600" : "text-gray-400"
+                      isActive ? "text-brand-400" : "text-gray-400"
                     }`}
                   />
                   {view.badge && (
-                    <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    <span className="bg-loss text-white text-xs font-bold px-2 py-0.5 rounded-full">
                       {view.badge}
                     </span>
                   )}
                 </div>
                 <h3
                   className={`mt-3 font-semibold ${
-                    isActive ? "text-blue-900" : "text-gray-900"
+                    isActive ? "text-brand-400" : "text-gray-100"
                   }`}
                 >
                   {view.name}
                 </h3>
-                <p className="mt-1 text-sm text-gray-600">{view.description}</p>
+                <p className="mt-1 text-sm text-gray-400">{view.description}</p>
               </button>
             );
           })}
         </div>
 
         {/* Content Area */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
           {activeView === "summary" && (
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              <h2 className="text-xl font-semibold text-gray-100 mb-6">
                 Portfolio Summary
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Israeli Stocks Summary */}
-                <div className="border border-gray-200 rounded-lg p-6">
+                <div className="border border-white/10 rounded-xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
-                      <BuildingLibraryIcon className="h-6 w-6 text-blue-600" />
-                      <h3 className="text-lg font-semibold text-gray-900">
+                      <Landmark className="h-6 w-6 text-brand-400" />
+                      <h3 className="text-lg font-semibold text-gray-100">
                         Israeli Stocks
                       </h3>
                     </div>
@@ -227,38 +227,38 @@ export default function PortfolioOverview() {
 
                   <div className="space-y-3">
                     <div>
-                      <p className="text-sm text-gray-600">Total Value</p>
-                      <p className="text-2xl font-bold text-gray-900">
+                      <p className="text-sm text-gray-400">Total Value</p>
+                      <p className="text-2xl font-bold text-gray-100">
                         ₪{portfolioStats.israeli.totalValue.toLocaleString()}
                       </p>
                     </div>
                     <div className="flex items-center space-x-2">
                       {portfolioStats.israeli.gainLossPercent >= 0 ? (
-                        <ArrowTrendingUpIcon className="h-5 w-5 text-green-500" />
+                        <TrendingUp className="h-5 w-5 text-gain" />
                       ) : (
-                        <ArrowTrendingDownIcon className="h-5 w-5 text-red-500" />
+                        <TrendingDown className="h-5 w-5 text-loss" />
                       )}
                       <span
                         className={`text-sm font-medium ${
                           portfolioStats.israeli.gainLossPercent >= 0
-                            ? "text-green-600"
-                            : "text-red-600"
+                            ? "text-gain"
+                            : "text-loss"
                         }`}
                       >
                         {portfolioStats.israeli.gainLossPercent >= 0 ? "+" : ""}
                         {portfolioStats.israeli.gainLossPercent.toFixed(2)}%
                       </span>
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-400">
                         (₪
                         {portfolioStats.israeli.totalGainLoss.toLocaleString()})
                       </span>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="mt-4 pt-4 border-t border-white/10">
                     <a
                       href="/israeli-stocks"
-                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-sm text-brand-400 hover:text-brand-500 font-medium"
                     >
                       View Details →
                     </a>
@@ -266,11 +266,11 @@ export default function PortfolioOverview() {
                 </div>
 
                 {/* World Stocks Summary */}
-                <div className="border border-gray-200 rounded-lg p-6">
+                <div className="border border-white/10 rounded-xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
-                      <GlobeAmericasIcon className="h-6 w-6 text-blue-600" />
-                      <h3 className="text-lg font-semibold text-gray-900">
+                      <Globe className="h-6 w-6 text-brand-400" />
+                      <h3 className="text-lg font-semibold text-gray-100">
                         World Stocks
                       </h3>
                     </div>
@@ -278,38 +278,38 @@ export default function PortfolioOverview() {
 
                   <div className="space-y-3">
                     <div>
-                      <p className="text-sm text-gray-600">Total Value</p>
-                      <p className="text-2xl font-bold text-gray-900">
+                      <p className="text-sm text-gray-400">Total Value</p>
+                      <p className="text-2xl font-bold text-gray-100">
                         ${portfolioStats.world.totalValue.toLocaleString()}
                       </p>
                     </div>
                     <div className="flex items-center space-x-2">
                       {portfolioStats.world.gainLossPercent >= 0 ? (
-                        <ArrowTrendingUpIcon className="h-5 w-5 text-green-500" />
+                        <TrendingUp className="h-5 w-5 text-gain" />
                       ) : (
-                        <ArrowTrendingDownIcon className="h-5 w-5 text-red-500" />
+                        <TrendingDown className="h-5 w-5 text-loss" />
                       )}
                       <span
                         className={`text-sm font-medium ${
                           portfolioStats.world.gainLossPercent >= 0
-                            ? "text-green-600"
-                            : "text-red-600"
+                            ? "text-gain"
+                            : "text-loss"
                         }`}
                       >
                         {portfolioStats.world.gainLossPercent >= 0 ? "+" : ""}
                         {portfolioStats.world.gainLossPercent.toFixed(2)}%
                       </span>
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-400">
                         ($
                         {portfolioStats.world.totalGainLoss.toLocaleString()})
                       </span>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="mt-4 pt-4 border-t border-white/10">
                     <a
                       href="/world-stocks"
-                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-sm text-brand-400 hover:text-brand-500 font-medium"
                     >
                       View Details →
                     </a>
@@ -318,16 +318,16 @@ export default function PortfolioOverview() {
               </div>
 
               {/* Quick Actions */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <h3 className="text-sm font-semibold text-gray-300 mb-3">
                   Quick Actions
                 </h3>
                 <div className="flex flex-wrap gap-3">
                   <button
                     onClick={() => setActiveView("upload")}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                    className="px-4 py-2 bg-brand-400 text-surface-dark rounded-lg hover:bg-brand-500 transition-colors flex items-center space-x-2"
                   >
-                    <CloudArrowUpIcon className="h-5 w-5" />
+                    <Upload className="h-5 w-5" />
                     <span>Upload Reports</span>
                   </button>
                   {totalPendingCount > 0 && (
@@ -335,7 +335,7 @@ export default function PortfolioOverview() {
                       onClick={() => setActiveView("review")}
                       className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
                     >
-                      <ClockIcon className="h-5 w-5" />
+                      <Clock className="h-5 w-5" />
                       <span>Review {totalPendingCount} Pending</span>
                     </button>
                   )}
@@ -347,10 +347,10 @@ export default function PortfolioOverview() {
           {activeView === "upload" && (
             <div>
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                <h2 className="text-xl font-semibold text-gray-100 mb-2">
                   Upload Broker Statements
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-gray-400">
                   Select your broker and upload PDF reports. The system will
                   automatically extract your holdings, transactions, and dividends.
                 </p>
@@ -363,10 +363,10 @@ export default function PortfolioOverview() {
           {activeView === "review" && (
             <div>
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                <h2 className="text-xl font-semibold text-gray-100 mb-2">
                   Review Pending Transactions
                 </h2>
-                <p className="text-gray-600">
+                <p className="text-gray-400">
                   Review and approve pending transactions from both Israeli and
                   world stock portfolios before they are saved to your account.
                 </p>
@@ -376,8 +376,8 @@ export default function PortfolioOverview() {
               {israeliPendingCount > 0 && (
                 <div className="mb-6">
                   <div className="flex items-center space-x-2 mb-4">
-                    <BuildingLibraryIcon className="h-5 w-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">
+                    <Landmark className="h-5 w-5 text-brand-400" />
+                    <h3 className="text-lg font-semibold text-gray-100">
                       Israeli Stocks Pending ({israeliPendingCount})
                     </h3>
                   </div>
@@ -402,8 +402,8 @@ export default function PortfolioOverview() {
               {worldPendingCount > 0 && (
                 <div className="mb-6">
                   <div className="flex items-center space-x-2 mb-4">
-                    <GlobeAmericasIcon className="h-5 w-5 text-green-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">
+                    <Globe className="h-5 w-5 text-gain" />
+                    <h3 className="text-lg font-semibold text-gray-100">
                       World Stocks Pending ({worldPendingCount})
                     </h3>
                   </div>
@@ -418,8 +418,8 @@ export default function PortfolioOverview() {
 
               {totalPendingCount === 0 && (
                 <div className="text-center py-12">
-                  <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-lg font-medium text-gray-900">
+                  <Clock className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-lg font-medium text-gray-100">
                     No pending transactions
                   </h3>
                   <p className="mt-1 text-gray-500">
@@ -428,7 +428,7 @@ export default function PortfolioOverview() {
                   <div className="mt-6">
                     <button
                       onClick={() => setActiveView("summary")}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      className="px-4 py-2 bg-brand-400 text-surface-dark rounded-lg hover:bg-brand-500"
                     >
                       Back to Summary
                     </button>

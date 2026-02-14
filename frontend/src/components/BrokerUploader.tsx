@@ -182,22 +182,22 @@ export default function BrokerUploader({
     <div>
       {/* Status Messages */}
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-sm text-red-800">{error}</p>
+        <div className="mb-6 bg-loss/10 border border-loss/20 rounded-xl p-4">
+          <p className="text-sm text-loss">{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-sm text-green-800">{success}</p>
+        <div className="mb-6 bg-gain/10 border border-gain/20 rounded-xl p-4">
+          <p className="text-sm text-gain">{success}</p>
         </div>
       )}
 
       {uploading && (
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="mb-6 bg-brand-400/10 border border-brand-400/20 rounded-xl p-4">
           <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-            <p className="text-sm text-blue-800">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-400"></div>
+            <p className="text-sm text-brand-400">
               Processing {uploading} reports...
             </p>
           </div>
@@ -222,8 +222,8 @@ export default function BrokerUploader({
               onUpload={(files) => handleBrokerUpload(broker.id, files)}
             />
             {!broker.enabled && (
-              <div className="absolute inset-0 bg-gray-900 bg-opacity-50 rounded-lg flex items-center justify-center">
-                <span className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold text-sm">
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <span className="bg-warn text-surface-dark px-4 py-2 rounded-lg font-semibold text-sm">
                   Coming Soon
                 </span>
               </div>
@@ -234,7 +234,7 @@ export default function BrokerUploader({
 
       {/* Banks Section */}
       <div className="mt-12">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <h3 className="text-lg font-semibold text-gray-100 mb-4">
           Israeli Banks
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -254,8 +254,8 @@ export default function BrokerUploader({
                 onUpload={(files) => handleBrokerUpload(bank.id, files)}
               />
               {!bank.enabled && (
-                <div className="absolute inset-0 bg-gray-900 bg-opacity-50 rounded-lg flex items-center justify-center">
-                  <span className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold text-sm">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <span className="bg-warn text-surface-dark px-4 py-2 rounded-lg font-semibold text-sm">
                     Coming Soon
                   </span>
                 </div>
@@ -266,11 +266,11 @@ export default function BrokerUploader({
       </div>
 
       {/* Information Note */}
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-sm font-semibold text-blue-900 mb-2">
+      <div className="mt-8 bg-brand-400/10 border border-brand-400/20 rounded-xl p-4">
+        <h4 className="text-sm font-semibold text-brand-400 mb-2">
           About Israeli Broker & Bank Support
         </h4>
-        <p className="text-sm text-blue-800">
+        <p className="text-sm text-brand-400/80">
           Each broker and bank has its own PDF format. Currently, Excellence is fully
           supported. We&apos;re actively working on adding support for Meitav, IBI,
           Altshuler, Interactive Brokers, and major Israeli banks.

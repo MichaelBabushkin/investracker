@@ -3,12 +3,12 @@
 import React, { useState } from "react";
 import { adminAPI } from "@/services/api";
 import {
-  PlayIcon,
-  ClockIcon,
-  TrashIcon,
-  ArrowPathIcon,
-  CalendarIcon,
-} from "@heroicons/react/24/outline";
+  Play,
+  Clock,
+  Trash2,
+  RefreshCw,
+  Calendar,
+} from "lucide-react";
 
 const JobsSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
@@ -65,14 +65,14 @@ const JobsSection: React.FC = () => {
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Jobs & Tasks</h2>
-        <p className="text-sm text-gray-600 mt-1">
+        <h2 className="text-2xl font-bold text-gray-100">Jobs & Tasks</h2>
+        <p className="text-sm text-gray-400 mt-1">
           Run scheduled jobs, manual tasks, and manage system operations
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-white/10 mb-6">
         <nav className="-mb-px flex space-x-8">
           {tabs.map((tab) => (
             <button
@@ -80,8 +80,8 @@ const JobsSection: React.FC = () => {
               onClick={() => setActiveTab(tab.id)}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === tab.id
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  ? "border-brand-400 text-brand-400"
+                  : "border-transparent text-gray-500 hover:text-gray-300 hover:border-white/10"
               }`}
             >
               {tab.name}
@@ -97,14 +97,14 @@ const JobsSection: React.FC = () => {
             {/* Manual Task Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Stock Data Sync */}
-              <div className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+              <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-5 hover:border-white/20 transition-colors">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <ArrowPathIcon className="w-5 h-5 text-blue-600" />
+                    <div className="p-2 bg-brand-400/10 rounded-lg">
+                      <RefreshCw className="w-5 h-5 text-brand-400" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">
+                      <h3 className="font-semibold text-gray-100">
                         Sync Stock Data
                       </h3>
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -113,24 +113,24 @@ const JobsSection: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-400 mb-4">
                   Fetch latest stock prices and market data from external APIs
                 </p>
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  <PlayIcon className="w-4 h-4" />
+                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-brand-400 text-surface-dark rounded-xl hover:bg-brand-500 transition-colors">
+                  <Play className="w-4 h-4" />
                   Run Now
                 </button>
               </div>
 
               {/* Clear Cache */}
-              <div className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+              <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-5 hover:border-white/20 transition-colors">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-red-100 rounded-lg">
-                      <TrashIcon className="w-5 h-5 text-red-600" />
+                    <div className="p-2 bg-loss/10 rounded-lg">
+                      <Trash2 className="w-5 h-5 text-loss" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">
+                      <h3 className="font-semibold text-gray-100">
                         Clear Application Cache
                       </h3>
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -139,24 +139,24 @@ const JobsSection: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-400 mb-4">
                   Clear all cached data including Redis cache and temporary files
                 </p>
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-                  <TrashIcon className="w-4 h-4" />
+                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-loss text-white rounded-xl hover:bg-loss/80 transition-colors">
+                  <Trash2 className="w-4 h-4" />
                   Clear Cache
                 </button>
               </div>
 
               {/* Recalculate Portfolios */}
-              <div className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+              <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-5 hover:border-white/20 transition-colors">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <ArrowPathIcon className="w-5 h-5 text-green-600" />
+                    <div className="p-2 bg-gain/10 rounded-lg">
+                      <RefreshCw className="w-5 h-5 text-gain" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">
+                      <h3 className="font-semibold text-gray-100">
                         Recalculate Portfolios
                       </h3>
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -165,24 +165,24 @@ const JobsSection: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-400 mb-4">
                   Recalculate all user portfolio values and performance metrics
                 </p>
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                  <PlayIcon className="w-4 h-4" />
+                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gain text-surface-dark rounded-xl hover:bg-gain/80 transition-colors">
+                  <Play className="w-4 h-4" />
                   Run Now
                 </button>
               </div>
 
               {/* Database Maintenance */}
-              <div className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+              <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-5 hover:border-white/20 transition-colors">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <ClockIcon className="w-5 h-5 text-purple-600" />
+                    <div className="p-2 bg-purple-500/10 rounded-lg">
+                      <Clock className="w-5 h-5 text-purple-400" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">
+                      <h3 className="font-semibold text-gray-100">
                         Database Maintenance
                       </h3>
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -191,24 +191,24 @@ const JobsSection: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-400 mb-4">
                   Run VACUUM and ANALYZE on database tables for optimization
                 </p>
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-                  <PlayIcon className="w-4 h-4" />
+                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors">
+                  <Play className="w-4 h-4" />
                   Run Now
                 </button>
               </div>
 
               {/* Seed Calendar Events */}
-              <div className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+              <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-5 hover:border-white/20 transition-colors">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-100 rounded-lg">
-                      <CalendarIcon className="w-5 h-5 text-indigo-600" />
+                    <div className="p-2 bg-brand-400/10 rounded-lg">
+                      <Calendar className="w-5 h-5 text-brand-400" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">
+                      <h3 className="font-semibold text-gray-100">
                         Seed Calendar Events
                       </h3>
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -217,13 +217,13 @@ const JobsSection: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 mb-3">
+                <p className="text-sm text-gray-400 mb-3">
                   Populate calendar with market holidays and closures
                 </p>
                 <select
                   value={selectedMarket}
                   onChange={(e) => setSelectedMarket(e.target.value)}
-                  className="w-full mb-3 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full mb-3 px-3 py-2 bg-surface-dark border border-white/10 rounded-xl text-sm text-gray-100 focus:ring-2 focus:ring-brand-400/40 focus:border-transparent"
                   disabled={seedingCalendar}
                 >
                   <option value="US">US Market</option>
@@ -233,8 +233,8 @@ const JobsSection: React.FC = () => {
                   <div
                     className={`mb-3 p-2 rounded text-xs ${
                       seedMessage.startsWith("✓")
-                        ? "bg-green-50 text-green-700"
-                        : "bg-red-50 text-red-700"
+                        ? "bg-gain/10 text-gain"
+                        : "bg-loss/10 text-loss"
                     }`}
                   >
                     {seedMessage}
@@ -243,22 +243,22 @@ const JobsSection: React.FC = () => {
                 <button
                   onClick={handleSeedCalendar}
                   disabled={seedingCalendar}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-brand-400 text-surface-dark rounded-xl hover:bg-brand-500 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
                 >
-                  <PlayIcon className="w-4 h-4" />
+                  <Play className="w-4 h-4" />
                   {seedingCalendar ? "Seeding..." : "Seed Calendar"}
                 </button>
               </div>
 
               {/* Run Migrations */}
-              <div className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
+              <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-5 hover:border-white/20 transition-colors">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <ArrowPathIcon className="w-5 h-5 text-blue-600" />
+                    <div className="p-2 bg-brand-400/10 rounded-lg">
+                      <RefreshCw className="w-5 h-5 text-brand-400" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">
+                      <h3 className="font-semibold text-gray-100">
                         Run Database Migrations
                       </h3>
                       <p className="text-xs text-gray-500 mt-0.5">
@@ -267,15 +267,15 @@ const JobsSection: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 mb-3">
+                <p className="text-sm text-gray-400 mb-3">
                   Manually trigger Alembic migrations to create/update database tables
                 </p>
                 {migrationMessage && (
                   <div
                     className={`mb-3 p-2 rounded text-xs font-mono whitespace-pre-wrap ${
                       migrationMessage.startsWith("✓")
-                        ? "bg-green-50 text-green-700"
-                        : "bg-red-50 text-red-700"
+                        ? "bg-gain/10 text-gain"
+                        : "bg-loss/10 text-loss"
                     }`}
                   >
                     {migrationMessage}
@@ -284,9 +284,9 @@ const JobsSection: React.FC = () => {
                 <button
                   onClick={handleRunMigrations}
                   disabled={runningMigrations}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-brand-400 text-surface-dark rounded-xl hover:bg-brand-500 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
                 >
-                  <PlayIcon className="w-4 h-4" />
+                  <Play className="w-4 h-4" />
                   {runningMigrations ? "Running..." : "Run Migrations"}
                 </button>
               </div>
@@ -302,46 +302,46 @@ const JobsSection: React.FC = () => {
 
         {activeTab === "cache" && (
           <div className="space-y-6">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <p className="text-sm text-amber-800">
+            <div className="bg-warn/10 border border-warn/20 rounded-xl p-4">
+              <p className="text-sm text-warn">
                 <strong>Warning:</strong> Clearing cache may temporarily impact
                 application performance while data is re-cached.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white border border-gray-200 rounded-lg p-5">
-                <h3 className="font-semibold text-gray-900 mb-2">
+              <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-5">
+                <h3 className="font-semibold text-gray-100 mb-2">
                   Redis Cache
                 </h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-400 mb-4">
                   Session data and API responses
                 </p>
-                <button className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                <button className="w-full px-4 py-2 bg-loss text-white rounded-xl hover:bg-loss/80 transition-colors">
                   Clear Redis
                 </button>
               </div>
 
-              <div className="bg-white border border-gray-200 rounded-lg p-5">
-                <h3 className="font-semibold text-gray-900 mb-2">
+              <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-5">
+                <h3 className="font-semibold text-gray-100 mb-2">
                   File Cache
                 </h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-400 mb-4">
                   Temporary files and uploads
                 </p>
-                <button className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                <button className="w-full px-4 py-2 bg-loss text-white rounded-xl hover:bg-loss/80 transition-colors">
                   Clear Files
                 </button>
               </div>
 
-              <div className="bg-white border border-gray-200 rounded-lg p-5">
-                <h3 className="font-semibold text-gray-900 mb-2">
+              <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-5">
+                <h3 className="font-semibold text-gray-100 mb-2">
                   All Caches
                 </h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-400 mb-4">
                   Clear everything at once
                 </p>
-                <button className="w-full px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition-colors">
+                <button className="w-full px-4 py-2 bg-red-700 text-white rounded-xl hover:bg-red-800 transition-colors">
                   Clear All
                 </button>
               </div>

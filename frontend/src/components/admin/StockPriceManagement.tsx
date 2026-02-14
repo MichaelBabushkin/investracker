@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  ArrowPathIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  ChartBarIcon,
-} from "@heroicons/react/24/outline";
+  RefreshCw,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  BarChart3,
+} from "lucide-react";
 import { adminAPI } from "@/services/api";
 import toast from "react-hot-toast";
 
@@ -165,9 +165,9 @@ const StockPriceManagement: React.FC = () => {
 
   const getFreshnessColor = (fresh: number, total: number) => {
     const percentage = total > 0 ? (fresh / total) * 100 : 0;
-    if (percentage >= 80) return "text-green-600";
-    if (percentage >= 50) return "text-yellow-600";
-    return "text-red-600";
+    if (percentage >= 80) return "text-gain";
+    if (percentage >= 50) return "text-warn";
+    return "text-loss";
   };
 
   const renderMarketStats = (market: "world" | "israeli", data: MarketStats) => {
@@ -176,17 +176,17 @@ const StockPriceManagement: React.FC = () => {
       : 0;
 
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 capitalize">
+          <h3 className="text-lg font-semibold text-gray-100 capitalize">
             {market} Stocks
           </h3>
           <button
             onClick={() => handleRefreshMarket(market, 100)}
             disabled={refreshing[market]}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+            className="flex items-center gap-2 px-4 py-2 bg-brand-400 text-surface-dark text-sm rounded-xl hover:bg-brand-500 transition-colors disabled:bg-gray-600"
           >
-            <ArrowPathIcon
+            <RefreshCw
               className={`w-4 h-4 ${refreshing[market] ? "animate-spin" : ""}`}
             />
             Refresh {market === "world" ? "World" : "Israeli"} (100)
@@ -194,28 +194,28 @@ const StockPriceManagement: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-2xl font-bold text-gray-900">
+          <div className="bg-surface-dark rounded-xl p-4">
+            <div className="text-2xl font-bold text-gray-100">
               {data.total_stocks}
             </div>
-            <div className="text-sm text-gray-600">Total Stocks</div>
+            <div className="text-sm text-gray-400">Total Stocks</div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-2xl font-bold text-blue-600">
+          <div className="bg-surface-dark rounded-xl p-4">
+            <div className="text-2xl font-bold text-brand-400">
               {data.stocks_with_price}
             </div>
-            <div className="text-sm text-gray-600">With Prices</div>
+            <div className="text-sm text-gray-400">With Prices</div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-2xl font-bold text-green-600">
+          <div className="bg-surface-dark rounded-xl p-4">
+            <div className="text-2xl font-bold text-gain">
               {data.in_holdings}
             </div>
-            <div className="text-sm text-gray-600">In Holdings</div>
+            <div className="text-sm text-gray-400">In Holdings</div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-surface-dark rounded-xl p-4">
             <div
               className={`text-2xl font-bold ${getFreshnessColor(
                 data.fresh_24_hours,
@@ -224,44 +224,44 @@ const StockPriceManagement: React.FC = () => {
             >
               {freshnessPercentage}%
             </div>
-            <div className="text-sm text-gray-600">Fresh (24h)</div>
+            <div className="text-sm text-gray-400">Fresh (24h)</div>
           </div>
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between py-2 border-t border-gray-100">
-            <span className="text-sm text-gray-600">Fresh (15 min)</span>
-            <span className="font-semibold text-gray-900">
+          <div className="flex items-center justify-between py-2 border-t border-white/5">
+            <span className="text-sm text-gray-400">Fresh (15 min)</span>
+            <span className="font-semibold text-gray-100">
               {data.fresh_15_minutes} / {data.total_stocks}
             </span>
           </div>
-          <div className="flex items-center justify-between py-2 border-t border-gray-100">
-            <span className="text-sm text-gray-600">Fresh (1 hour)</span>
-            <span className="font-semibold text-gray-900">
+          <div className="flex items-center justify-between py-2 border-t border-white/5">
+            <span className="text-sm text-gray-400">Fresh (1 hour)</span>
+            <span className="font-semibold text-gray-100">
               {data.fresh_1_hour} / {data.total_stocks}
             </span>
           </div>
-          <div className="flex items-center justify-between py-2 border-t border-gray-100">
-            <span className="text-sm text-gray-600">Fresh (24 hours)</span>
-            <span className="font-semibold text-gray-900">
+          <div className="flex items-center justify-between py-2 border-t border-white/5">
+            <span className="text-sm text-gray-400">Fresh (24 hours)</span>
+            <span className="font-semibold text-gray-100">
               {data.fresh_24_hours} / {data.total_stocks}
             </span>
           </div>
-          <div className="flex items-center justify-between py-2 border-t border-gray-100">
-            <span className="text-sm text-gray-600">Stale (&gt;24h)</span>
-            <span className="font-semibold text-red-600">
+          <div className="flex items-center justify-between py-2 border-t border-white/5">
+            <span className="text-sm text-gray-400">Stale (&gt;24h)</span>
+            <span className="font-semibold text-loss">
               {data.stale_24_hours}
             </span>
           </div>
-          <div className="flex items-center justify-between py-2 border-t border-gray-100">
-            <span className="text-sm text-gray-600">Oldest Update</span>
-            <span className="font-semibold text-gray-900">
+          <div className="flex items-center justify-between py-2 border-t border-white/5">
+            <span className="text-sm text-gray-400">Oldest Update</span>
+            <span className="font-semibold text-gray-100">
               {formatDate(data.oldest_update)}
             </span>
           </div>
-          <div className="flex items-center justify-between py-2 border-t border-gray-100">
-            <span className="text-sm text-gray-600">Newest Update</span>
-            <span className="font-semibold text-gray-900">
+          <div className="flex items-center justify-between py-2 border-t border-white/5">
+            <span className="text-sm text-gray-400">Newest Update</span>
+            <span className="font-semibold text-gray-100">
               {formatDate(data.newest_update)}
             </span>
           </div>
@@ -275,17 +275,17 @@ const StockPriceManagement: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Stock Price Management</h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <h2 className="text-2xl font-bold text-gray-100">Stock Price Management</h2>
+          <p className="text-sm text-gray-400 mt-1">
             Monitor and refresh real-time stock prices
           </p>
         </div>
         <button
           onClick={fetchStats}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-surface-dark text-gray-300 rounded-xl hover:bg-white/10 transition-colors"
         >
-          <ArrowPathIcon className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Refresh Stats
         </button>
       </div>
@@ -293,31 +293,31 @@ const StockPriceManagement: React.FC = () => {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Refresh Active Holdings */}
-        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-6">
+        <div className="bg-gain/10 border border-gain/20 rounded-xl p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-gray-100">
                 Active Holdings
               </h3>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-400 mt-1">
                 Update prices for stocks in user portfolios
               </p>
             </div>
-            <CheckCircleIcon className="w-6 h-6 text-green-600" />
+            <CheckCircle className="w-6 h-6 text-gain" />
           </div>
           <button
             onClick={handleRefreshActive}
             disabled={refreshing.active}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 font-medium"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gain text-surface-dark rounded-xl hover:bg-gain/80 transition-colors disabled:bg-gray-600 font-medium"
           >
             {refreshing.active ? (
               <>
-                <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                <RefreshCw className="w-5 h-5 animate-spin" />
                 Refreshing...
               </>
             ) : (
               <>
-                <ArrowPathIcon className="w-5 h-5" />
+                <RefreshCw className="w-5 h-5" />
                 Refresh Active Prices
               </>
             )}
@@ -325,31 +325,31 @@ const StockPriceManagement: React.FC = () => {
         </div>
 
         {/* Refresh Catalog */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-6">
+        <div className="bg-brand-400/10 border border-brand-400/20 rounded-xl p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-gray-100">
                 Catalog Stocks
               </h3>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-400 mt-1">
                 Update stale prices (&gt;24h old, up to 500 stocks)
               </p>
             </div>
-            <ClockIcon className="w-6 h-6 text-blue-600" />
+            <Clock className="w-6 h-6 text-brand-400" />
           </div>
           <button
             onClick={handleRefreshCatalog}
             disabled={refreshing.catalog}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 font-medium"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-400 text-surface-dark rounded-xl hover:bg-brand-500 transition-colors disabled:bg-gray-600 font-medium"
           >
             {refreshing.catalog ? (
               <>
-                <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                <RefreshCw className="w-5 h-5 animate-spin" />
                 Refreshing...
               </>
             ) : (
               <>
-                <ArrowPathIcon className="w-5 h-5" />
+                <RefreshCw className="w-5 h-5" />
                 Refresh Catalog (500)
               </>
             )}
@@ -358,8 +358,8 @@ const StockPriceManagement: React.FC = () => {
       </div>
 
       {/* Single Stock Refresh */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
+        <h3 className="text-lg font-semibold text-gray-100 mb-4">
           Refresh Single Stock
         </h3>
         <div className="flex gap-4">
@@ -369,12 +369,12 @@ const StockPriceManagement: React.FC = () => {
             value={singleTicker}
             onChange={(e) => setSingleTicker(e.target.value)}
             onKeyPress={(e) => e.key === "Enter" && handleRefreshSingle()}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="flex-1 px-4 py-2 bg-surface-dark border border-white/10 rounded-xl text-gray-100 focus:ring-2 focus:ring-brand-400/40 focus:border-transparent"
           />
           <select
             value={singleMarket}
             onChange={(e) => setSingleMarket(e.target.value as "world" | "israeli")}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 bg-surface-dark border border-white/10 rounded-xl text-gray-100 focus:ring-2 focus:ring-brand-400/40 focus:border-transparent"
           >
             <option value="world">World</option>
             <option value="israeli">Israeli</option>
@@ -382,7 +382,7 @@ const StockPriceManagement: React.FC = () => {
           <button
             onClick={handleRefreshSingle}
             disabled={!singleTicker.trim()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+            className="px-6 py-2 bg-brand-400 text-surface-dark rounded-xl hover:bg-brand-500 transition-colors disabled:bg-gray-600"
           >
             Refresh
           </button>

@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  CurrencyDollarIcon,
-  CalendarIcon,
-  BanknotesIcon,
-  ChartBarIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-} from "@heroicons/react/24/outline";
+  DollarSign,
+  Calendar,
+  Banknote,
+  BarChart3,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { israeliStocksAPI } from "@/services/api";
 import { IsraeliDividend } from "@/types/israeli-stocks";
 import StockLogo from "./StockLogo";
@@ -156,7 +156,7 @@ export default function IsraeliStockDividends({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             Israeli Stock Dividends
           </h2>
         </div>
@@ -164,13 +164,13 @@ export default function IsraeliStockDividends({
           {[...Array(3)].map((_, i) => (
             <div
               key={i}
-              className="bg-white p-6 rounded-lg shadow-md border border-gray-200"
+              className="bg-surface-dark-secondary p-6 rounded-xl border border-white/10"
             >
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="h-4 bg-white/10 rounded w-1/4 mb-2"></div>
+              <div className="h-3 bg-white/10 rounded w-1/2 mb-4"></div>
               <div className="grid grid-cols-3 gap-4">
                 {[...Array(3)].map((_, j) => (
-                  <div key={j} className="h-3 bg-gray-200 rounded"></div>
+                  <div key={j} className="h-3 bg-white/10 rounded"></div>
                 ))}
               </div>
             </div>
@@ -184,15 +184,15 @@ export default function IsraeliStockDividends({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             Israeli Stock Dividends
           </h2>
           <button onClick={fetchDividends} className="btn-primary text-sm">
             Retry
           </button>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">{error}</p>
+        <div className="bg-loss/10 border border-loss/20 rounded-xl p-4">
+          <p className="text-loss">{error}</p>
         </div>
       </div>
     );
@@ -202,20 +202,20 @@ export default function IsraeliStockDividends({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             Israeli Stock Dividends
           </h2>
         </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
-          <BanknotesIcon className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <div className="bg-surface-dark border border-white/10 rounded-xl p-12 text-center">
+          <Banknote className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-100 mb-2">
             No Dividends Found
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-400 mb-4">
             Upload an Israeli investment PDF with dividend transactions to see
             them here.
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-400">
             Dividends are automatically extracted from transaction data.
           </p>
         </div>
@@ -227,7 +227,7 @@ export default function IsraeliStockDividends({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-xl font-semibold text-gray-100">
           Israeli Stock Dividends
         </h2>
         <button onClick={fetchDividends} className="btn-secondary text-sm">
@@ -240,7 +240,7 @@ export default function IsraeliStockDividends({
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="metric-card bg-gradient-to-r from-blue-500 to-blue-600">
             <div className="flex items-center">
-              <CurrencyDollarIcon className="h-8 w-8 opacity-80" />
+              <DollarSign className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Gross Dividends</p>
                 <p className="text-2xl font-bold">
@@ -252,7 +252,7 @@ export default function IsraeliStockDividends({
 
           <div className="metric-card bg-gradient-to-r from-red-500 to-red-600">
             <div className="flex items-center">
-              <BanknotesIcon className="h-8 w-8 opacity-80" />
+              <Banknote className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Total Tax</p>
                 <p className="text-2xl font-bold">{formatCurrency(totalTax)}</p>
@@ -262,7 +262,7 @@ export default function IsraeliStockDividends({
 
           <div className="metric-card bg-gradient-to-r from-green-500 to-green-600">
             <div className="flex items-center">
-              <ChartBarIcon className="h-8 w-8 opacity-80" />
+              <BarChart3 className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Net Dividends</p>
                 <p className="text-2xl font-bold">
@@ -274,7 +274,7 @@ export default function IsraeliStockDividends({
 
           <div className="metric-card">
             <div className="flex items-center">
-              <CalendarIcon className="h-8 w-8 opacity-80" />
+              <Calendar className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Total Payments</p>
                 <p className="text-2xl font-bold">{dividends.length}</p>
@@ -286,12 +286,12 @@ export default function IsraeliStockDividends({
 
       {/* Monthly Dividend Income (Net) */}
       {monthlyData.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-4">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 className="text-lg font-medium text-gray-100">
               Monthly Dividend Income (Net)
             </h3>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-400">
               Last {monthlyData.length} months
             </span>
           </div>
@@ -317,12 +317,12 @@ export default function IsraeliStockDividends({
 
       {/* Dividends List */}
       {dividends.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <CurrencyDollarIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <div className="text-center py-12 bg-surface-dark rounded-xl">
+          <DollarSign className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-100 mb-2">
             No Dividends Found
           </h3>
-          <p className="text-gray-500">
+          <p className="text-gray-400">
             Upload a PDF report to import your Israeli stock dividends.
           </p>
         </div>
@@ -330,7 +330,7 @@ export default function IsraeliStockDividends({
         <div className="space-y-6">
           {/* By Company - expandable cards */}
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <h3 className="text-lg font-medium text-gray-100 mb-4">
               Dividends by Company
             </h3>
             <div className="flex flex-wrap -m-2">
@@ -345,7 +345,7 @@ export default function IsraeliStockDividends({
                     key={company.symbol}
                     className="p-2 w-full md:w-1/2 lg:w-1/3"
                   >
-                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <div className="bg-surface-dark-secondary p-4 rounded-xl border border-white/10">
                       <div
                         role="button"
                         aria-expanded={!!expanded[company.symbol]}
@@ -361,8 +361,8 @@ export default function IsraeliStockDividends({
                               className="flex-shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-blue-600 font-semibold text-sm">
+                            <div className="w-10 h-10 bg-brand-400/10 rounded-full flex items-center justify-center">
+                              <span className="text-brand-400 font-semibold text-sm">
                                 {company.symbol.substring(0, 2)}
                               </span>
                             </div>
@@ -370,10 +370,10 @@ export default function IsraeliStockDividends({
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
                               <div>
-                                <h4 className="font-medium text-gray-900">
+                                <h4 className="font-medium text-gray-100">
                                   {company.symbol}
                                 </h4>
-                                <p className="text-sm text-gray-600">
+                                <p className="text-sm text-gray-400">
                                   {company.company_name}
                                 </p>
                               </div>
@@ -383,13 +383,13 @@ export default function IsraeliStockDividends({
                                   toggleCompany(company.symbol, e)
                                 }
                               >
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-gray-400">
                                   {company.count} payments
                                 </span>
                                 {expanded[company.symbol] ? (
-                                  <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+                                  <ChevronUp className="h-5 w-5 text-gray-400" />
                                 ) : (
-                                  <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+                                  <ChevronDown className="h-5 w-5 text-gray-400" />
                                 )}
                               </div>
                             </div>
@@ -398,20 +398,20 @@ export default function IsraeliStockDividends({
 
                         <div className="mt-3 space-y-1">
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Gross Amount:</span>
-                            <span className="font-medium text-blue-600">
+                            <span className="text-gray-400">Gross Amount:</span>
+                            <span className="font-medium text-brand-400">
                               {formatCurrency(company.total_amount)}
                             </span>
                           </div>
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Tax Paid:</span>
-                            <span className="font-medium text-red-600">
+                            <span className="text-gray-400">Tax Paid:</span>
+                            <span className="font-medium text-loss">
                               {formatCurrency(company.total_tax)}
                             </span>
                           </div>
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Net Amount:</span>
-                            <span className="font-medium text-green-600">
+                            <span className="text-gray-400">Net Amount:</span>
+                            <span className="font-medium text-gain">
                               {formatCurrency(
                                 company.total_amount - company.total_tax
                               )}
@@ -440,33 +440,33 @@ export default function IsraeliStockDividends({
                               >
                                 <div className="flex items-center gap-3">
                                   <div>
-                                    <div className="font-medium text-gray-900">
+                                    <div className="font-medium text-gray-100">
                                       {formatDate(dividend.payment_date)}
                                     </div> 
                                   </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-6">
                                   <div>
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-gray-400">
                                       Gross
                                     </div>
-                                    <div className="font-medium text-blue-600">
+                                    <div className="font-medium text-brand-400">
                                       {formatCurrency(dividend.amount)}
                                     </div>
                                   </div>
                                   <div>
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-gray-400">
                                       Tax
                                     </div>
-                                    <div className="font-medium text-red-600">
+                                    <div className="font-medium text-loss">
                                       {formatCurrency(dividend.tax || 0)}
                                     </div>
                                   </div>
                                   <div>
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-gray-400">
                                       Net
                                     </div>
-                                    <div className="font-medium text-green-600">
+                                    <div className="font-medium text-gain">
                                       {formatCurrency(
                                         dividend.amount - (dividend.tax || 0)
                                       )}

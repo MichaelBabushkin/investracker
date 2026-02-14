@@ -11,7 +11,7 @@ export function ErrorDisplay({ error }: ErrorDisplayProps) {
   const errorLines = error.split("\n").filter((line) => line.trim());
 
   return (
-    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+    <div className="bg-loss/10 border border-loss/40 text-loss px-4 py-3 rounded">
       {errorLines.length === 1 ? (
         <span>{error}</span>
       ) : (

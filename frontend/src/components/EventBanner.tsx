@@ -6,12 +6,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { calendarAPI, userSettingsAPI } from "@/services/api";
-import {
-  XMarkIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CalendarIcon,
-} from "@heroicons/react/24/outline";
+import { X, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 
 interface CalendarEvent {
   id: number;
@@ -162,7 +157,7 @@ const EventBanner: React.FC = () => {
         <div className="flex items-center justify-between h-16 sm:h-14 gap-3 sm:gap-4">
           {/* Left: Event Icon & Info */}
           <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-            <CalendarIcon className="w-6 h-6 flex-shrink-0" />
+            <Calendar className="w-6 h-6 flex-shrink-0" />
             <div className="flex flex-col justify-center min-w-0 flex-1">
               {/* Top row: Event name with marquee */}
               <div className="overflow-hidden whitespace-nowrap mb-0.5">
@@ -203,7 +198,7 @@ const EventBanner: React.FC = () => {
                   className="p-1 hover:bg-white/20 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label="Previous event"
                 >
-                  <ChevronLeftIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
                 <span className="text-xs sm:text-sm px-1 sm:px-2 whitespace-nowrap">
                   {currentIndex + 1} / {events.length}
@@ -214,7 +209,7 @@ const EventBanner: React.FC = () => {
                   className="p-1 hover:bg-white/20 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label="Next event"
                 >
-                  <ChevronRightIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </>
             )}
@@ -223,7 +218,7 @@ const EventBanner: React.FC = () => {
               className="p-1 hover:bg-white/20 rounded ml-1 sm:ml-2"
               aria-label="Close banner"
             >
-              <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>

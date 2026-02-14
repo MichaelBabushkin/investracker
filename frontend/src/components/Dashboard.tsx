@@ -1,23 +1,20 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { RootState, AppDispatch } from "@/store";
-import { logout } from "@/store/slices/authSlice";
-import { useRouter } from "next/navigation";
+import React, { useState } from "react";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store";
 import {
-  ChartBarIcon,
-  CurrencyDollarIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  PlusIcon,
-  Cog6ToothIcon,
-  ArrowRightOnRectangleIcon,
-  BellIcon,
-  UserCircleIcon,
-  MagnifyingGlassIcon,
-  ChartPieIcon,
-} from "@heroicons/react/24/outline";
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  BarChart3,
+  Briefcase,
+  Plus,
+  Upload,
+  ArrowRight,
+  Globe2,
+  Landmark,
+} from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -30,17 +27,16 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import Logo from "./Logo";
+import { Card, CardHeader, CardTitle } from "./ui/Card";
+import { MetricCard } from "./ui/MetricCard";
 import ReportUploader from "./ReportUploader";
 import IsraeliMarketHighlights from "./IsraeliMarketHighlights";
 import WorldMarketHighlights from "./WorldMarketHighlights";
+import Link from "next/link";
 
 export default function Dashboard() {
   const { user } = useSelector((state: RootState) => state.auth);
-  const dispatch = useDispatch<AppDispatch>();
-  const router = useRouter();
 
-  // Mock data for demonstration
   const [portfolioData] = useState({
     totalValue: 125430.5,
     dayChange: 2340.25,
@@ -51,107 +47,19 @@ export default function Dashboard() {
   });
 
   const [holdings] = useState([
-    {
-      symbol: "AAPL",
-      name: "Apple Inc.",
-      shares: 50,
-      currentPrice: 182.52,
-      value: 9126.0,
-      gainLoss: 1205.5,
-      gainLossPercent: 15.2,
-      allocation: 7.3,
-    },
-    {
-      symbol: "GOOGL",
-      name: "Alphabet Inc.",
-      shares: 25,
-      currentPrice: 2785.48,
-      value: 69637.0,
-      gainLoss: -892.35,
-      gainLossPercent: -1.3,
-      allocation: 55.5,
-    },
-    {
-      symbol: "MSFT",
-      name: "Microsoft Corp.",
-      shares: 75,
-      currentPrice: 415.26,
-      value: 31144.5,
-      gainLoss: 2134.75,
-      gainLossPercent: 7.4,
-      allocation: 24.8,
-    },
-    {
-      symbol: "TSLA",
-      name: "Tesla Inc.",
-      shares: 30,
-      currentPrice: 248.5,
-      value: 7455.0,
-      gainLoss: -523.2,
-      gainLossPercent: -6.6,
-      allocation: 5.9,
-    },
-    {
-      symbol: "Cash",
-      name: "Cash & Cash Equivalents",
-      shares: 0,
-      currentPrice: 1.0,
-      value: 8068.0,
-      gainLoss: 0,
-      gainLossPercent: 0,
-      allocation: 6.4,
-    },
+    { symbol: "AAPL", name: "Apple Inc.", shares: 50, currentPrice: 182.52, value: 9126.0, gainLoss: 1205.5, gainLossPercent: 15.2 },
+    { symbol: "GOOGL", name: "Alphabet Inc.", shares: 25, currentPrice: 2785.48, value: 69637.0, gainLoss: -892.35, gainLossPercent: -1.3 },
+    { symbol: "MSFT", name: "Microsoft Corp.", shares: 75, currentPrice: 415.26, value: 31144.5, gainLoss: 2134.75, gainLossPercent: 7.4 },
+    { symbol: "TSLA", name: "Tesla Inc.", shares: 30, currentPrice: 248.5, value: 7455.0, gainLoss: -523.2, gainLossPercent: -6.6 },
   ]);
 
   const [recentTransactions] = useState([
-    {
-      id: 1,
-      type: "buy",
-      symbol: "AAPL",
-      shares: 10,
-      price: 178.25,
-      date: "2024-01-15",
-      total: 1782.5,
-    },
-    {
-      id: 2,
-      type: "sell",
-      symbol: "GOOGL",
-      shares: 5,
-      price: 2790.0,
-      date: "2024-01-14",
-      total: 13950.0,
-    },
-    {
-      id: 3,
-      type: "buy",
-      symbol: "MSFT",
-      shares: 25,
-      price: 412.8,
-      date: "2024-01-12",
-      total: 10320.0,
-    },
-    {
-      id: 4,
-      type: "buy",
-      symbol: "TSLA",
-      shares: 15,
-      price: 245.3,
-      date: "2024-01-10",
-      total: 3679.5,
-    },
-    {
-      id: 5,
-      type: "dividend",
-      symbol: "AAPL",
-      shares: 0,
-      price: 0.24,
-      date: "2024-01-08",
-      total: 12.0,
-    },
+    { id: 1, type: "buy", symbol: "AAPL", shares: 10, price: 178.25, date: "2024-01-15", total: 1782.5 },
+    { id: 2, type: "sell", symbol: "GOOGL", shares: 5, price: 2790.0, date: "2024-01-14", total: 13950.0 },
+    { id: 3, type: "buy", symbol: "MSFT", shares: 25, price: 412.8, date: "2024-01-12", total: 10320.0 },
+    { id: 4, type: "dividend", symbol: "AAPL", shares: 0, price: 0.24, date: "2024-01-08", total: 12.0 },
   ]);
 
-  // Portfolio performance data (last 30 days)
   const [performanceData] = useState([
     { date: "2024-01-01", value: 120000 },
     { date: "2024-01-03", value: 121500 },
@@ -163,622 +71,312 @@ export default function Dashboard() {
   ]);
 
   const [sectorData] = useState([
-    { name: "Technology", value: 69.6, amount: 87340 },
-    { name: "Automotive", value: 5.9, amount: 7455 },
-    { name: "Cash", value: 6.4, amount: 8068 },
-    { name: "Services", value: 18.1, amount: 22568 },
+    { name: "Technology", value: 69.6 },
+    { name: "Automotive", value: 5.9 },
+    { name: "Cash", value: 6.4 },
+    { name: "Services", value: 18.1 },
   ]);
 
-  // Chart colors
-  const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
+  const COLORS = ["#4ADE80", "#38BDF8", "#FBBF24", "#A78BFA"];
 
-  // Search and filter states
-  const [searchTerm, setSearchTerm] = useState("");
   const [selectedTimeframe, setSelectedTimeframe] = useState("30d");
   const [showUploader, setShowUploader] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Message */}
+    <div className="min-h-screen bg-surface-dark">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        {/* Welcome */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">
-            Welcome back, {user?.first_name}!
-          </h2>
-          <p className="text-gray-600 mt-1">
-            Here&apos;s an overview of your investment portfolio
+          <h1 className="text-2xl lg:text-3xl font-heading font-bold text-gray-100">
+            Welcome back, {user?.first_name || "Investor"}
+          </h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            Here&apos;s your portfolio overview
           </p>
         </div>
 
-        {/* Portfolio Summary Cards + Israeli Market Entry */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <CurrencyDollarIcon className="h-8 w-8 text-primary-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Value</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ${portfolioData.totalValue.toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                {portfolioData.dayChange >= 0 ? (
-                  <ArrowTrendingUpIcon className="h-8 w-8 text-green-600" />
-                ) : (
-                  <ArrowTrendingDownIcon className="h-8 w-8 text-red-600" />
-                )}
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">
-                  Today&apos;s Change
-                </p>
-                <p
-                  className={`text-2xl font-bold ${
-                    portfolioData.dayChange >= 0
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {portfolioData.dayChange >= 0 ? "+" : ""}$
-                  {portfolioData.dayChange.toLocaleString()}
-                </p>
-                <p
-                  className={`text-sm ${
-                    portfolioData.dayChangePercent >= 0
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {portfolioData.dayChangePercent >= 0 ? "+" : ""}
-                  {portfolioData.dayChangePercent}%
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <ChartBarIcon className="h-8 w-8 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">
-                  Total Gain/Loss
-                </p>
-                <p
-                  className={`text-2xl font-bold ${
-                    portfolioData.totalGainLoss >= 0
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {portfolioData.totalGainLoss >= 0 ? "+" : ""}$
-                  {portfolioData.totalGainLoss.toLocaleString()}
-                </p>
-                <p
-                  className={`text-sm ${
-                    portfolioData.totalGainLossPercent >= 0
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {portfolioData.totalGainLossPercent >= 0 ? "+" : ""}
-                  {portfolioData.totalGainLossPercent}%
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <CurrencyDollarIcon className="h-8 w-8 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">
-                  Total Invested
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ${portfolioData.totalInvested.toLocaleString()}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {(
-                    (portfolioData.totalValue / portfolioData.totalInvested -
-                      1) *
-                    100
-                  ).toFixed(1)}
-                  % return
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Holdings</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {holdings.filter((h) => h.symbol !== "Cash").length}
-                </p>
-                <p className="text-sm text-gray-500">Active positions</p>
-              </div>
-              <button className="bg-primary-600 hover:bg-primary-700 text-white p-2 rounded-lg">
-                <PlusIcon className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Israeli Market Link Card */}
-          <a
-            href="/israeli-stocks"
-            className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow p-6 flex flex-col justify-between hover:shadow-md transition"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-white/80">
-                Regional Markets
-              </h3>
-              <span className="text-[10px] px-2 py-0.5 bg-white/20 text-white rounded-full tracking-wide">
-                NEW
-              </span>
-            </div>
-            <div>
-              <p className="text-xl font-bold text-white mb-1">
-                Israeli Market
-              </p>
-              <p className="text-xs text-white/80 mb-4">
-                Upload PDFs & analyze TA stocks
-              </p>
-              <div className="flex items-center text-sm text-white font-medium gap-1 transition-all">
-                <span>Open Dashboard</span>
-                <ArrowRightOnRectangleIcon className="h-4 w-4" />
-              </div>
-            </div>
-          </a>
-
-          {/* World Stocks Link Card */}
-          <a
-            href="/world-stocks"
-            className="bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg shadow p-6 flex flex-col justify-between hover:shadow-md transition"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-white/80">
-                Global Markets
-              </h3>
-              <span className="text-[10px] px-2 py-0.5 bg-white/20 text-white rounded-full tracking-wide">
-                NEW
-              </span>
-            </div>
-            <div>
-              <p className="text-xl font-bold text-white mb-1">World Market</p>
-              <p className="text-xs text-white/80 mb-4">
-                Track US & international stocks
-              </p>
-              <div className="flex items-center text-sm text-white font-medium gap-1 transition-all">
-                <span>Open Dashboard</span>
-                <ArrowRightOnRectangleIcon className="h-4 w-4" />
-              </div>
-            </div>
-          </a>
+        {/* ── Metric Cards ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <MetricCard
+            label="Total Value"
+            value={`$${portfolioData.totalValue.toLocaleString()}`}
+            icon={<DollarSign size={18} />}
+          />
+          <MetricCard
+            label="Today's Change"
+            value={`${portfolioData.dayChange >= 0 ? "+" : ""}$${portfolioData.dayChange.toLocaleString()}`}
+            subValue={`${portfolioData.dayChangePercent >= 0 ? "+" : ""}${portfolioData.dayChangePercent}%`}
+            trend={{ value: portfolioData.dayChangePercent }}
+            icon={portfolioData.dayChange >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+          />
+          <MetricCard
+            label="Total Gain/Loss"
+            value={`${portfolioData.totalGainLoss >= 0 ? "+" : ""}$${portfolioData.totalGainLoss.toLocaleString()}`}
+            subValue={`${portfolioData.totalGainLossPercent >= 0 ? "+" : ""}${portfolioData.totalGainLossPercent}%`}
+            trend={{ value: portfolioData.totalGainLossPercent }}
+            icon={<BarChart3 size={18} />}
+          />
+          <MetricCard
+            label="Total Invested"
+            value={`$${portfolioData.totalInvested.toLocaleString()}`}
+            subValue={`${((portfolioData.totalValue / portfolioData.totalInvested - 1) * 100).toFixed(1)}% return`}
+            icon={<Briefcase size={18} />}
+          />
         </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Portfolio Performance Chart */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                Portfolio Performance
-              </h3>
-              <select
-                value={selectedTimeframe}
-                onChange={(e) => setSelectedTimeframe(e.target.value)}
-                className="text-sm border border-gray-300 rounded-md px-3 py-1"
-              >
-                <option value="7d">7 Days</option>
-                <option value="30d">30 Days</option>
-                <option value="90d">90 Days</option>
-                <option value="1y">1 Year</option>
-              </select>
+        {/* ── Quick Links ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <Link href="/israeli-stocks" className="group p-4 rounded-xl bg-surface-dark-secondary border border-white/5 hover:border-brand-400/20 transition-all">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-brand-400/10 flex items-center justify-center">
+                <Landmark size={18} className="text-brand-400" />
+              </div>
+              <span className="text-xs text-brand-400 bg-brand-400/10 px-2 py-0.5 rounded-full font-medium">NEW</span>
             </div>
-            <div className="h-64">
+            <p className="font-semibold text-gray-200 text-sm">Israeli Market</p>
+            <p className="text-xs text-gray-500 mt-0.5">Upload PDFs & analyze</p>
+          </Link>
+          <Link href="/world-stocks" className="group p-4 rounded-xl bg-surface-dark-secondary border border-white/5 hover:border-info/20 transition-all">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-info/10 flex items-center justify-center">
+                <Globe2 size={18} className="text-info" />
+              </div>
+              <span className="text-xs text-info bg-info/10 px-2 py-0.5 rounded-full font-medium">NEW</span>
+            </div>
+            <p className="font-semibold text-gray-200 text-sm">World Market</p>
+            <p className="text-xs text-gray-500 mt-0.5">Track global stocks</p>
+          </Link>
+          <button onClick={() => setShowUploader(true)} className="p-4 rounded-xl bg-surface-dark-secondary border border-white/5 hover:border-brand-400/20 transition-all text-left">
+            <div className="w-9 h-9 rounded-lg bg-brand-400/10 flex items-center justify-center mb-2">
+              <Upload size={18} className="text-brand-400" />
+            </div>
+            <p className="font-semibold text-gray-200 text-sm">Upload Report</p>
+            <p className="text-xs text-gray-500 mt-0.5">Import PDF data</p>
+          </button>
+          <Link href="/analytics" className="p-4 rounded-xl bg-surface-dark-secondary border border-white/5 hover:border-brand-400/20 transition-all">
+            <div className="w-9 h-9 rounded-lg bg-brand-400/10 flex items-center justify-center mb-2">
+              <BarChart3 size={18} className="text-brand-400" />
+            </div>
+            <p className="font-semibold text-gray-200 text-sm">Analytics</p>
+            <p className="text-xs text-gray-500 mt-0.5">Performance insights</p>
+          </Link>
+        </div>
+
+        {/* ── Charts Row ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Performance Chart */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between w-full">
+                <CardTitle>Portfolio Performance</CardTitle>
+                <div className="flex gap-1 bg-surface-dark rounded-lg p-0.5">
+                  {["7d", "30d", "90d", "1y"].map((tf) => (
+                    <button
+                      key={tf}
+                      onClick={() => setSelectedTimeframe(tf)}
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                        selectedTimeframe === tf
+                          ? "bg-brand-400/10 text-brand-400"
+                          : "text-gray-500 hover:text-gray-300"
+                      }`}
+                    >
+                      {tf.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <div className="px-5 pb-5 h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={performanceData}>
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
                   <XAxis
                     dataKey="date"
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) =>
-                      new Date(value).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })
-                    }
+                    tick={{ fontSize: 11, fill: "#6B7280" }}
+                    tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    stroke="#1E293B"
                   />
                   <YAxis
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                    tick={{ fontSize: 11, fill: "#6B7280" }}
+                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                    stroke="#1E293B"
                   />
                   <Tooltip
-                    formatter={(value) => [
-                      `$${Number(value).toLocaleString()}`,
-                      "Portfolio Value",
-                    ]}
-                    labelFormatter={(label) =>
-                      new Date(label).toLocaleDateString()
-                    }
+                    contentStyle={{ backgroundColor: "#1F2937", border: "1px solid #374151", borderRadius: "8px", fontSize: "12px", color: "#F9FAFB" }}
+                    formatter={(value) => [`$${Number(value).toLocaleString()}`, "Value"]}
+                    labelFormatter={(l) => new Date(l).toLocaleDateString()}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#3B82F6"
-                    strokeWidth={2}
-                    dot={{ fill: "#3B82F6", strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
+                  <Line type="monotone" dataKey="value" stroke="#4ADE80" strokeWidth={2} dot={{ fill: "#4ADE80", strokeWidth: 0, r: 3 }} activeDot={{ r: 5, stroke: "#4ADE80", strokeWidth: 2, fill: "#0B0F1A" }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </Card>
 
-          {/* Portfolio Allocation Chart */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                Portfolio Allocation
-              </h3>
-              <ChartPieIcon className="h-5 w-5 text-gray-400" />
+          {/* Allocation Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Portfolio Allocation</CardTitle>
+            </CardHeader>
+            <div className="px-5 pb-5 h-64 flex items-center">
+              <div className="w-1/2 h-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={sectorData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
+                      {sectorData.map((_, i) => (
+                        <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: "#1F2937", border: "1px solid #374151", borderRadius: "8px", fontSize: "12px", color: "#F9FAFB" }} formatter={(value, name) => [`${value}%`, name]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="w-1/2 space-y-3">
+                {sectorData.map((s, i) => (
+                  <div key={s.name} className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                    <span className="text-sm text-gray-400 flex-1">{s.name}</span>
+                    <span className="text-sm font-medium text-gray-200 financial-value">{s.value}%</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={sectorData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={2}
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}%`}
-                    labelLine={false}
-                  >
-                    {sectorData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value, name) => [`${value}%`, name]} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-              {sectorData.map((sector, index) => (
-                <div key={sector.name} className="flex items-center">
-                  <div
-                    className="w-3 h-3 rounded-full mr-2"
-                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                  />
-                  <span className="text-gray-600">{sector.name}</span>
-                  <span className="ml-auto text-gray-900">{sector.value}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* ── Holdings & Transactions ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Holdings Table */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Current Holdings
-                  </h3>
-                  <div className="relative">
-                    <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search holdings..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500"
-                    />
-                  </div>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between w-full">
+                  <CardTitle>Current Holdings</CardTitle>
+                  <input
+                    type="text"
+                    placeholder="Search…"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="px-3 py-1.5 text-sm rounded-lg bg-surface-dark border border-white/10 text-gray-300 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-400/40 w-40"
+                  />
                 </div>
-              </div>
+              </CardHeader>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Symbol
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Shares
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Price
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Value
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Allocation
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Gain/Loss
-                      </th>
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/5">
+                      <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Symbol</th>
+                      <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase">Shares</th>
+                      <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase">Price</th>
+                      <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase">Value</th>
+                      <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gain/Loss</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody>
                     {holdings
-                      .filter(
-                        (holding) =>
-                          holding.symbol
-                            .toLowerCase()
-                            .includes(searchTerm.toLowerCase()) ||
-                          holding.name
-                            .toLowerCase()
-                            .includes(searchTerm.toLowerCase())
-                      )
-                      .map((holding) => (
-                        <tr key={holding.symbol} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {holding.symbol}
-                              </div>
-                              <div className="text-sm text-gray-500 truncate max-w-32">
-                                {holding.name}
-                              </div>
+                      .filter((h) => h.symbol.toLowerCase().includes(searchTerm.toLowerCase()) || h.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map((h) => (
+                        <tr key={h.symbol} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                          <td className="px-5 py-3.5">
+                            <div className="text-sm font-medium text-gray-200">{h.symbol}</div>
+                            <div className="text-xs text-gray-500 truncate max-w-[120px]">{h.name}</div>
+                          </td>
+                          <td className="px-5 py-3.5 text-right text-sm text-gray-300 financial-value">{h.shares}</td>
+                          <td className="px-5 py-3.5 text-right text-sm text-gray-300 financial-value">${h.currentPrice.toFixed(2)}</td>
+                          <td className="px-5 py-3.5 text-right text-sm text-gray-200 font-medium financial-value">${h.value.toLocaleString()}</td>
+                          <td className="px-5 py-3.5 text-right">
+                            <div className={`text-sm font-medium financial-value ${h.gainLoss >= 0 ? "text-gain" : "text-loss"}`}>
+                              {h.gainLoss >= 0 ? "+" : ""}${h.gainLoss.toFixed(2)}
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {holding.symbol === "Cash" ? "-" : holding.shares}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {holding.symbol === "Cash"
-                              ? "-"
-                              : `$${holding.currentPrice.toFixed(2)}`}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${holding.value.toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {holding.allocation}%
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {holding.symbol === "Cash" ? (
-                              <span className="text-gray-500">-</span>
-                            ) : (
-                              <>
-                                <span
-                                  className={`${
-                                    holding.gainLoss >= 0
-                                      ? "text-green-600"
-                                      : "text-red-600"
-                                  }`}
-                                >
-                                  {holding.gainLoss >= 0 ? "+" : ""}$
-                                  {holding.gainLoss.toFixed(2)}
-                                </span>
-                                <br />
-                                <span
-                                  className={`text-xs ${
-                                    holding.gainLossPercent >= 0
-                                      ? "text-green-600"
-                                      : "text-red-600"
-                                  }`}
-                                >
-                                  ({holding.gainLossPercent >= 0 ? "+" : ""}
-                                  {holding.gainLossPercent}%)
-                                </span>
-                              </>
-                            )}
+                            <div className={`text-xs ${h.gainLossPercent >= 0 ? "text-gain" : "text-loss"}`}>
+                              {h.gainLossPercent >= 0 ? "+" : ""}{h.gainLossPercent}%
+                            </div>
                           </td>
                         </tr>
                       ))}
                   </tbody>
                 </table>
               </div>
-            </div>
+            </Card>
           </div>
 
           {/* Recent Transactions */}
-          <div>
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Recent Transactions
-                </h3>
-              </div>
-              <div className="px-6 py-4">
-                <div className="space-y-4">
-                  {recentTransactions.slice(0, 5).map((transaction) => (
-                    <div
-                      key={transaction.id}
-                      className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium ${
-                            transaction.type === "buy"
-                              ? "bg-green-500"
-                              : transaction.type === "sell"
-                              ? "bg-red-500"
-                              : "bg-blue-500"
-                          }`}
-                        >
-                          {transaction.type === "buy"
-                            ? "B"
-                            : transaction.type === "sell"
-                            ? "S"
-                            : "D"}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {transaction.type.toUpperCase()}{" "}
-                            {transaction.symbol}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {transaction.type === "dividend"
-                              ? `Dividend payment`
-                              : `${transaction.shares} shares @ $${transaction.price}`}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {transaction.date}
-                          </p>
-                        </div>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+              </CardHeader>
+              <div className="px-5 pb-5 space-y-3">
+                {recentTransactions.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between py-2">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold ${
+                        t.type === "buy" ? "bg-gain/10 text-gain" : t.type === "sell" ? "bg-loss/10 text-loss" : "bg-info/10 text-info"
+                      }`}>
+                        {t.type === "buy" ? "B" : t.type === "sell" ? "S" : "D"}
                       </div>
-                      <div className="text-right">
-                        <p
-                          className={`text-sm font-medium ${
-                            transaction.type === "buy"
-                              ? "text-red-600"
-                              : "text-green-600"
-                          }`}
-                        >
-                          {transaction.type === "buy" ? "-" : "+"}$
-                          {transaction.total.toLocaleString()}
-                        </p>
+                      <div>
+                        <p className="text-sm font-medium text-gray-200">{t.symbol}</p>
+                        <p className="text-xs text-gray-500">{t.date}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
-                <button className="w-full mt-4 text-sm text-primary-600 hover:text-primary-500 font-medium py-2 hover:bg-gray-50 rounded-lg transition-colors">
-                  View All Transactions
-                </button>
+                    <div className={`text-sm font-medium financial-value ${t.type === "buy" ? "text-loss" : "text-gain"}`}>
+                      {t.type === "buy" ? "-" : "+"}${t.total.toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+                <Link href="/portfolio" className="flex items-center justify-center gap-1 text-sm text-brand-400 hover:text-brand-300 py-2 transition-colors">
+                  View All <ArrowRight size={14} />
+                </Link>
               </div>
-            </div>
+            </Card>
 
             {/* Market Overview */}
-            <div className="mt-6 bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Market Overview
-                </h3>
-              </div>
-              <div className="p-6 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">S&P 500</span>
-                  <div className="text-right">
-                    <div className="text-sm font-medium">4,185.47</div>
-                    <div className="text-xs text-green-600">+0.8%</div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Market Overview</CardTitle>
+              </CardHeader>
+              <div className="px-5 pb-5 space-y-3">
+                {[
+                  { name: "S&P 500", val: "4,185.47", change: "+0.8%" },
+                  { name: "NASDAQ", val: "13,052.20", change: "+1.2%" },
+                  { name: "DOW", val: "33,875.40", change: "-0.3%" },
+                ].map((m) => (
+                  <div key={m.name} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">{m.name}</span>
+                    <div className="text-right">
+                      <span className="text-sm font-medium text-gray-200 financial-value">{m.val}</span>
+                      <span className={`text-xs ml-2 ${m.change.startsWith("+") ? "text-gain" : "text-loss"}`}>{m.change}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">NASDAQ</span>
-                  <div className="text-right">
-                    <div className="text-sm font-medium">13,052.20</div>
-                    <div className="text-xs text-green-600">+1.2%</div>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">DOW</span>
-                  <div className="text-right">
-                    <div className="text-sm font-medium">33,875.40</div>
-                    <div className="text-xs text-red-600">-0.3%</div>
-                  </div>
-                </div>
+                ))}
               </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="mt-6 bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Quick Actions
-                </h3>
-              </div>
-              <div className="p-6 space-y-3">
-                <button className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
-                  <PlusIcon className="h-5 w-5" />
-                  <span>Add Transaction</span>
-                </button>
-                <button
-                  onClick={() => setShowUploader(true)}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
-                >
-                  <span>📄</span>
-                  <span>Upload Report</span>
-                </button>
-                <button className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 py-3 px-4 rounded-lg font-medium transition-colors">
-                  Create Portfolio
-                </button>
-                <button className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 py-3 px-4 rounded-lg font-medium transition-colors">
-                  Import Data
-                </button>
-                <button className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 py-3 px-4 rounded-lg font-medium transition-colors">
-                  View Analytics
-                </button>
-              </div>
-            </div>
+            </Card>
           </div>
         </div>
 
-        {/* Israeli Market Highlights Section */}
-        <div className="mt-12">
+        {/* ── Market Highlights ── */}
+        <div className="mt-10 space-y-6">
           <IsraeliMarketHighlights />
-        </div>
-
-        {/* World Market Highlights Section */}
-        <div className="mt-8">
           <WorldMarketHighlights />
         </div>
       </div>
 
-      {/* Report Upload Modal */}
+      {/* Upload Modal */}
       {showUploader && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-dark-secondary rounded-xl border border-white/10 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-white/5">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Upload Investment Reports
-                </h2>
-                <button
-                  onClick={() => setShowUploader(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
+                <h2 className="text-lg font-heading font-semibold text-gray-100">Upload Investment Reports</h2>
+                <button onClick={() => setShowUploader(false)} className="p-1.5 rounded-lg hover:bg-white/5 text-gray-400">
+                  <Plus size={18} className="rotate-45" />
                 </button>
               </div>
-              <p className="text-gray-600 mt-2">
-                Upload your PDF investment reports to automatically extract and
-                analyze your portfolio data.
-              </p>
+              <p className="text-sm text-gray-400 mt-1">Upload PDF reports to extract and analyze your portfolio data.</p>
             </div>
-
             <div className="p-6">
-              <ReportUploader
-                onUploadComplete={(results) => {
-                  setShowUploader(false);
-                }}
-                maxFiles={3}
-              />
+              <ReportUploader onUploadComplete={() => setShowUploader(false)} maxFiles={3} />
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { worldStocksAPI } from "@/services/api";
-import { CheckIcon, XMarkIcon, PencilIcon } from "@heroicons/react/24/outline";
+import { Check, X, Pencil } from "lucide-react";
 
 interface PendingWorldTransaction {
   id: number;
@@ -196,32 +196,32 @@ export default function WorldPendingTransactionsReview({
   const getTransactionTypeColor = (type: string) => {
     switch (type) {
       case "BUY":
-        return "text-green-700 bg-green-100";
+        return "text-gain bg-gain/10";
       case "SELL":
-        return "text-red-700 bg-red-100";
+        return "text-loss bg-loss/10";
       case "DIVIDEND":
-        return "text-blue-700 bg-blue-100";
+        return "text-brand-400 bg-brand-400/10";
       case "DEPOSIT":
-        return "text-purple-700 bg-purple-100";
+        return "text-purple-400 bg-purple-400/10";
       case "WITHDRAWAL":
-        return "text-orange-700 bg-orange-100";
+        return "text-orange-400 bg-orange-400/10";
       default:
-        return "text-gray-700 bg-gray-100";
+        return "text-gray-300 bg-surface-dark";
     }
   };
 
   if (loading && transactions.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-400"></div>
       </div>
     );
   }
 
   if (transactions.length === 0) {
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-        <p className="text-gray-600">No pending world stock transactions to review</p>
+      <div className="bg-surface-dark border border-white/10 rounded-xl p-8 text-center">
+        <p className="text-gray-400">No pending world stock transactions to review</p>
       </div>
     );
   }
@@ -230,21 +230,21 @@ export default function WorldPendingTransactionsReview({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-xl font-semibold text-gray-100">
           Review World Stock Transactions ({transactions.length})
         </h2>
         <div className="flex gap-2">
           <button
             onClick={handleRejectAll}
             disabled={loading}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-loss/20 text-loss px-4 py-2 rounded-xl hover:bg-loss/30 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Reject All
           </button>
           <button
             onClick={handleApproveAll}
             disabled={loading}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-gain/20 text-gain px-4 py-2 rounded-xl hover:bg-gain/30 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Approve All
           </button>
@@ -253,49 +253,49 @@ export default function WorldPendingTransactionsReview({
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-sm text-red-800">{error}</p>
+        <div className="bg-loss/10 border border-loss/20 rounded-xl p-4">
+          <p className="text-sm text-loss">{error}</p>
         </div>
       )}
 
       {/* Transactions Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-surface-dark-secondary rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-white/5">
+            <thead className="bg-surface-dark">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Stock
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Quantity
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Price
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Commission
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Tax
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-surface-dark-secondary divide-y divide-white/5">
               {transactions.map((transaction) => (
-                <tr key={transaction.id} className="hover:bg-gray-50">
+                <tr key={transaction.id} className="hover:bg-white/5">
                   {editingId === transaction.id ? (
                     <>
                       <td className="px-4 py-4 whitespace-nowrap">
@@ -308,15 +308,15 @@ export default function WorldPendingTransactionsReview({
                               transaction_date: e.target.value,
                             })
                           }
-                          className="border rounded px-2 py-1 text-sm w-24 text-gray-900"
+                          className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-24 text-gray-100"
                         />
                       </td>
                       <td className="px-6 py-4">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-gray-100">
                             {editData.stock_name || transaction.stock_name}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-400">
                             {editData.ticker || transaction.ticker}
                           </div>
                         </div>
@@ -330,7 +330,7 @@ export default function WorldPendingTransactionsReview({
                               transaction_type: e.target.value,
                             })
                           }
-                          className="border rounded px-2 py-1 text-sm w-24 text-gray-900"
+                          className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-24 text-gray-100"
                         >
                           <option value="BUY">BUY</option>
                           <option value="SELL">SELL</option>
@@ -348,7 +348,7 @@ export default function WorldPendingTransactionsReview({
                               quantity: parseFloat(e.target.value) || null,
                             })
                           }
-                          className="border rounded px-2 py-1 text-sm w-20 text-right text-gray-900"
+                          className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-20 text-right text-gray-100"
                         />
                       </td>
                       <td className="px-4 py-4 text-right">
@@ -362,7 +362,7 @@ export default function WorldPendingTransactionsReview({
                               price: parseFloat(e.target.value) || null,
                             })
                           }
-                          className="border rounded px-2 py-1 text-sm w-20 text-right text-gray-900"
+                          className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-20 text-right text-gray-100"
                         />
                       </td>
                       <td className="px-4 py-4 text-right">
@@ -376,7 +376,7 @@ export default function WorldPendingTransactionsReview({
                               amount: parseFloat(e.target.value) || null,
                             })
                           }
-                          className="border rounded px-2 py-1 text-sm w-20 text-right text-gray-900"
+                          className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-20 text-right text-gray-100"
                         />
                       </td>
                       <td className="px-4 py-4 text-right">
@@ -390,7 +390,7 @@ export default function WorldPendingTransactionsReview({
                               commission: parseFloat(e.target.value) || null,
                             })
                           }
-                          className="border rounded px-2 py-1 text-sm w-16 text-right text-gray-900"
+                          className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-16 text-right text-gray-100"
                         />
                       </td>
                       <td className="px-4 py-4 text-right">
@@ -404,7 +404,7 @@ export default function WorldPendingTransactionsReview({
                               tax: parseFloat(e.target.value) || null,
                             })
                           }
-                          className="border rounded px-2 py-1 text-sm w-16 text-right text-gray-900"
+                          className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-16 text-right text-gray-100"
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -412,33 +412,33 @@ export default function WorldPendingTransactionsReview({
                           <button
                             onClick={() => saveEdit(transaction.id)}
                             disabled={processingIds.has(transaction.id)}
-                            className="text-green-600 hover:text-green-900 disabled:opacity-50"
+                            className="text-gain hover:text-gain disabled:opacity-50"
                             title="Save"
                           >
-                            <CheckIcon className="h-5 w-5" />
+                            <Check className="h-5 w-5" />
                           </button>
                           <button
                             onClick={cancelEdit}
                             disabled={processingIds.has(transaction.id)}
-                            className="text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                            className="text-gray-400 hover:text-gray-300 disabled:opacity-50"
                             title="Cancel"
                           >
-                            <XMarkIcon className="h-5 w-5" />
+                            <X className="h-5 w-5" />
                           </button>
                         </div>
                       </td>
                     </>
                   ) : (
                     <>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                         {transaction.transaction_date}
                       </td>
                       <td className="px-6 py-4">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-gray-100">
                             {transaction.stock_name}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-400">
                             {transaction.ticker}
                           </div>
                         </div>
@@ -452,27 +452,27 @@ export default function WorldPendingTransactionsReview({
                           {transaction.transaction_type}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-100">
                         {transaction.quantity !== null
                           ? transaction.quantity.toFixed(2)
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-100">
                         {transaction.price !== null
                           ? `$${transaction.price.toFixed(2)}`
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-100">
                         {transaction.amount !== null
                           ? `$${transaction.amount.toFixed(2)}`
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-400">
                         {transaction.commission !== null
                           ? `$${transaction.commission.toFixed(2)}`
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-400">
                         {transaction.tax !== null
                           ? `$${transaction.tax.toFixed(2)}`
                           : "-"}
@@ -482,26 +482,26 @@ export default function WorldPendingTransactionsReview({
                           <button
                             onClick={() => startEdit(transaction)}
                             disabled={processingIds.has(transaction.id)}
-                            className="text-blue-600 hover:text-blue-900 disabled:opacity-50"
+                            className="text-brand-400 hover:text-brand-500 disabled:opacity-50"
                             title="Edit"
                           >
-                            <PencilIcon className="h-5 w-5" />
+                            <Pencil className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleApprove(transaction.id)}
                             disabled={processingIds.has(transaction.id)}
-                            className="text-green-600 hover:text-green-900 disabled:opacity-50"
+                            className="text-gain hover:text-gain disabled:opacity-50"
                             title="Approve"
                           >
-                            <CheckIcon className="h-5 w-5" />
+                            <Check className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleReject(transaction.id)}
                             disabled={processingIds.has(transaction.id)}
-                            className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                            className="text-loss hover:text-loss disabled:opacity-50"
                             title="Reject"
                           >
-                            <XMarkIcon className="h-5 w-5" />
+                            <X className="h-5 w-5" />
                           </button>
                         </div>
                       </td>
@@ -515,8 +515,8 @@ export default function WorldPendingTransactionsReview({
       </div>
 
       {/* Summary */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
+      <div className="bg-brand-400/10 border border-brand-400/20 rounded-xl p-4">
+        <p className="text-sm text-brand-400">
           <strong>Tip:</strong> Review each transaction carefully. You can edit
           any field by clicking the pencil icon. Click the checkmark to approve
           or X to reject individual transactions, or use the buttons above for

@@ -7,11 +7,11 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import {
-  CalendarIcon,
-  FunnelIcon,
-  ListBulletIcon,
-  Squares2X2Icon,
-} from "@heroicons/react/24/outline";
+  CalendarDays,
+  Filter,
+  List,
+  LayoutGrid,
+} from "lucide-react";
 import { calendarAPI } from "@/services/api";
 
 interface CalendarEvent {
@@ -125,17 +125,17 @@ export default function CalendarPage() {
     const colors = eventsOnDate.map((event) => {
       switch (event.event_type) {
         case "MARKET_CLOSED":
-          return "bg-red-500";
+          return "bg-loss";
         case "EARLY_CLOSE":
           return "bg-orange-500";
         case "EARNINGS":
-          return "bg-blue-500";
+          return "bg-brand-400";
         case "ECONOMIC_DATA":
           return "bg-purple-500";
         case "FOMC":
           return "bg-indigo-500";
         case "HOLIDAY":
-          return "bg-green-500";
+          return "bg-gain";
         default:
           return "bg-gray-500";
       }
@@ -167,19 +167,19 @@ export default function CalendarPage() {
   const getEventTypeColor = (eventType: string) => {
     switch (eventType) {
       case "MARKET_CLOSED":
-        return "bg-red-100 text-red-800 border-red-300";
+        return "bg-loss/10 text-loss border-loss/30";
       case "EARLY_CLOSE":
-        return "bg-orange-100 text-orange-800 border-orange-300";
+        return "bg-orange-500/10 text-orange-400 border-orange-500/30";
       case "EARNINGS":
-        return "bg-blue-100 text-blue-800 border-blue-300";
+        return "bg-brand-400/10 text-brand-400 border-brand-400/30";
       case "ECONOMIC_DATA":
-        return "bg-purple-100 text-purple-800 border-purple-300";
+        return "bg-purple-500/10 text-purple-400 border-purple-500/30";
       case "FOMC":
-        return "bg-indigo-100 text-indigo-800 border-indigo-300";
+        return "bg-indigo-500/10 text-indigo-400 border-indigo-500/30";
       case "HOLIDAY":
-        return "bg-green-100 text-green-800 border-green-300";
+        return "bg-gain/10 text-gain border-gain/30";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-300";
+        return "bg-white/10 text-gray-200 border-white/10";
     }
   };
 
@@ -206,67 +206,67 @@ export default function CalendarPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="min-h-screen bg-surface-dark p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-2">
-              <CalendarIcon className="w-8 h-8 text-blue-600" />
-              <h1 className="text-3xl font-bold text-gray-900">Calendar Events</h1>
+              <CalendarDays className="w-8 h-8 text-brand-400" />
+              <h1 className="text-3xl font-bold text-gray-100">Calendar Events</h1>
             </div>
-            <p className="text-gray-600">
+            <p className="text-gray-400">
               View upcoming market events, holidays, and important dates
             </p>
           </div>
 
           {/* Filters */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-4 mb-6">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <FunnelIcon className="w-5 h-5 text-gray-500" />
-                <h2 className="font-semibold text-gray-900">Filters</h2>
+                <Filter className="w-5 h-5 text-gray-500" />
+                <h2 className="font-semibold text-gray-100">Filters</h2>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setViewMode("calendar")}
                   className={`p-2 rounded-lg transition-colors ${
                     viewMode === "calendar"
-                      ? "bg-blue-100 text-blue-600"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      ? "bg-brand-400/10 text-brand-400"
+                      : "bg-white/5 text-gray-400 hover:bg-white/10"
                   }`}
                   title="Calendar View"
                 >
-                  <Squares2X2Icon className="w-5 h-5" />
+                  <LayoutGrid className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
                   className={`p-2 rounded-lg transition-colors ${
                     viewMode === "list"
-                      ? "bg-blue-100 text-blue-600"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      ? "bg-brand-400/10 text-brand-400"
+                      : "bg-white/5 text-gray-400 hover:bg-white/10"
                   }`}
                   title="List View"
                 >
-                  <ListBulletIcon className="w-5 h-5" />
+                  <List className="w-5 h-5" />
                 </button>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Market
                 </label>
                 <div className="relative">
                   <select
                     value={selectedMarket}
                     onChange={(e) => setSelectedMarket(e.target.value)}
-                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 appearance-none cursor-pointer"
+                    className="w-full px-4 py-2 pr-10 border border-white/10 rounded-lg focus:ring-2 focus:ring-brand-400/40 focus:border-brand-400/40 bg-surface-dark text-gray-100 appearance-none cursor-pointer"
                   >
                     <option value="all">All Markets</option>
                     <option value="US">US Market</option>
                     <option value="IL">Israeli Market</option>
                   </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700">
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-300">
                     <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
@@ -274,14 +274,14 @@ export default function CalendarPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
                   Event Type
                 </label>
                 <div className="relative">
                   <select
                     value={selectedEventType}
                     onChange={(e) => setSelectedEventType(e.target.value)}
-                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 appearance-none cursor-pointer"
+                    className="w-full px-4 py-2 pr-10 border border-white/10 rounded-lg focus:ring-2 focus:ring-brand-400/40 focus:border-brand-400/40 bg-surface-dark text-gray-100 appearance-none cursor-pointer"
                     >
                     <option value="all">All Types</option>
                     <option value="MARKET_CLOSED">Market Closures</option>
@@ -291,7 +291,7 @@ export default function CalendarPage() {
                     <option value="FOMC">FOMC Meetings</option>
                     <option value="HOLIDAY">Holidays</option>
                   </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700">
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-300">
                     <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
@@ -304,13 +304,13 @@ export default function CalendarPage() {
           {/* Calendar or List View */}
           {loading ? (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Loading events...</p>
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-brand-400"></div>
+              <p className="mt-4 text-gray-400">Loading events...</p>
             </div>
           ) : viewMode === "calendar" ? (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Calendar */}
-              <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="lg:col-span-2 bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
                 <Calendar
                   key={calendarKey}
                   onChange={setSelectedDate}
@@ -323,8 +323,8 @@ export default function CalendarPage() {
               </div>
 
               {/* Selected Date Events */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">
+              <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
+                <h3 className="font-semibold text-gray-100 mb-4">
                   {selectedDate && !Array.isArray(selectedDate)
                     ? formatDate(selectedDate.toISOString())
                     : "Select a date"}
@@ -354,21 +354,21 @@ export default function CalendarPage() {
                               : "#10b981",
                           backgroundColor:
                             event.event_type === "MARKET_CLOSED"
-                              ? "#fef2f2"
+                              ? "rgba(239, 68, 68, 0.08)"
                               : event.event_type === "EARLY_CLOSE"
-                              ? "#fff7ed"
+                              ? "rgba(249, 115, 22, 0.08)"
                               : event.event_type === "EARNINGS"
-                              ? "#eff6ff"
+                              ? "rgba(59, 130, 246, 0.08)"
                               : event.event_type === "ECONOMIC_DATA"
-                              ? "#faf5ff"
+                              ? "rgba(168, 85, 247, 0.08)"
                               : event.event_type === "FOMC"
-                              ? "#eef2ff"
-                              : "#f0fdf4",
+                              ? "rgba(99, 102, 241, 0.08)"
+                              : "rgba(16, 185, 129, 0.08)",
                         }}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-sm text-gray-900 mb-1">
+                            <h4 className="font-medium text-sm text-gray-100 mb-1">
                               {event.event_name}
                             </h4>
                             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -379,17 +379,17 @@ export default function CalendarPage() {
                               >
                                 {formatEventType(event.event_type)}
                               </span>
-                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-white/10 text-gray-200">
                                 {event.market}
                               </span>
                             </div>
                             {event.early_close_time && (
-                              <p className="text-xs text-gray-600 mb-1">
+                              <p className="text-xs text-gray-400 mb-1">
                                 Early close: {event.early_close_time}
                               </p>
                             )}
                             {event.description && (
-                              <p className="text-xs text-gray-600">{event.description}</p>
+                              <p className="text-xs text-gray-400">{event.description}</p>
                             )}
                           </div>
                         </div>
@@ -400,16 +400,16 @@ export default function CalendarPage() {
               </div>
             </div>
           ) : filteredEvents.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-              <CalendarIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No events found matching your filters</p>
+            <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-12 text-center">
+              <CalendarDays className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-400">No events found matching your filters</p>
             </div>
           ) : (
             <div className="space-y-4">
               {filteredEvents.map((event) => (
                 <div
                   key={event.id}
-                  className={`bg-white rounded-lg shadow-sm border-l-4 p-5 transition-shadow hover:shadow-md ${
+                  className={`bg-surface-dark-secondary rounded-xl border-l-4 p-5 transition-all hover:bg-white/5 ${
                     isPastEvent(event.event_date) ? "opacity-60" : ""
                   }`}
                   style={{
@@ -430,7 +430,7 @@ export default function CalendarPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
+                        <h3 className="text-lg font-semibold text-gray-100">
                           {event.event_name}
                         </h3>
                         <span
@@ -440,11 +440,11 @@ export default function CalendarPage() {
                         >
                           {formatEventType(event.event_type)}
                         </span>
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
+                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-gray-200 border border-white/10">
                           {event.market}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">
+                      <p className="text-sm text-gray-400 mb-2">
                         {formatDate(event.event_date)}
                         {event.early_close_time && (
                           <span className="ml-2">
@@ -453,11 +453,11 @@ export default function CalendarPage() {
                         )}
                       </p>
                       {event.description && (
-                        <p className="text-sm text-gray-700">{event.description}</p>
+                        <p className="text-sm text-gray-300">{event.description}</p>
                       )}
                     </div>
                     {isPastEvent(event.event_date) && (
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      <span className="text-xs text-gray-500 bg-white/10 px-2 py-1 rounded">
                         Past
                       </span>
                     )}

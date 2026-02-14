@@ -2,13 +2,13 @@
 
 import React, { useState } from "react";
 import {
-  UserGroupIcon,
-  ChartBarIcon,
-  ClockIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  CurrencyDollarIcon,
-} from "@heroicons/react/24/outline";
+  Users,
+  BarChart3,
+  Clock,
+  ChevronDown,
+  ChevronRight,
+  DollarSign,
+} from "lucide-react";
 
 export type AdminSection = "users" | "stocks" | "jobs" | "prices";
 
@@ -34,7 +34,7 @@ const adminCategories: AdminCategory[] = [
   {
     id: "users",
     name: "Users",
-    icon: UserGroupIcon,
+    icon: Users,
     description: "Manage user accounts, permissions, and roles",
     subcategories: [
       { id: "list", name: "User List", description: "View and manage all users" },
@@ -45,7 +45,7 @@ const adminCategories: AdminCategory[] = [
   {
     id: "stocks",
     name: "Stocks",
-    icon: ChartBarIcon,
+    icon: BarChart3,
     description: "Manage stock data, logos, and metadata",
     subcategories: [
       { id: "israeli", name: "Israeli Stocks", description: "Manage Israeli market stocks" },
@@ -57,7 +57,7 @@ const adminCategories: AdminCategory[] = [
   {
     id: "prices",
     name: "Stock Prices",
-    icon: CurrencyDollarIcon,
+    icon: DollarSign,
     description: "Monitor and refresh real-time stock prices",
     subcategories: [
       { id: "dashboard", name: "Dashboard", description: "View price statistics and freshness" },
@@ -68,7 +68,7 @@ const adminCategories: AdminCategory[] = [
   {
     id: "jobs",
     name: "Jobs & Tasks",
-    icon: ClockIcon,
+    icon: Clock,
     description: "Run scheduled jobs, crons, and administrative tasks",
     subcategories: [
       { id: "scheduled", name: "Scheduled Jobs", description: "View and manage cron jobs" },
@@ -99,12 +99,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-dark">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-gray-100">Admin Panel</h1>
+          <p className="text-gray-400 mt-1">
             Manage system settings, users, and data
           </p>
         </div>
@@ -112,9 +112,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         <div className="flex gap-6">
           {/* Sidebar Navigation */}
           <div className="w-80 flex-shrink-0">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden sticky top-6">
-              <div className="p-4 border-b border-gray-200 bg-gray-50">
-                <h2 className="font-semibold text-gray-900">Categories</h2>
+            <div className="bg-surface-dark-secondary rounded-xl border border-white/10 overflow-hidden sticky top-6">
+              <div className="p-4 border-b border-white/10 bg-surface-dark">
+                <h2 className="font-semibold text-gray-100">Categories</h2>
               </div>
               <nav className="p-2">
                 {adminCategories.map((category) => {
@@ -131,14 +131,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
                           isActive
-                            ? "bg-blue-50 text-blue-700"
-                            : "text-gray-700 hover:bg-gray-50"
+                            ? "bg-brand-400/10 text-brand-400"
+                            : "text-gray-300 hover:bg-white/5"
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <Icon
                             className={`w-5 h-5 ${
-                              isActive ? "text-blue-600" : "text-gray-400"
+                              isActive ? "text-brand-400" : "text-gray-400"
                             }`}
                           />
                           <div className="text-left">
@@ -153,9 +153,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
                         {category.subcategories && (
                           <div>
                             {isExpanded ? (
-                              <ChevronDownIcon className="w-4 h-4" />
+                              <ChevronDown className="w-4 h-4" />
                             ) : (
-                              <ChevronRightIcon className="w-4 h-4" />
+                              <ChevronRight className="w-4 h-4" />
                             )}
                           </div>
                         )}
@@ -163,11 +163,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
 
                       {/* Subcategories */}
                       {category.subcategories && isExpanded && (
-                        <div className="ml-8 mt-1 space-y-1 border-l-2 border-gray-200 pl-3">
+                        <div className="ml-8 mt-1 space-y-1 border-l-2 border-white/10 pl-3">
                           {category.subcategories.map((sub) => (
                             <div
                               key={sub.id}
-                              className="py-1.5 text-sm text-gray-600 hover:text-gray-900 cursor-pointer"
+                              className="py-1.5 text-sm text-gray-400 hover:text-gray-100 cursor-pointer"
                             >
                               {sub.name}
                             </div>
@@ -183,7 +183,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
 
           {/* Main Content */}
           <div className="flex-1 min-w-0">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="bg-surface-dark-secondary rounded-xl border border-white/10">
               {children}
             </div>
           </div>

@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  ArrowRightIcon,
-  CalendarIcon,
-  BanknotesIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  CurrencyDollarIcon,
-  TrashIcon,
-  ExclamationTriangleIcon,
-} from "@heroicons/react/24/outline";
+  ArrowRight,
+  Calendar,
+  Banknote,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Trash2,
+  AlertTriangle,
+} from "lucide-react";
 import { worldStocksAPI } from "@/services/api";
 import { WorldStockTransaction } from "@/types/world-stocks";
 import {
@@ -86,22 +86,22 @@ export default function WorldStockTransactions({
   const getTransactionIcon = (type: string) => {
     switch (type?.toUpperCase()) {
       case "BUY":
-        return <ArrowTrendingUpIcon className="h-5 w-5 text-green-600" />;
+        return <TrendingUp className="h-5 w-5 text-gain" />;
       case "SELL":
-        return <ArrowTrendingDownIcon className="h-5 w-5 text-red-600" />;
+        return <TrendingDown className="h-5 w-5 text-loss" />;
       default:
-        return <ArrowRightIcon className="h-5 w-5 text-gray-600" />;
+        return <ArrowRight className="h-5 w-5 text-gray-400" />;
     }
   };
 
   const getTransactionColor = (type: string) => {
     switch (type?.toUpperCase()) {
       case "BUY":
-        return "text-green-600 bg-green-50 border-green-200";
+        return "text-gain bg-gain/10 border-gain/20";
       case "SELL":
-        return "text-red-600 bg-red-50 border-red-200";
+        return "text-loss bg-loss/10 border-loss/20";
       default:
-        return "text-gray-600 bg-gray-50 border-gray-200";
+        return "text-gray-400 bg-surface-dark border-white/10";
     }
   };
 
@@ -285,7 +285,7 @@ export default function WorldStockTransactions({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             World Stock Transactions
           </h2>
         </div>
@@ -293,10 +293,10 @@ export default function WorldStockTransactions({
           {[...Array(5)].map((_, i) => (
             <div
               key={i}
-              className="bg-white p-4 rounded-lg shadow-md border border-gray-200"
+              className="bg-surface-dark-secondary p-4 rounded-xl border border-white/10"
             >
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              <div className="h-4 bg-white/10 rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-white/10 rounded w-1/2"></div>
             </div>
           ))}
         </div>
@@ -308,19 +308,19 @@ export default function WorldStockTransactions({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             World Stock Transactions
           </h2>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-400 mb-4" />
-          <h3 className="text-lg font-medium text-red-800 mb-2">
+        <div className="bg-loss/10 border border-loss/20 rounded-xl p-6 text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-loss mb-4" />
+          <h3 className="text-lg font-medium text-loss mb-2">
             Error Loading Transactions
           </h3>
-          <p className="text-red-600">{error}</p>
+          <p className="text-loss">{error}</p>
           <button
             onClick={fetchTransactions}
-            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-loss/80 transition-colors"
           >
             Try Again
           </button>
@@ -333,16 +333,16 @@ export default function WorldStockTransactions({
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-100">
             World Stock Transactions
           </h2>
         </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
-          <ArrowRightIcon className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <div className="bg-surface-dark border border-white/10 rounded-xl p-12 text-center">
+          <ArrowRight className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-100 mb-2">
             No Transactions Found
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-400 mb-4">
             Upload a world stock broker statement to see your transaction
             history.
           </p>
@@ -355,12 +355,12 @@ export default function WorldStockTransactions({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-xl font-semibold text-gray-100">
           World Stock Transactions
         </h2>
         <button
           onClick={fetchTransactions}
-          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+          className="px-4 py-2 bg-surface-dark text-gray-300 rounded-xl hover:bg-white/10 transition-colors text-sm font-medium"
         >
           Refresh
         </button>
@@ -370,7 +370,7 @@ export default function WorldStockTransactions({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Realized P/L */}
         <div
-          className={`p-6 rounded-lg shadow-md ${
+          className={`p-6 rounded-xl ${
             metrics.totalRealizedPL >= 0
               ? "bg-gradient-to-r from-green-500 to-green-600"
               : "bg-gradient-to-r from-red-500 to-red-600"
@@ -386,12 +386,12 @@ export default function WorldStockTransactions({
                 {metrics.closedCount} closed trades
               </p>
             </div>
-            <CurrencyDollarIcon className="h-12 w-12 opacity-60" />
+            <DollarSign className="h-12 w-12 opacity-60" />
           </div>
         </div>
 
         {/* Win Rate */}
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-lg shadow-md">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm opacity-80">Win Rate</p>
@@ -402,12 +402,12 @@ export default function WorldStockTransactions({
                 {metrics.profitableCount}W / {metrics.losingCount}L
               </p>
             </div>
-            <ArrowTrendingUpIcon className="h-12 w-12 opacity-60" />
+            <TrendingUp className="h-12 w-12 opacity-60" />
           </div>
         </div>
 
         {/* Total Commission */}
-        <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-lg shadow-md">
+        <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm opacity-80">Total Commissions</p>
@@ -418,12 +418,12 @@ export default function WorldStockTransactions({
                 {transactions.length} transactions
               </p>
             </div>
-            <BanknotesIcon className="h-12 w-12 opacity-60" />
+            <Banknote className="h-12 w-12 opacity-60" />
           </div>
         </div>
 
         {/* Total Volume */}
-        <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-6 rounded-lg shadow-md">
+        <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-6 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm opacity-80">Total Volume</p>
@@ -434,62 +434,62 @@ export default function WorldStockTransactions({
                 Avg: {formatCurrency(metrics.avgTradeSize)}
               </p>
             </div>
-            <CalendarIcon className="h-12 w-12 opacity-60" />
+            <Calendar className="h-12 w-12 opacity-60" />
           </div>
         </div>
       </div>
 
       {/* Additional Statistics Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
+        <div className="bg-surface-dark-secondary p-4 rounded-xl border border-white/10">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Profit</p>
-              <p className="text-xl font-bold text-green-600">
+              <p className="text-sm text-gray-400">Total Profit</p>
+              <p className="text-xl font-bold text-gain">
                 {formatCurrency(metrics.totalProfit)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-600">Trades</p>
-              <p className="text-xl font-semibold text-gray-900">
+              <p className="text-sm text-gray-400">Trades</p>
+              <p className="text-xl font-semibold text-gray-100">
                 {metrics.profitableCount}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
+        <div className="bg-surface-dark-secondary p-4 rounded-xl border border-white/10">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Loss</p>
-              <p className="text-xl font-bold text-red-600">
+              <p className="text-sm text-gray-400">Total Loss</p>
+              <p className="text-xl font-bold text-loss">
                 {formatCurrency(metrics.totalLoss)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-600">Trades</p>
-              <p className="text-xl font-semibold text-gray-900">
+              <p className="text-sm text-gray-400">Trades</p>
+              <p className="text-xl font-semibold text-gray-100">
                 {metrics.losingCount}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
+        <div className="bg-surface-dark-secondary p-4 rounded-xl border border-white/10">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">MTM P/L</p>
+              <p className="text-sm text-gray-400">MTM P/L</p>
               <p
                 className={`text-xl font-bold ${
-                  metrics.totalMTMPL >= 0 ? "text-green-600" : "text-red-600"
+                  metrics.totalMTMPL >= 0 ? "text-gain" : "text-loss"
                 }`}
               >
                 {formatCurrency(metrics.totalMTMPL)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-600">Open Positions</p>
-              <p className="text-xl font-semibold text-gray-900">
+              <p className="text-sm text-gray-400">Open Positions</p>
+              <p className="text-xl font-semibold text-gray-100">
                 {metrics.openCount}
               </p>
             </div>
@@ -500,9 +500,9 @@ export default function WorldStockTransactions({
       {/* Top 5 Best and Worst Trades */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Best Trades */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <ArrowTrendingUpIcon className="h-6 w-6 text-green-600 mr-2" />
+        <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
+          <h3 className="text-lg font-semibold text-gray-100 mb-4 flex items-center">
+            <TrendingUp className="h-6 w-6 text-gain mr-2" />
             Top 5 Best Trades
           </h3>
           <div className="space-y-3">
@@ -510,34 +510,34 @@ export default function WorldStockTransactions({
               metrics.bestTrades.map((trade, idx) => (
                 <div
                   key={trade.id}
-                  className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100"
+                  className="flex items-center justify-between p-3 bg-gain/10 rounded-xl border border-gain/10"
                 >
                   <div className="flex items-center space-x-3">
                     <div className="flex items-center justify-center w-8 h-8 bg-green-600 text-white rounded-full text-sm font-bold">
                       {idx + 1}
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">
+                      <p className="font-semibold text-gray-100">
                         {trade.symbol}
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-gray-400">
                         {formatDate(trade.transaction_date)} •{" "}
                         {trade.transaction_time}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-green-600">
+                    <p className="font-bold text-gain">
                       {formatCurrency(trade.realized_pl)}
                     </p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-xs text-gray-400">
                       {Math.abs(trade.quantity || 0)} shares
                     </p>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-gray-500 text-center py-4">
+              <p className="text-gray-400 text-center py-4">
                 No closed trades yet
               </p>
             )}
@@ -545,9 +545,9 @@ export default function WorldStockTransactions({
         </div>
 
         {/* Worst Trades */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <ArrowTrendingDownIcon className="h-6 w-6 text-red-600 mr-2" />
+        <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
+          <h3 className="text-lg font-semibold text-gray-100 mb-4 flex items-center">
+            <TrendingDown className="h-6 w-6 text-loss mr-2" />
             Top 5 Worst Trades
           </h3>
           <div className="space-y-3">
@@ -555,34 +555,34 @@ export default function WorldStockTransactions({
               metrics.worstTrades.map((trade, idx) => (
                 <div
                   key={trade.id}
-                  className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100"
+                  className="flex items-center justify-between p-3 bg-loss/10 rounded-xl border border-loss/10"
                 >
                   <div className="flex items-center space-x-3">
                     <div className="flex items-center justify-center w-8 h-8 bg-red-600 text-white rounded-full text-sm font-bold">
                       {idx + 1}
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">
+                      <p className="font-semibold text-gray-100">
                         {trade.symbol}
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-gray-400">
                         {formatDate(trade.transaction_date)} •{" "}
                         {trade.transaction_time}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-red-600">
+                    <p className="font-bold text-loss">
                       {formatCurrency(trade.realized_pl)}
                     </p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-xs text-gray-400">
                       {Math.abs(trade.quantity || 0)} shares
                     </p>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-gray-500 text-center py-4">
+              <p className="text-gray-400 text-center py-4">
                 No closed trades yet
               </p>
             )}
@@ -592,8 +592,8 @@ export default function WorldStockTransactions({
 
       {/* Monthly Activity Chart */}
       {monthlyData.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
+          <h3 className="text-lg font-semibold text-gray-100 mb-4">
             Monthly Transaction Activity
           </h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -620,44 +620,44 @@ export default function WorldStockTransactions({
       )}
 
       {/* Transactions Table */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+      <div className="bg-surface-dark-secondary rounded-xl border border-white/10 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-white/5">
+            <thead className="bg-surface-dark">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Symbol
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Quantity
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Price
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Proceeds
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Comm
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Basis
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Realized P/L
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   MTM P/L
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-surface-dark-secondary divide-y divide-white/5">
               {transactions.map((transaction) => {
                 // Helper to safely parse numbers
                 const parseNum = (val: any): number => {
@@ -676,20 +676,20 @@ export default function WorldStockTransactions({
                 const basis = parseNum(transaction.basis);
 
                 return (
-                  <tr key={transaction.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <tr key={transaction.id} className="hover:bg-white/5">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                       <div>{formatDate(transaction.transaction_date)}</div>
                       {transaction.transaction_time && (
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-400">
                           {transaction.transaction_time}
                         </div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-semibold text-gray-900">
+                      <div className="font-semibold text-gray-100">
                         {transaction.symbol}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-400">
                         {transaction.ticker || "-"}
                       </div>
                     </td>
@@ -705,28 +705,28 @@ export default function WorldStockTransactions({
                         </span>
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
                       {formatNumber(Math.abs(quantity))}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
                       {formatCurrency(tradePrice)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
                       {formatCurrency(proceeds)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-400">
                       {formatCurrency(Math.abs(commission))}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
                       {formatCurrency(Math.abs(basis))}
                     </td>
                     <td
                       className={`px-6 py-4 whitespace-nowrap text-right text-sm font-semibold ${
                         realizedPL > 0
-                          ? "text-green-600"
+                          ? "text-gain"
                           : realizedPL < 0
-                          ? "text-red-600"
-                          : "text-gray-900"
+                          ? "text-loss"
+                          : "text-gray-100"
                       }`}
                     >
                       {formatCurrency(realizedPL)}
@@ -734,10 +734,10 @@ export default function WorldStockTransactions({
                     <td
                       className={`px-6 py-4 whitespace-nowrap text-right text-sm ${
                         mtmPL > 0
-                          ? "text-green-600"
+                          ? "text-gain"
                           : mtmPL < 0
-                          ? "text-red-600"
-                          : "text-gray-600"
+                          ? "text-loss"
+                          : "text-gray-400"
                       }`}
                     >
                       {formatCurrency(mtmPL)}
@@ -746,29 +746,29 @@ export default function WorldStockTransactions({
                 );
               })}
             </tbody>
-            <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+            <tfoot className="bg-surface-dark border-t-2 border-white/10">
               <tr>
                 <td
                   colSpan={7}
-                  className="px-6 py-4 text-right text-sm font-semibold text-gray-700"
+                  className="px-6 py-4 text-right text-sm font-semibold text-gray-300"
                 >
                   Totals:
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-bold text-gray-900">
+                <td className="px-6 py-4 text-right text-sm font-bold text-gray-100">
                   {formatCurrency(Math.abs(metrics.totalBasis))}
                 </td>
                 <td
                   className={`px-6 py-4 text-right text-sm font-bold ${
                     metrics.totalRealizedPL >= 0
-                      ? "text-green-600"
-                      : "text-red-600"
+                      ? "text-gain"
+                      : "text-loss"
                   }`}
                 >
                   {formatCurrency(metrics.totalRealizedPL)}
                 </td>
                 <td
                   className={`px-6 py-4 text-right text-sm font-bold ${
-                    metrics.totalMTMPL >= 0 ? "text-green-600" : "text-red-600"
+                    metrics.totalMTMPL >= 0 ? "text-gain" : "text-loss"
                   }`}
                 >
                   {formatCurrency(metrics.totalMTMPL)}

@@ -2,13 +2,7 @@
 
 import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import {
-  CloudArrowUpIcon,
-  DocumentIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
+import { Upload, FileText, CheckCircle, AlertTriangle, X } from "lucide-react";
 import { authAPI, reportsAPI } from "@/services/api";
 
 interface UploadedFile {
@@ -122,11 +116,11 @@ export default function ReportUploader({
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "success":
-        return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-gain" />;
       case "error":
-        return <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />;
+        return <AlertTriangle className="h-5 w-5 text-loss" />;
       default:
-        return <DocumentIcon className="h-5 w-5 text-gray-400" />;
+        return <FileText className="h-5 w-5 text-gray-500" />;
     }
   };
 
@@ -135,28 +129,28 @@ export default function ReportUploader({
       {/* Upload Area */}
       <div
         {...getRootProps()}
-        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
           isDragActive
-            ? "border-primary-500 bg-primary-50"
-            : "border-gray-300 hover:border-gray-400"
+            ? "border-brand-400/40 bg-brand-400/10"
+            : "border-white/10 hover:border-white/20"
         } ${isUploading ? "cursor-not-allowed opacity-50" : ""}`}
       >
         <input {...getInputProps()} />
-        <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
+        <Upload className="mx-auto h-12 w-12 text-gray-500" />
 
         {isDragActive ? (
-          <p className="mt-2 text-lg text-primary-600">
+          <p className="mt-2 text-lg text-brand-400">
             Drop your PDF reports here...
           </p>
         ) : (
           <div>
-            <p className="mt-2 text-lg text-gray-600">
+            <p className="mt-2 text-lg text-gray-400">
               Drag & drop your PDF investment reports here
             </p>
             <p className="text-sm text-gray-500 mt-1">
               or click to browse files
             </p>
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-gray-500 mt-2">
               Supports: Fidelity statements, portfolio reports, transaction
               history (PDF only, max 10MB)
             </p>
@@ -167,18 +161,18 @@ export default function ReportUploader({
       {/* Uploaded Files List */}
       {uploadedFiles.length > 0 && (
         <div className="mt-6 space-y-3">
-          <h3 className="text-lg font-medium text-gray-900">Uploaded Files</h3>
+          <h3 className="text-lg font-medium text-gray-100">Uploaded Files</h3>
 
           {uploadedFiles.map((uploadedFile, index) => (
             <div
               key={index}
-              className="bg-white border border-gray-200 rounded-lg p-4"
+              className="bg-surface-dark-secondary border border-white/10 rounded-xl p-4"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   {getStatusIcon(uploadedFile.status)}
                   <div>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-gray-100">
                       {uploadedFile.file.name}
                     </p>
                     <p className="text-xs text-gray-500">
@@ -190,9 +184,9 @@ export default function ReportUploader({
                 <div className="flex items-center space-x-2">
                   {uploadedFile.status === "uploading" && (
                     <div className="flex items-center space-x-2">
-                      <div className="w-16 bg-gray-200 rounded-full h-2">
+                      <div className="w-16 bg-white/10 rounded-full h-2">
                         <div
-                          className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                          className="bg-brand-400 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${uploadedFile.progress}%` }}
                         />
                       </div>
@@ -204,18 +198,18 @@ export default function ReportUploader({
 
                   <button
                     onClick={() => removeFile(index)}
-                    className="p-1 text-gray-400 hover:text-gray-600"
+                    className="p-1 text-gray-500 hover:text-gray-300"
                     disabled={uploadedFile.status === "uploading"}
                   >
-                    <XMarkIcon className="h-4 w-4" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
               </div>
 
               {/* Success Details */}
               {uploadedFile.status === "success" && uploadedFile.result && (
-                <div className="mt-3 p-3 bg-green-50 rounded-md">
-                  <div className="text-sm text-green-800">
+                <div className="mt-3 p-3 bg-gain/10 rounded-md">
+                  <div className="text-sm text-gain">
                     <p>
                       <strong>Broker:</strong>{" "}
                       {uploadedFile.result.data?.broker || "Unknown"}
@@ -234,8 +228,8 @@ export default function ReportUploader({
 
               {/* Error Details */}
               {uploadedFile.status === "error" && uploadedFile.error && (
-                <div className="mt-3 p-3 bg-red-50 rounded-md">
-                  <p className="text-sm text-red-800">{uploadedFile.error}</p>
+                <div className="mt-3 p-3 bg-loss/10 rounded-md">
+                  <p className="text-sm text-loss">{uploadedFile.error}</p>
                 </div>
               )}
             </div>

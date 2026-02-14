@@ -14,10 +14,10 @@ export default function HomePage() {
   // Show loading state while auth is initializing
   if (!isInitialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-surface-dark">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-brand-400/20 border-t-brand-400 mx-auto"></div>
+          <p className="mt-4 text-gray-500 text-sm">Loading…</p>
         </div>
       </div>
     );

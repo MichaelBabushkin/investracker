@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { CloudArrowUpIcon } from "@heroicons/react/24/outline";
+import { Upload } from "lucide-react";
 
 interface BrokerUploadCardProps {
   brokerName: string;
@@ -46,16 +46,16 @@ export default function BrokerUploadCard({
   };
 
   return (
-    <div className="bg-white rounded-lg border-2 border-gray-200 hover:border-blue-400 transition-colors overflow-hidden">
+    <div className="bg-surface-dark-secondary rounded-xl border-2 border-white/10 hover:border-brand-400 transition-colors overflow-hidden">
       {/* Broker Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4">
+      <div className="bg-gradient-to-r from-brand-400/20 to-brand-400/10 p-4">
         <div className="flex items-center space-x-3">
-          <div className="w-24 h-12 bg-white rounded-md flex items-center justify-center">
+          <div className="w-24 h-12 bg-surface-dark rounded-md flex items-center justify-center">
             {brokerIcon || (
-              <CloudArrowUpIcon className="h-7 w-7 text-blue-600" />
+              <Upload className="h-7 w-7 text-brand-400" />
             )}
           </div>
-          <h3 className="text-xl font-semibold text-white">{brokerName}</h3>
+          <h3 className="text-xl font-semibold text-gray-100">{brokerName}</h3>
         </div>
       </div>
 
@@ -63,8 +63,8 @@ export default function BrokerUploadCard({
       <div
         className={`p-6 cursor-pointer transition-all ${
           isDragging
-            ? "bg-blue-50 border-blue-400"
-            : "bg-white hover:bg-gray-50"
+            ? "bg-brand-400/10 border-brand-400"
+            : "bg-surface-dark-secondary hover:bg-white/5"
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -81,12 +81,12 @@ export default function BrokerUploadCard({
         />
 
         <div className="flex flex-col items-center justify-center text-center min-h-[160px]">
-          <CloudArrowUpIcon
+          <Upload
             className={`h-12 w-12 mb-3 ${
-              isDragging ? "text-blue-600" : "text-gray-400"
+              isDragging ? "text-brand-400" : "text-gray-400"
             }`}
           />
-          <p className="text-sm font-medium text-gray-900 mb-1">
+          <p className="text-sm font-medium text-gray-100 mb-1">
             Upload {brokerName} Reports
           </p>
           <p className="text-xs text-gray-500">

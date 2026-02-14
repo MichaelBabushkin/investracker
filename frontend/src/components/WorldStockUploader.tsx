@@ -3,13 +3,13 @@
 import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import {
-  CloudArrowUpIcon,
-  DocumentIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  XMarkIcon,
-  ArrowPathIcon,
-} from "@heroicons/react/24/outline";
+  Upload,
+  FileText,
+  CheckCircle,
+  AlertTriangle,
+  X,
+  RefreshCw,
+} from "lucide-react";
 import { worldStocksAPI } from "@/services/api";
 import { WorldStockUploadResult } from "@/types/world-stocks";
 
@@ -130,23 +130,23 @@ export default function WorldStockUploader({
       <div
         {...getRootProps()}
         className={`
-          border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
+          border-2 border-dashed rounded-xl p-8 text-center cursor-pointer
           transition-colors duration-200
           ${
             isDragActive
-              ? "border-blue-500 bg-blue-50"
-              : "border-gray-300 hover:border-gray-400"
+              ? "border-brand-400 bg-brand-400/10"
+              : "border-white/10 hover:border-white/20"
           }
           ${isUploading ? "opacity-50 cursor-not-allowed" : ""}
         `}
       >
         <input {...getInputProps()} />
-        <CloudArrowUpIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+        <Upload className="h-12 w-12 mx-auto text-gray-400 mb-4" />
         {isDragActive ? (
-          <p className="text-lg text-blue-600">Drop the PDF files here...</p>
+          <p className="text-lg text-brand-400">Drop the PDF files here...</p>
         ) : (
           <>
-            <p className="text-lg text-gray-700 mb-2">
+            <p className="text-lg text-gray-300 mb-2">
               Drag & drop world stock broker statements here
             </p>
             <p className="text-sm text-gray-500 mb-4">
@@ -154,7 +154,7 @@ export default function WorldStockUploader({
             </p>
             <button
               type="button"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-brand-400 text-surface-dark rounded-md hover:bg-brand-500 transition-colors"
               disabled={isUploading}
             >
               Select Files
@@ -173,7 +173,7 @@ export default function WorldStockUploader({
             {!isUploading && (
               <button
                 onClick={clearAll}
-                className="text-sm text-red-600 hover:text-red-700"
+                className="text-sm text-loss hover:text-loss"
               >
                 Clear All
               </button>
@@ -183,13 +183,13 @@ export default function WorldStockUploader({
           {uploadedFiles.map((uploadedFile, index) => (
             <div
               key={index}
-              className="border rounded-lg p-4 bg-white shadow-sm"
+              className="border border-white/10 rounded-xl p-4 bg-surface-dark-secondary"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-3 flex-1">
-                  <DocumentIcon className="h-6 w-6 text-gray-400 flex-shrink-0 mt-1" />
+                  <FileText className="h-6 w-6 text-gray-400 flex-shrink-0 mt-1" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-sm font-medium text-gray-100 truncate">
                       {uploadedFile.file.name}
                     </p>
                     <p className="text-xs text-gray-500">
@@ -200,14 +200,14 @@ export default function WorldStockUploader({
                     {uploadedFile.status === "uploading" && (
                       <div className="mt-2">
                         <div className="flex items-center space-x-2">
-                          <ArrowPathIcon className="h-4 w-4 text-blue-600 animate-spin" />
-                          <span className="text-sm text-blue-600">
+                          <RefreshCw className="h-4 w-4 text-brand-400 animate-spin" />
+                          <span className="text-sm text-brand-400">
                             Processing...
                           </span>
                         </div>
-                        <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="mt-2 h-2 bg-white/10 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-blue-600 transition-all duration-300"
+                            className="h-full bg-brand-400 transition-all duration-300"
                             style={{ width: `${uploadedFile.progress}%` }}
                           />
                         </div>
@@ -218,12 +218,12 @@ export default function WorldStockUploader({
                       uploadedFile.result && (
                         <div className="mt-2 space-y-1">
                           <div className="flex items-center space-x-2">
-                            <CheckCircleIcon className="h-5 w-5 text-green-600" />
-                            <span className="text-sm text-green-600 font-medium">
+                            <CheckCircle className="h-5 w-5 text-gain" />
+                            <span className="text-sm text-gain font-medium">
                               Upload successful
                             </span>
                           </div>
-                          <div className="text-xs text-gray-600 space-y-0.5">
+                          <div className="text-xs text-gray-400 space-y-0.5">
                             {uploadedFile.result.account_number && (
                               <p>
                                 Account: {uploadedFile.result.account_number}
@@ -249,13 +249,13 @@ export default function WorldStockUploader({
                     {uploadedFile.status === "error" && (
                       <div className="mt-2">
                         <div className="flex items-start space-x-2">
-                          <ExclamationTriangleIcon className="h-5 w-5 text-red-600 flex-shrink-0" />
+                          <AlertTriangle className="h-5 w-5 text-loss flex-shrink-0" />
                           <div>
-                            <span className="text-sm text-red-600 font-medium">
+                            <span className="text-sm text-loss font-medium">
                               Upload failed
                             </span>
                             {uploadedFile.error && (
-                              <p className="text-xs text-red-500 mt-1">
+                              <p className="text-xs text-loss mt-1">
                                 {uploadedFile.error}
                               </p>
                             )}
@@ -269,9 +269,9 @@ export default function WorldStockUploader({
                 {!isUploading && (
                   <button
                     onClick={() => removeFile(index)}
-                    className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                    className="text-gray-400 hover:text-gray-300 flex-shrink-0"
                   >
-                    <XMarkIcon className="h-5 w-5" />
+                    <X className="h-5 w-5" />
                   </button>
                 )}
               </div>
@@ -281,11 +281,11 @@ export default function WorldStockUploader({
       )}
 
       {/* Instructions */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-sm font-semibold text-blue-900 mb-2">
+      <div className="bg-brand-400/10 border border-brand-400/20 rounded-xl p-4">
+        <h4 className="text-sm font-semibold text-brand-400 mb-2">
           Supported Formats
         </h4>
-        <ul className="text-xs text-blue-800 space-y-1">
+        <ul className="text-xs text-gray-300 space-y-1">
           <li>• US broker account statements (PDF format)</li>
           <li>
             • Statements should include holdings, transactions, and dividend

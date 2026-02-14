@@ -3,12 +3,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { israeliStocksAPI } from "@/services/api";
 import {
-  Cog6ToothIcon,
-  ArrowPathIcon,
-  CloudArrowUpIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-} from "@heroicons/react/24/outline";
+  Settings,
+  RefreshCw,
+  CloudUpload,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import Logo from "./Logo";
 
 export default function AdminDashboard() {
@@ -214,7 +214,7 @@ export default function AdminDashboard() {
     if (svg && typeof svg === "string" && svg.includes("<svg")) {
       return (
         <div
-          className="w-20 h-20 p-2 border border-gray-200 rounded bg-white"
+          className="w-20 h-20 p-2 border border-white/10 rounded bg-surface-dark-secondary"
           title="Current logo"
         >
           <div
@@ -225,39 +225,39 @@ export default function AdminDashboard() {
       );
     }
     return (
-      <div className="w-20 h-20 flex items-center justify-center border border-dashed border-gray-300 rounded text-xs text-gray-400">
+      <div className="w-20 h-20 flex items-center justify-center border border-dashed border-white/10 rounded text-xs text-gray-400">
         No logo
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-dark">
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
-          <p className="text-gray-600 mt-1">Manage system settings and data</p>
+          <h1 className="text-3xl font-bold text-gray-100">Admin Panel</h1>
+          <p className="text-gray-400 mt-1">Manage system settings and data</p>
         </div>
         
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-medium text-gray-900">
+              <h2 className="text-lg font-medium text-gray-100">
                 Logo Crawler
               </h2>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-400">
                 Fetch and store SVG logos for Israeli stocks.
               </p>
             </div>
-            <ArrowPathIcon
+            <RefreshCw
               className={`${
-                busy ? "animate-spin text-blue-600" : "text-gray-400"
+                busy ? "animate-spin text-brand-400" : "text-gray-400"
               } h-6 w-6`}
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Batch size
               </label>
               <div className="flex gap-2">
@@ -269,7 +269,7 @@ export default function AdminDashboard() {
                   onChange={(e) =>
                     setBatchSize(parseInt(e.target.value || "5", 10))
                   }
-                  className="w-28 border border-gray-300 rounded-md px-3 py-2"
+                  className="w-28 border border-white/10 rounded-md px-3 py-2 bg-surface-dark text-gray-100"
                 />
                 <button
                   onClick={runCrawlAll}
@@ -279,7 +279,7 @@ export default function AdminDashboard() {
                   Crawl Missing Logos
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 Runs concurrent requests in batches.
               </p>
             </div>
@@ -287,42 +287,42 @@ export default function AdminDashboard() {
           {(message || error) && (
             <div className="mt-4">
               {error ? (
-                <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded p-3 text-sm">
-                  <XCircleIcon className="h-5 w-5" />
+                <div className="flex items-center gap-2 text-loss bg-loss/10 border border-loss/20 rounded p-3 text-sm">
+                  <XCircle className="h-5 w-5" />
                   <span>{error}</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded p-3 text-sm">
-                  <CheckCircleIcon className="h-5 w-5" />
+                <div className="flex items-center gap-2 text-gain bg-gain/10 border border-gain/20 rounded p-3 text-sm">
+                  <CheckCircle className="h-5 w-5" />
                   <span>{message}</span>
                 </div>
               )}
             </div>
           )}
           {result && (
-            <pre className="mt-4 text-xs bg-gray-50 border border-gray-200 rounded p-3 overflow-auto max-h-64">
+            <pre className="mt-4 text-xs bg-surface-dark border border-white/10 rounded p-3 overflow-auto max-h-64 text-gray-300">
               {JSON.stringify(result, null, 2)}
             </pre>
           )}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-medium text-gray-900">
+              <h2 className="text-lg font-medium text-gray-100">
                 Attach Logo to Stock
               </h2>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-400">
                 Search and select a company, then fetch/refresh its logo.
               </p>
             </div>
             {stocksLoading && (
-              <ArrowPathIcon className="h-5 w-5 animate-spin text-blue-600" />
+              <RefreshCw className="h-5 w-5 animate-spin text-brand-400" />
             )}
           </div>
           <div className="space-y-3">
             {stocksError && (
-              <div className="flex items-center justify-between bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm rounded p-2">
+              <div className="flex items-center justify-between bg-warn/10 border border-warn/20 text-warn text-sm rounded p-2">
                 <span>{stocksError}</span>
                 <div className="flex gap-2">
                   <button
@@ -333,7 +333,7 @@ export default function AdminDashboard() {
                   </button>
                   <a
                     href="/auth/login"
-                    className="text-blue-700 underline text-xs"
+                    className="text-brand-400 underline text-xs"
                   >
                     Sign in
                   </a>
@@ -362,14 +362,14 @@ export default function AdminDashboard() {
                       onPickSuggestion(suggestions[0]);
                   }}
                   placeholder="Search by name or ticker"
-                  className="flex-1 min-w-[220px] border border-gray-300 rounded-md px-3 py-2"
+                  className="flex-1 min-w-[220px] border border-white/10 rounded-md px-3 py-2 bg-surface-dark text-gray-100"
                 />
                 <input
                   type="text"
                   value={manualName}
                   onChange={(e) => setManualName(e.target.value)}
                   placeholder="TradingView slug or company name"
-                  className="flex-1 min-w-[220px] border border-gray-300 rounded-md px-3 py-2"
+                  className="flex-1 min-w-[220px] border border-white/10 rounded-md px-3 py-2 bg-surface-dark text-gray-100"
                 />
                 <button
                   onClick={() => {
@@ -396,27 +396,27 @@ export default function AdminDashboard() {
                 <span>Loaded stocks: {stocks.length}</span>
                 <button
                   onClick={reloadStocks}
-                  className="text-[11px] text-blue-700 underline"
+                  className="text-[11px] text-brand-400 underline"
                 >
                   Reload
                 </button>
               </div>
               {stockQuery && suggestions.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow max-h-64 overflow-auto">
+                <div className="absolute z-10 mt-1 w-full bg-surface-dark-secondary border border-white/10 rounded max-h-64 overflow-auto">
                   {suggestions.map((s: any) => (
                     <button
                       key={`${s.id || s.symbol || s.name}`}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                      className="w-full text-left px-3 py-2 hover:bg-white/5"
                       onClick={() => onPickSuggestion(s)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex gap-2 flex-wrap">
-                          <span className="font-medium">{s.name}</span>
-                          <span className="text-xs text-gray-500">
+                          <span className="font-medium text-gray-100">{s.name}</span>
+                          <span className="text-xs text-gray-400">
                             {s.symbol}
                           </span>
                           {s.has_logo && (
-                            <span className="text-[10px] text-green-600 bg-green-50 border border-green-200 rounded px-1">
+                            <span className="text-[10px] text-gain bg-gain/10 border border-gain/20 rounded px-1">
                               logo
                             </span>
                           )}
@@ -430,19 +430,19 @@ export default function AdminDashboard() {
                 </div>
               )}
               {stockQuery && suggestions.length === 0 && !stocksLoading && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow p-3 text-sm text-gray-600">
+                <div className="absolute z-10 mt-1 w-full bg-surface-dark-secondary border border-white/10 rounded p-3 text-sm text-gray-400">
                   No suggestions. Type at least 2 characters or try the manual
                   field.
                 </div>
               )}
             </div>
             {selectedStock && (
-              <div className="flex items-center justify-between border border-gray-200 rounded p-3">
+              <div className="flex items-center justify-between border border-white/10 rounded p-3">
                 <div className="flex items-center gap-3">
                   {renderLogoPreview(selectedStock)}
                   <div>
-                    <div className="font-medium">{selectedStock.name}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="font-medium text-gray-100">{selectedStock.name}</div>
+                    <div className="text-xs text-gray-400">
                       {selectedStock.symbol}
                     </div>
                   </div>
@@ -461,24 +461,24 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-medium text-gray-900">
+              <h2 className="text-lg font-medium text-gray-100">
                 TradingView Logo URL Crawler
               </h2>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-400">
                 Extract logo URLs from TradingView symbol pages and store them
                 in logo_url.
               </p>
             </div>
             {tvBusy && (
-              <ArrowPathIcon className="h-5 w-5 animate-spin text-blue-600" />
+              <RefreshCw className="h-5 w-5 animate-spin text-brand-400" />
             )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Batch crawl
               </label>
               <div className="flex gap-2 items-start flex-wrap">
@@ -490,7 +490,7 @@ export default function AdminDashboard() {
                   onChange={(e) =>
                     setBatchSize(parseInt(e.target.value || "5", 10))
                   }
-                  className="w-28 border border-gray-300 rounded-md px-3 py-2"
+                  className="w-28 border border-white/10 rounded-md px-3 py-2 bg-surface-dark text-gray-100"
                 />
                 <button
                   onClick={async () => {
@@ -524,13 +524,13 @@ export default function AdminDashboard() {
                   Crawl Missing logo_url
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 Finds S3 SVG URL via TradingView page and saves it to logo_url
                 only.
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Single symbol
               </label>
               <div className="flex gap-2 items-start flex-wrap">
@@ -539,7 +539,7 @@ export default function AdminDashboard() {
                   value={tvSymbol}
                   onChange={(e) => setTvSymbol(e.target.value)}
                   placeholder="e.g. DNYA"
-                  className="w-40 border border-gray-300 rounded-md px-3 py-2"
+                  className="w-40 border border-white/10 rounded-md px-3 py-2 bg-surface-dark text-gray-100"
                 />
                 <button
                   onClick={async () => {
@@ -582,12 +582,12 @@ export default function AdminDashboard() {
                   Crawl URL for Symbol
                 </button>
                 {selectedStock?.symbol && (
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-gray-400">
                     Selected: {selectedStock.symbol}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 Uses TradingView page like
                 https://www.tradingview.com/symbols/TASE-DNYA/
               </p>
@@ -596,13 +596,13 @@ export default function AdminDashboard() {
           {(tvMsg || tvErr) && (
             <div className="mt-4">
               {tvErr ? (
-                <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded p-3 text-sm">
-                  <XCircleIcon className="h-5 w-5" />
+                <div className="flex items-center gap-2 text-loss bg-loss/10 border border-loss/20 rounded p-3 text-sm">
+                  <XCircle className="h-5 w-5" />
                   <span>{tvErr}</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded p-3 text-sm">
-                  <CheckCircleIcon className="h-5 w-5" />
+                <div className="flex items-center gap-2 text-gain bg-gain/10 border border-gain/20 rounded p-3 text-sm">
+                  <CheckCircle className="h-5 w-5" />
                   <span>{tvMsg}</span>
                 </div>
               )}
@@ -610,24 +610,24 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-medium text-gray-900">
+              <h2 className="text-lg font-medium text-gray-100">
                 Populate logo_svg from logo_url
               </h2>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-400">
                 Download SVGs using saved logo_url and store them in the
                 database.
               </p>
             </div>
             {populateBusy && (
-              <ArrowPathIcon className="h-5 w-5 animate-spin text-blue-600" />
+              <RefreshCw className="h-5 w-5 animate-spin text-brand-400" />
             )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Bulk populate
               </label>
               <div className="flex gap-2 items-start flex-wrap">
@@ -639,7 +639,7 @@ export default function AdminDashboard() {
                   onChange={(e) =>
                     setBatchSize(parseInt(e.target.value || "5", 10))
                   }
-                  className="w-28 border border-gray-300 rounded-md px-3 py-2"
+                  className="w-28 border border-white/10 rounded-md px-3 py-2 bg-surface-dark text-gray-100"
                 />
                 <button
                   onClick={async () => {
@@ -674,12 +674,12 @@ export default function AdminDashboard() {
                   Populate Missing SVGs
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 Only processes stocks with a saved logo_url.
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Single stock
               </label>
               <div className="flex gap-2 items-start flex-wrap">
@@ -722,12 +722,12 @@ export default function AdminDashboard() {
                   Populate for Selected
                 </button>
                 {selectedStock?.id && (
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-gray-400">
                     ID: {selectedStock.id}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 Uses the stock&apos;s logo_url field, if present.
               </p>
             </div>
@@ -735,13 +735,13 @@ export default function AdminDashboard() {
           {(populateMsg || populateErr) && (
             <div className="mt-4">
               {populateErr ? (
-                <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded p-3 text-sm">
-                  <XCircleIcon className="h-5 w-5" />
+                <div className="flex items-center gap-2 text-loss bg-loss/10 border border-loss/20 rounded p-3 text-sm">
+                  <XCircle className="h-5 w-5" />
                   <span>{populateErr}</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded p-3 text-sm">
-                  <CheckCircleIcon className="h-5 w-5" />
+                <div className="flex items-center gap-2 text-gain bg-gain/10 border border-gain/20 rounded p-3 text-sm">
+                  <CheckCircle className="h-5 w-5" />
                   <span>{populateMsg}</span>
                 </div>
               )}
@@ -749,20 +749,20 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-medium text-gray-900">
+              <h2 className="text-lg font-medium text-gray-100">
                 Report Uploaders
               </h2>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-400">
                 Upload PDF or CSV reports for analysis.
               </p>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Upload PDF
               </label>
               <div className="flex items-center gap-2">
@@ -770,7 +770,7 @@ export default function AdminDashboard() {
                   type="file"
                   accept="application/pdf"
                   onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
-                  className="flex-1 border border-gray-300 rounded-md px-3 py-2"
+                  className="flex-1 border border-white/10 rounded-md px-3 py-2 bg-surface-dark text-gray-100"
                 />
                 <button
                   onClick={uploadPdf}
@@ -780,12 +780,12 @@ export default function AdminDashboard() {
                   Upload
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 Single PDF report (Israeli broker statements).
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Upload CSVs
               </label>
               <div className="flex items-center gap-2">
@@ -796,7 +796,7 @@ export default function AdminDashboard() {
                   onChange={(e) =>
                     setCsvFiles(Array.from(e.target.files || []))
                   }
-                  className="flex-1 border border-gray-300 rounded-md px-3 py-2"
+                  className="flex-1 border border-white/10 rounded-md px-3 py-2 bg-surface-dark text-gray-100"
                 />
                 <button
                   onClick={uploadCsvs}
@@ -806,19 +806,19 @@ export default function AdminDashboard() {
                   Upload
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 One or more CSV files (tables exported from PDFs).
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-2">
-            <CloudArrowUpIcon className="h-5 w-5 text-gray-500" />
-            <h2 className="text-lg font-medium text-gray-900">Other Tools</h2>
+            <CloudUpload className="h-5 w-5 text-gray-400" />
+            <h2 className="text-lg font-medium text-gray-100">Other Tools</h2>
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-400">
             We can add data fixes, re-processing utilities, and feature toggles
             here.
           </p>

@@ -1,14 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  SwatchIcon,
-  CurrencyDollarIcon,
-  BellIcon,
-  UserCircleIcon,
-  ShieldCheckIcon,
-  GlobeAltIcon,
-} from "@heroicons/react/24/outline";
+import { Palette, User, Bell, Shield, Globe } from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { userSettingsAPI } from "@/services/api";
 
@@ -31,18 +24,19 @@ export default function SettingsPage() {
     portfolio: false,
     reports: true,
   });
-  const [calendarPreferences, setCalendarPreferences] = useState<CalendarPreferences>({
-    notify_markets: ["US", "IL"],
-    notify_event_types: [
-      "MARKET_CLOSED",
-      "EARLY_CLOSE",
-      "EARNINGS",
-      "ECONOMIC_DATA",
-      "FOMC",
-      "HOLIDAY"
-    ],
-    notify_days_before: 1,
-  });
+  const [calendarPreferences, setCalendarPreferences] =
+    useState<CalendarPreferences>({
+      notify_markets: ["US", "IL"],
+      notify_event_types: [
+        "MARKET_CLOSED",
+        "EARLY_CLOSE",
+        "EARNINGS",
+        "ECONOMIC_DATA",
+        "FOMC",
+        "HOLIDAY",
+      ],
+      notify_days_before: 1,
+    });
   const [loadingCalendarPrefs, setLoadingCalendarPrefs] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -50,7 +44,7 @@ export default function SettingsPage() {
     // Load settings from localStorage
     const savedTheme = localStorage.getItem("theme") as Theme;
     const savedCurrency = localStorage.getItem("baseCurrency") as Currency;
-    
+
     if (savedTheme) setTheme(savedTheme);
     if (savedCurrency) setBaseCurrency(savedCurrency);
 
@@ -69,7 +63,7 @@ export default function SettingsPage() {
           "EARNINGS",
           "ECONOMIC_DATA",
           "FOMC",
-          "HOLIDAY"
+          "HOLIDAY",
         ],
         notify_days_before: data.notify_days_before || 1,
       });
@@ -110,19 +104,21 @@ export default function SettingsPage() {
   };
 
   const handleSaveSettings = () => {
-    // Save to localStorage (in a real app, this would sync to backend)
     localStorage.setItem("theme", theme);
     localStorage.setItem("baseCurrency", baseCurrency);
-    
-    // Apply theme
+
     applyTheme(theme);
-    
+
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
   const applyTheme = (selectedTheme: Theme) => {
-    if (selectedTheme === "dark" || (selectedTheme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+    if (
+      selectedTheme === "dark" ||
+      (selectedTheme === "auto" &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches)
+    ) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
@@ -130,41 +126,45 @@ export default function SettingsPage() {
   };
 
   const tabs = [
-    { id: "appearance", name: "Appearance", icon: SwatchIcon },
-    { id: "preferences", name: "Preferences", icon: UserCircleIcon },
-    { id: "notifications", name: "Notifications", icon: BellIcon },
-    { id: "security", name: "Security", icon: ShieldCheckIcon },
-    { id: "regional", name: "Regional", icon: GlobeAltIcon },
+    { id: "appearance", name: "Appearance", icon: Palette },
+    { id: "preferences", name: "Preferences", icon: User },
+    { id: "notifications", name: "Notifications", icon: Bell },
+    { id: "security", name: "Security", icon: Shield },
+    { id: "regional", name: "Regional", icon: Globe },
   ];
+
+  const selectClasses =
+    "w-full max-w-xs bg-surface-dark border border-white/10 text-gray-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400/40 focus:border-brand-400/40";
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto">
+      <div className="min-h-screen bg-surface-dark p-4 sm:p-6 lg:p-8">
+        <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-2">
-            Manage your account settings and preferences
-          </p>
-        </div>
-
-        {/* Success Message */}
-        {saveSuccess && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-sm text-green-800">
-              ✓ Settings saved successfully!
+            <h1 className="text-2xl sm:text-3xl font-heading font-bold text-gray-100">
+              Settings
+            </h1>
+            <p className="text-sm sm:text-base text-gray-400 mt-2">
+              Manage your account settings and preferences
             </p>
           </div>
-        )}
 
-        <div className="flex flex-col gap-4">
-          {/* Mobile Tab Selector */}
-          <div className="lg:hidden bg-white rounded-lg shadow p-2">
+          {/* Success Message */}
+          {saveSuccess && (
+            <div className="mb-6 bg-gain/10 border border-gain/20 rounded-xl p-4">
+              <p className="text-sm text-gain">
+                ✓ Settings saved successfully!
+              </p>
+            </div>
+          )}
+
+          {/* Mobile Tab Selector (dropdown) */}
+          <div className="lg:hidden mb-4">
             <select
               value={activeTab}
               onChange={(e) => setActiveTab(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              className="w-full bg-surface-dark-secondary border border-white/10 text-gray-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-400/40"
             >
               {tabs.map((tab) => (
                 <option key={tab.id} value={tab.id}>
@@ -174,41 +174,39 @@ export default function SettingsPage() {
             </select>
           </div>
 
-          {/* Desktop Sidebar */}
-          <div className="hidden lg:block w-64 bg-white rounded-lg shadow p-4 flex-shrink-0">
-            <nav className="space-y-1">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
-                      activeTab === tab.id
-                        ? "bg-blue-50 text-blue-700 font-medium"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
-                    <span>{tab.name}</span>
-                  </button>
-                );
-              })}
-            </nav>
+          {/* Desktop Horizontal Tabs */}
+          <div className="hidden lg:flex items-center gap-1 mb-6 bg-surface-dark-secondary border border-white/5 rounded-xl p-1.5">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    activeTab === tab.id
+                      ? "bg-brand-400/15 text-brand-400"
+                      : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
+                  }`}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span>{tab.name}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Main Content */}
-          <div className="flex-1 bg-white rounded-lg shadow">
+          {/* Main Content Card */}
+          <div className="bg-surface-dark-secondary border border-white/5 rounded-xl">
             {/* Appearance Tab */}
             {activeTab === "appearance" && (
               <div className="p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-heading font-semibold text-gray-100 mb-4 sm:mb-6">
                   Appearance
                 </h2>
 
                 {/* Theme Selection */}
                 <div className="mb-6 sm:mb-8">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <label className="block text-sm font-medium text-gray-400 mb-3">
                     Color Theme
                   </label>
                   <div className="grid grid-cols-3 gap-3 sm:gap-4">
@@ -220,14 +218,16 @@ export default function SettingsPage() {
                       <button
                         key={option.value}
                         onClick={() => setTheme(option.value as Theme)}
-                        className={`p-4 border-2 rounded-lg transition-all ${
+                        className={`p-4 border-2 rounded-xl transition-all ${
                           theme === option.value
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200 hover:border-gray-300"
+                            ? "border-brand-400 bg-brand-400/10"
+                            : "border-white/10 hover:border-white/20 bg-surface-dark"
                         }`}
                       >
-                        <div className="text-3xl sm:text-4xl mb-2">{option.emoji}</div>
-                        <div className="text-sm sm:text-base font-medium text-gray-900">
+                        <div className="text-3xl sm:text-4xl mb-2">
+                          {option.emoji}
+                        </div>
+                        <div className="text-sm sm:text-base font-medium text-gray-100">
                           {option.label}
                         </div>
                         {option.value === "auto" && (
@@ -242,32 +242,26 @@ export default function SettingsPage() {
 
                 {/* Color Accent (Future Feature) */}
                 <div className="mb-6 sm:mb-8">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <label className="block text-sm font-medium text-gray-400 mb-3">
                     Accent Color
                   </label>
                   <div className="flex gap-3 sm:gap-4">
-                    {["blue", "green", "purple", "red", "orange"].map(
-                      (color) => (
-                        <button
-                          key={color}
-                          className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 ${
-                            color === "blue"
-                              ? "bg-blue-500 border-blue-700"
-                              : color === "green"
-                              ? "bg-green-500 border-green-700"
-                              : color === "purple"
-                              ? "bg-purple-500 border-purple-700"
-                              : color === "red"
-                              ? "bg-red-500 border-red-700"
-                              : "bg-orange-500 border-orange-700"
-                          }`}
-                          title={color}
-                        />
-                      )
-                    )}
+                    {[
+                      { name: "blue", bg: "bg-blue-500", ring: "ring-blue-400" },
+                      { name: "green", bg: "bg-emerald-500", ring: "ring-emerald-400" },
+                      { name: "purple", bg: "bg-purple-500", ring: "ring-purple-400" },
+                      { name: "red", bg: "bg-red-500", ring: "ring-red-400" },
+                      { name: "orange", bg: "bg-orange-500", ring: "ring-orange-400" },
+                    ].map((color) => (
+                      <button
+                        key={color.name}
+                        className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${color.bg} ring-2 ring-offset-2 ring-offset-surface-dark-secondary ${color.ring} opacity-60 hover:opacity-100 transition-opacity`}
+                        title={color.name}
+                      />
+                    ))}
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    Coming soon - customize accent colors
+                    Coming soon — customize accent colors
                   </p>
                 </div>
               </div>
@@ -276,20 +270,22 @@ export default function SettingsPage() {
             {/* Preferences Tab */}
             {activeTab === "preferences" && (
               <div className="p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-heading font-semibold text-gray-100 mb-4 sm:mb-6">
                   Preferences
                 </h2>
 
                 <div className="space-y-6">
                   {/* Base Currency */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
                       Base Currency
                     </label>
                     <select
                       value={baseCurrency}
-                      onChange={(e) => setBaseCurrency(e.target.value as Currency)}
-                      className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      onChange={(e) =>
+                        setBaseCurrency(e.target.value as Currency)
+                      }
+                      className={selectClasses}
                     >
                       <option value="USD">USD ($) - US Dollar</option>
                       <option value="ILS">ILS (₪) - Israeli Shekel</option>
@@ -303,10 +299,10 @@ export default function SettingsPage() {
 
                   {/* Risk Tolerance */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
                       Investment Risk Tolerance
                     </label>
-                    <select className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <select className={selectClasses}>
                       <option value="conservative">Conservative</option>
                       <option value="moderate">Moderate</option>
                       <option value="aggressive">Aggressive</option>
@@ -315,10 +311,10 @@ export default function SettingsPage() {
 
                   {/* Date Format */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
                       Date Format
                     </label>
-                    <select className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <select className={selectClasses}>
                       <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                       <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                       <option value="YYYY-MM-DD">YYYY-MM-DD</option>
@@ -331,16 +327,16 @@ export default function SettingsPage() {
             {/* Notifications Tab */}
             {activeTab === "notifications" && (
               <div className="p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-heading font-semibold text-gray-100 mb-4 sm:mb-6">
                   Notifications
                 </h2>
 
                 {/* General Notifications */}
                 <div className="mb-8">
-                  <h3 className="text-base font-medium text-gray-900 mb-4">
+                  <h3 className="text-base font-medium text-gray-200 mb-4">
                     General Notifications
                   </h3>
-                  <div className="space-y-4">
+                  <div className="space-y-1">
                     {[
                       {
                         key: "email",
@@ -350,7 +346,8 @@ export default function SettingsPage() {
                       {
                         key: "transactions",
                         label: "Transaction Alerts",
-                        description: "Get notified when transactions are processed",
+                        description:
+                          "Get notified when transactions are processed",
                       },
                       {
                         key: "portfolio",
@@ -365,10 +362,10 @@ export default function SettingsPage() {
                     ].map((item) => (
                       <div
                         key={item.key}
-                        className="flex items-center justify-between py-4 border-b border-gray-200"
+                        className="flex items-center justify-between py-4 border-b border-white/5 last:border-b-0"
                       >
                         <div>
-                          <div className="font-medium text-gray-900">
+                          <div className="font-medium text-gray-100">
                             {item.label}
                           </div>
                           <div className="text-sm text-gray-500">
@@ -379,18 +376,25 @@ export default function SettingsPage() {
                           onClick={() =>
                             setNotifications({
                               ...notifications,
-                              [item.key]: !notifications[item.key as keyof typeof notifications],
+                              [item.key]:
+                                !notifications[
+                                  item.key as keyof typeof notifications
+                                ],
                             })
                           }
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            notifications[item.key as keyof typeof notifications]
-                              ? "bg-blue-600"
-                              : "bg-gray-200"
+                            notifications[
+                              item.key as keyof typeof notifications
+                            ]
+                              ? "bg-brand-400"
+                              : "bg-surface-dark"
                           }`}
                         >
                           <span
                             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              notifications[item.key as keyof typeof notifications]
+                              notifications[
+                                item.key as keyof typeof notifications
+                              ]
                                 ? "translate-x-6"
                                 : "translate-x-1"
                             }`}
@@ -402,17 +406,17 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Calendar Event Notifications */}
-                <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-base font-medium text-gray-900 mb-4">
+                <div className="border-t border-white/5 pt-6">
+                  <h3 className="text-base font-medium text-gray-200 mb-4">
                     Calendar Event Notifications
                   </h3>
-                  <p className="text-sm text-gray-600 mb-6">
+                  <p className="text-sm text-gray-500 mb-6">
                     Choose which market events you want to be notified about
                   </p>
 
                   {/* Markets Selection */}
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                    <label className="block text-sm font-medium text-gray-400 mb-3">
                       Markets
                     </label>
                     <div className="flex flex-wrap gap-3">
@@ -424,12 +428,16 @@ export default function SettingsPage() {
                           key={market.value}
                           onClick={() => toggleMarket(market.value)}
                           className={`px-4 py-2 rounded-lg border-2 transition-colors ${
-                            calendarPreferences.notify_markets.includes(market.value)
-                              ? "border-blue-500 bg-blue-50 text-blue-700 font-medium"
-                              : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                            calendarPreferences.notify_markets.includes(
+                              market.value
+                            )
+                              ? "border-brand-400 bg-brand-400/10 text-brand-400 font-medium"
+                              : "border-white/10 bg-surface-dark text-gray-400 hover:border-white/20"
                           }`}
                         >
-                          {calendarPreferences.notify_markets.includes(market.value) && "✓ "}
+                          {calendarPreferences.notify_markets.includes(
+                            market.value
+                          ) && "✓ "}
                           {market.label}
                         </button>
                       ))}
@@ -438,7 +446,7 @@ export default function SettingsPage() {
 
                   {/* Event Types Selection */}
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                    <label className="block text-sm font-medium text-gray-400 mb-3">
                       Event Types
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -454,12 +462,16 @@ export default function SettingsPage() {
                           key={eventType.value}
                           onClick={() => toggleEventType(eventType.value)}
                           className={`px-4 py-2 rounded-lg border-2 text-left transition-colors ${
-                            calendarPreferences.notify_event_types.includes(eventType.value)
-                              ? "border-blue-500 bg-blue-50 text-blue-700 font-medium"
-                              : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                            calendarPreferences.notify_event_types.includes(
+                              eventType.value
+                            )
+                              ? "border-brand-400 bg-brand-400/10 text-brand-400 font-medium"
+                              : "border-white/10 bg-surface-dark text-gray-400 hover:border-white/20"
                           }`}
                         >
-                          {calendarPreferences.notify_event_types.includes(eventType.value) && "✓ "}
+                          {calendarPreferences.notify_event_types.includes(
+                            eventType.value
+                          ) && "✓ "}
                           {eventType.label}
                         </button>
                       ))}
@@ -468,7 +480,7 @@ export default function SettingsPage() {
 
                   {/* Days Before Notification */}
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
                       Notify me this many days before events
                     </label>
                     <input
@@ -479,10 +491,13 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         setCalendarPreferences((prev) => ({
                           ...prev,
-                          notify_days_before: Math.max(0, Math.min(30, parseInt(e.target.value) || 1)),
+                          notify_days_before: Math.max(
+                            0,
+                            Math.min(30, parseInt(e.target.value) || 1)
+                          ),
                         }))
                       }
-                      className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-32 bg-surface-dark border border-white/10 text-gray-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400/40"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Between 0-30 days (1 = notify one day before)
@@ -493,9 +508,11 @@ export default function SettingsPage() {
                   <button
                     onClick={handleSaveCalendarPreferences}
                     disabled={loadingCalendarPrefs}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="px-6 py-2.5 bg-brand-400 text-white rounded-lg hover:bg-brand-400/90 font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    {loadingCalendarPrefs ? "Saving..." : "Save Calendar Preferences"}
+                    {loadingCalendarPrefs
+                      ? "Saving..."
+                      : "Save Calendar Preferences"}
                   </button>
                 </div>
               </div>
@@ -504,43 +521,43 @@ export default function SettingsPage() {
             {/* Security Tab */}
             {activeTab === "security" && (
               <div className="p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-heading font-semibold text-gray-100 mb-4 sm:mb-6">
                   Security
                 </h2>
 
-                <div className="space-y-6">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-900 mb-2">
+                <div className="space-y-4">
+                  <div className="bg-surface-dark border border-white/5 rounded-xl p-5">
+                    <h3 className="font-medium text-gray-100 mb-2">
                       Change Password
                     </h3>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <p className="text-sm text-gray-500 mb-4">
                       Update your password to keep your account secure
                     </p>
-                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <button className="px-4 py-2 bg-brand-400 text-white rounded-lg hover:bg-brand-400/90 transition-colors">
                       Update Password
                     </button>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-900 mb-2">
+                  <div className="bg-surface-dark border border-white/5 rounded-xl p-5">
+                    <h3 className="font-medium text-gray-100 mb-2">
                       Two-Factor Authentication
                     </h3>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <p className="text-sm text-gray-500 mb-4">
                       Add an extra layer of security to your account
                     </p>
-                    <button className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+                    <button className="px-4 py-2 bg-white/10 text-gray-300 rounded-lg hover:bg-white/15 transition-colors cursor-not-allowed">
                       Enable 2FA (Coming Soon)
                     </button>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-900 mb-2">
+                  <div className="bg-surface-dark border border-white/5 rounded-xl p-5">
+                    <h3 className="font-medium text-gray-100 mb-2">
                       Active Sessions
                     </h3>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <p className="text-sm text-gray-500 mb-4">
                       Manage devices where you&apos;re currently logged in
                     </p>
-                    <button className="px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50">
+                    <button className="px-4 py-2 text-red-400 border border-red-400/30 rounded-lg hover:bg-red-400/10 transition-colors">
                       View Sessions
                     </button>
                   </div>
@@ -551,45 +568,51 @@ export default function SettingsPage() {
             {/* Regional Tab */}
             {activeTab === "regional" && (
               <div className="p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-heading font-semibold text-gray-100 mb-4 sm:mb-6">
                   Regional Settings
                 </h2>
 
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
                       Timezone
                     </label>
-                    <select className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                      <option value="UTC">UTC (Coordinated Universal Time)</option>
+                    <select
+                      className={`${selectClasses} max-w-md`}
+                    >
+                      <option value="UTC">
+                        UTC (Coordinated Universal Time)
+                      </option>
                       <option value="America/New_York">
                         Eastern Time (ET)
                       </option>
-                      <option value="America/Chicago">Central Time (CT)</option>
+                      <option value="America/Chicago">
+                        Central Time (CT)
+                      </option>
                       <option value="America/Los_Angeles">
                         Pacific Time (PT)
                       </option>
                       <option value="Asia/Jerusalem">
                         Israel Time (IST)
                       </option>
-                      <option value="Europe/London">
-                        London Time (GMT)
-                      </option>
+                      <option value="Europe/London">London Time (GMT)</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
                       Language
                     </label>
-                    <select className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <select
+                      className={`${selectClasses} max-w-md`}
+                    >
                       <option value="en">English</option>
                       <option value="he">עברית (Hebrew)</option>
                       <option value="es">Español (Spanish)</option>
                       <option value="fr">Français (French)</option>
                     </select>
                     <p className="text-xs text-gray-500 mt-1">
-                      Coming soon - multiple language support
+                      Coming soon — multiple language support
                     </p>
                   </div>
                 </div>
@@ -597,11 +620,11 @@ export default function SettingsPage() {
             )}
 
             {/* Save Button */}
-            <div className="border-t border-gray-200 px-4 sm:px-6 py-4">
+            <div className="border-t border-white/5 px-4 sm:px-6 py-4">
               <div className="flex justify-end">
                 <button
                   onClick={handleSaveSettings}
-                  className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  className="w-full sm:w-auto px-6 py-2.5 bg-brand-400 text-white rounded-lg hover:bg-brand-400/90 font-medium transition-colors"
                 >
                   Save Changes
                 </button>
@@ -609,7 +632,6 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-      </div>
       </div>
     </ProtectedRoute>
   );

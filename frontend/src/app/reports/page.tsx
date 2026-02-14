@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { israeliStocksAPI } from "@/services/api";
-import { DocumentArrowDownIcon, EyeIcon, XMarkIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { Download, Eye, X, Trash2 } from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 interface Report {
@@ -111,23 +111,23 @@ export default function ReportsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-surface-dark p-4 sm:p-6 lg:p-8">
         <div className="max-w-6xl mx-auto">
           {loading ? (
             <>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-100 mb-6 sm:mb-8">
                 Investment Reports
               </h1>
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-400"></div>
               </div>
             </>
           ) : error ? (
             <>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-100 mb-6 sm:mb-8">
                 Investment Reports
               </h1>
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+              <div className="bg-loss/10 border border-loss/20 rounded-xl p-4 text-loss">
                 {error}
               </div>
             </>
@@ -135,12 +135,12 @@ export default function ReportsPage() {
             <>
               {/* Header */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-100">
                   Investment Reports
                 </h1>
                 <button
                   onClick={() => router.push("/israeli-stocks")}
-                  className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 whitespace-nowrap"
+                  className="w-full sm:w-auto bg-brand-400 text-surface-dark px-4 py-2 rounded-xl hover:bg-brand-500 whitespace-nowrap"
                 >
                   Upload New Report
                 </button>
@@ -148,20 +148,20 @@ export default function ReportsPage() {
 
               {/* Reports Table */}
         {reports.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-8 text-center">
-            <p className="text-gray-600 mb-4">No reports uploaded yet</p>
+          <div className="bg-surface-dark-secondary rounded-xl p-8 text-center">
+            <p className="text-gray-400 mb-4">No reports uploaded yet</p>
             <button
               onClick={() => router.push("/israeli-stocks")}
-              className="text-blue-600 hover:text-blue-700 underline"
+              className="text-brand-400 hover:text-brand-500 underline"
             >
               Upload your first report
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-surface-dark-secondary rounded-xl overflow-hidden">
             <div className="overflow-x-auto -mx-4 sm:mx-0">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-white/5">
+                <thead className="bg-surface-dark">
                   <tr>
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Filename
@@ -180,11 +180,11 @@ export default function ReportsPage() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-surface-dark-secondary divide-y divide-white/5">
                   {reports.map((report) => (
-                    <tr key={report.id} className="hover:bg-gray-50">
+                    <tr key={report.id} className="hover:bg-white/5">
                       <td className="px-4 sm:px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-100">
                           {report.filename}
                         </div>
                         <div className="sm:hidden text-xs text-gray-500 mt-1">
@@ -192,7 +192,7 @@ export default function ReportsPage() {
                         </div>
                       </td>
                       <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-brand-400/10 text-brand-400 capitalize">
                           {report.broker}
                         </span>
                       </td>
@@ -206,28 +206,28 @@ export default function ReportsPage() {
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
                           <button
                             onClick={() => handlePreview(report)}
-                            className="text-purple-600 hover:text-purple-900 inline-flex items-center text-sm"
+                            className="text-purple-400 hover:text-purple-300 inline-flex items-center text-sm"
                             title="Preview PDF"
                           >
-                            <EyeIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
+                            <Eye className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
                             <span className="hidden sm:inline">Preview</span>
                           </button>
                           <button
                             onClick={() =>
                               handleDownload(report.id, report.filename)
                             }
-                            className="text-blue-600 hover:text-blue-900 inline-flex items-center text-sm"
+                            className="text-brand-400 hover:text-brand-300 inline-flex items-center text-sm"
                             title="Download PDF"
                           >
-                            <DocumentArrowDownIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
+                            <Download className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
                             <span className="hidden sm:inline">Download</span>
                           </button>
                           <button
                             onClick={() => setDeleteConfirm(report)}
-                            className="text-red-600 hover:text-red-900 inline-flex items-center text-sm"
+                            className="text-loss hover:text-red-400 inline-flex items-center text-sm"
                             title="Delete Report"
                           >
-                            <TrashIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
+                            <Trash2 className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
                             <span className="hidden sm:inline">Delete</span>
                           </button>
                         </div>
@@ -242,7 +242,7 @@ export default function ReportsPage() {
 
         {/* Summary */}
         {reports.length > 0 && (
-          <div className="mt-6 text-sm text-gray-600">
+          <div className="mt-6 text-sm text-gray-400">
             Total Reports: {reports.length}
           </div>
         )}
@@ -252,21 +252,21 @@ export default function ReportsPage() {
           <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen p-4">
               <div
-                className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+                className="fixed inset-0 transition-opacity bg-black/60 backdrop-blur-sm"
                 onClick={() => !deleting && setDeleteConfirm(null)}
               ></div>
 
-              <div className="inline-block w-full max-w-md p-6 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-lg relative z-10">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
+              <div className="inline-block w-full max-w-md p-6 overflow-hidden text-left align-middle transition-all transform bg-surface-dark-secondary rounded-xl border border-white/10 relative z-10">
+                <h3 className="text-lg font-medium text-gray-100 mb-4">
                   Delete Report
                 </h3>
                 
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-400 mb-4">
                   Are you sure you want to delete <strong>{deleteConfirm.filename}</strong>?
                 </p>
 
-                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
-                  <p className="text-sm text-yellow-800">
+                <div className="bg-warn/10 border border-warn/20 rounded-md p-3 mb-4">
+                  <p className="text-sm text-warn">
                     This will also delete all pending transactions extracted from this report.
                     Approved transactions will not be affected.
                   </p>
@@ -276,7 +276,7 @@ export default function ReportsPage() {
                   <button
                     onClick={() => setDeleteConfirm(null)}
                     disabled={deleting}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                    className="px-4 py-2 text-sm font-medium text-gray-300 bg-surface-dark border border-white/10 rounded-md hover:bg-white/5 disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -292,7 +292,7 @@ export default function ReportsPage() {
                       </>
                     ) : (
                       <>
-                        <TrashIcon className="h-4 w-4 mr-2" />
+                        <Trash2 className="h-4 w-4 mr-2" />
                         Delete Report
                       </>
                     )}
@@ -309,16 +309,16 @@ export default function ReportsPage() {
             <div className="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
               {/* Background overlay */}
               <div
-                className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+                className="fixed inset-0 transition-opacity bg-black/60 backdrop-blur-sm"
                 onClick={closePreview}
               ></div>
 
               {/* Modal panel */}
-              <div className="inline-block w-full max-w-6xl my-4 sm:my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-lg">
+              <div className="inline-block w-full max-w-6xl my-4 sm:my-8 overflow-hidden text-left align-middle transition-all transform bg-surface-dark-secondary rounded-xl border border-white/10">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-white/10 bg-surface-dark">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate">
+                    <h3 className="text-base sm:text-lg font-medium text-gray-100 truncate">
                       {previewReport.filename}
                     </h3>
                     <p className="text-xs sm:text-sm text-gray-500">
@@ -328,16 +328,16 @@ export default function ReportsPage() {
                   <div className="flex items-center gap-2 self-end sm:self-auto">
                     <button
                       onClick={() => handleDownload(previewReport.id, previewReport.filename)}
-                      className="text-blue-600 hover:text-blue-900 inline-flex items-center px-2 sm:px-3 py-1.5 border border-blue-600 rounded-md text-sm"
+                      className="text-brand-400 hover:text-brand-300 inline-flex items-center px-2 sm:px-3 py-1.5 border border-brand-400/40 rounded-md text-sm"
                     >
-                      <DocumentArrowDownIcon className="h-4 w-4 sm:mr-1" />
+                      <Download className="h-4 w-4 sm:mr-1" />
                       <span className="hidden sm:inline">Download</span>
                     </button>
                     <button
                       onClick={closePreview}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-gray-500 hover:text-gray-300"
                     >
-                      <XMarkIcon className="h-6 w-6" />
+                      <X className="h-6 w-6" />
                     </button>
                   </div>
                 </div>
