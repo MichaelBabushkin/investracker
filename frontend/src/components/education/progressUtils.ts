@@ -128,7 +128,9 @@ export async function saveProgress(progress: EducationProgress): Promise<void> {
   // Actually await the sync to ensure it completes
   await syncProgressToServer(progress);
   console.log("💾 Server sync completed");
-}void {
+}
+
+export function markTopicComplete(topicId: string): void {
   console.log("📚 markTopicComplete called for:", topicId);
   const progress = getLocalProgress();
   if (!progress.completed.includes(topicId)) {
@@ -151,9 +153,7 @@ export function saveQuizScore(topicId: string, score: number): void {
   progress.quizScores[topicId] = score;
   console.log("📝 Calling saveProgress with quiz score:", progress);
   // Don't await here - let it sync in background
-  saveProgress(progress)ores[topicId] = score;
   saveProgress(progress);
-  return progress;
 }
 
 export function isTopicComplete(topicId: string): boolean {
