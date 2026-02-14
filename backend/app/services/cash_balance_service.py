@@ -56,7 +56,7 @@ class CashBalanceService:
                 currency,
                 source_pdf,
                 created_at
-            FROM "IsraeliStockTransaction"
+            FROM "israeli_stock_transactions"
             WHERE user_id = %s{date_filter}
             ORDER BY transaction_date, transaction_time, created_at
         """
@@ -146,7 +146,7 @@ class CashBalanceService:
                 amount,
                 tax_withheld,
                 currency
-            FROM "IsraeliDividend"
+            FROM "israeli_dividends"
             WHERE user_id = %s{date_filter.replace('transaction_date', 'payment_date') if date_filter else ''}
             ORDER BY payment_date
         """

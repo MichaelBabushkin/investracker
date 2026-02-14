@@ -10,7 +10,7 @@ from app.core.database import Base
 class IsraeliReportUpload(Base):
     """Stores uploaded PDF investment reports from Israeli brokers"""
     
-    __tablename__ = "IsraeliReportUpload"
+    __tablename__ = "israeli_report_uploads"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)

@@ -45,8 +45,8 @@ const StockPriceManagement: React.FC = () => {
     try {
       const response = await adminAPI.getPriceStatsDetailed();
       setStats(response);
-    } catch (error: any) {
-      console.error("Failed to fetch price stats:", error);
+    } catch {
+      // Failed to fetch price stats
     }
   };
 

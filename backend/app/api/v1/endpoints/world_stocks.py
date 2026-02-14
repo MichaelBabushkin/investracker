@@ -143,7 +143,7 @@ async def get_world_stock_holdings(
                        h.portfolio_percentage,
                        h.currency, h.exchange_rate, 
                        (SELECT MIN(transaction_date) 
-                        FROM "WorldStockTransaction" 
+                        FROM "world_stock_transactions" 
                         WHERE ticker = h.ticker AND user_id = h.user_id 
                         AND transaction_type IN ('BUY', 'PURCHASE')) as first_purchase_date,
                        h.source_pdf,
@@ -158,8 +158,8 @@ async def get_world_stock_holdings(
                            ELSE h.unrealized_gain_pct
                        END as unrealized_gain_pct,
                        h.twr, h.mwr
-                FROM "WorldStockHolding" h
-                LEFT JOIN "StockPrices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
+                FROM "world_stock_holdings" h
+                LEFT JOIN "stock_prices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
                 WHERE h.user_id = :user_id
                 ORDER BY current_value DESC NULLS LAST
                 LIMIT :limit
@@ -230,7 +230,7 @@ async def get_world_stock_transactions(
                 SELECT id, user_id, ticker, symbol, company_name, transaction_type,
                        transaction_date, transaction_time, quantity, price, total_value,
                        commission, tax, currency, exchange_rate, source_pdf, created_at, updated_at
-                FROM "WorldStockTransaction"
+                FROM "world_stock_transactions"
                 WHERE {where_clause}
                 ORDER BY transaction_date DESC NULLS LAST, created_at DESC
                 LIMIT :limit
@@ -296,7 +296,7 @@ async def get_world_stock_dividends(
                 SELECT id, user_id, ticker, symbol, company_name, payment_date,
                        amount, tax, net_amount, currency, exchange_rate,
                        source_pdf, created_at, updated_at
-                FROM "WorldDividend"
+                FROM "world_dividends"
                 WHERE {where_clause}
                 ORDER BY payment_date DESC NULLS LAST, created_at DESC
                 LIMIT :limit
@@ -355,7 +355,7 @@ async def get_world_stock_summary(
                     COUNT(*) as holdings_count,
                     COALESCE(SUM(current_value), 0) as total_value,
                     COALESCE(SUM(purchase_cost), 0) as total_cost
-                FROM "WorldStockHolding"
+                FROM "world_stock_holdings"
                 WHERE user_id = :user_id
             """)
             
@@ -367,7 +367,7 @@ async def get_world_stock_summary(
                     COALESCE(SUM(amount), 0) as total_dividends,
                     COALESCE(SUM(tax), 0) as total_tax,
                     COUNT(*) as dividends_count
-                FROM "WorldDividend"
+                FROM "world_dividends"
                 WHERE user_id = :user_id
             """)
             
@@ -378,7 +378,7 @@ async def get_world_stock_summary(
                 SELECT 
                     COALESCE(SUM(commission), 0) as total_commissions,
                     COUNT(*) as transactions_count
-                FROM "WorldStockTransaction"
+                FROM "world_stock_transactions"
                 WHERE user_id = :user_id
             """)
             
@@ -430,7 +430,7 @@ async def delete_world_stock_holding(
         
         with engine.begin() as conn:
             # Check ownership
-            check_query = text('SELECT user_id FROM "WorldStockHolding" WHERE id = :id')
+            check_query = text('SELECT user_id FROM "world_stock_holdings" WHERE id = :id')
             result = conn.execute(check_query, {"id": holding_id}).fetchone()
             
             if not result:
@@ -440,7 +440,7 @@ async def delete_world_stock_holding(
                 raise HTTPException(status_code=403, detail="Access denied")
             
             # Delete holding
-            delete_query = text('DELETE FROM "WorldStockHolding" WHERE id = :id')
+            delete_query = text('DELETE FROM "world_stock_holdings" WHERE id = :id')
             conn.execute(delete_query, {"id": holding_id})
             
             return {"success": True, "message": "Holding deleted successfully"}
@@ -530,7 +530,7 @@ async def crawl_single_stock_logo(
             result = conn.execute(
                 text("""
                     SELECT id, ticker, company_name, logo_svg IS NOT NULL as has_logo
-                    FROM "WorldStocks" 
+                    FROM "world_stocks" 
                     WHERE ticker ILIKE :ticker
                     LIMIT 1
                 """),
@@ -694,7 +694,7 @@ async def update_stock_logo_manual(
         with engine.connect() as conn:
             # Check if stock exists
             result = conn.execute(
-                text('SELECT ticker, company_name FROM "WorldStocks" WHERE id = :id'),
+                text('SELECT ticker, company_name FROM "world_stocks" WHERE id = :id'),
                 {"id": stock_id}
             )
             stock_info = result.fetchone()
@@ -706,12 +706,12 @@ async def update_stock_logo_manual(
             # Update the logo fields
             if logo_url:
                 result = conn.execute(
-                    text('UPDATE "WorldStocks" SET logo_url = :url, logo_svg = :svg WHERE id = :id'),
+                    text('UPDATE "world_stocks" SET logo_url = :url, logo_svg = :svg WHERE id = :id'),
                     {"url": logo_url, "svg": svg_content, "id": stock_id}
                 )
             else:
                 result = conn.execute(
-                    text('UPDATE "WorldStocks" SET logo_svg = :svg WHERE id = :id'),
+                    text('UPDATE "world_stocks" SET logo_svg = :svg WHERE id = :id'),
                     {"svg": svg_content, "id": stock_id}
                 )
 
@@ -747,7 +747,7 @@ async def remove_stock_logo(
         with engine.connect() as conn:
             # Check if stock exists
             result = conn.execute(
-                text('SELECT ticker, company_name, logo_svg IS NOT NULL as has_logo FROM "WorldStocks" WHERE id = :id'),
+                text('SELECT ticker, company_name, logo_svg IS NOT NULL as has_logo FROM "world_stocks" WHERE id = :id'),
                 {"id": stock_id}
             )
             stock_info = result.fetchone()
@@ -766,7 +766,7 @@ async def remove_stock_logo(
             
             # Remove the logo
             result = conn.execute(
-                text('UPDATE "WorldStocks" SET logo_svg = NULL, logo_url = NULL WHERE id = :id'),
+                text('UPDATE "world_stocks" SET logo_svg = NULL, logo_url = NULL WHERE id = :id'),
                 {"id": stock_id}
             )
             
@@ -820,7 +820,7 @@ async def get_stocks_with_logos(
                     SELECT id, ticker, company_name, exchange,
                            CASE WHEN logo_svg IS NOT NULL AND logo_svg != '' 
                            THEN true ELSE false END as has_logo
-                    FROM "WorldStocks" 
+                    FROM "world_stocks" 
                     WHERE is_active = true 
                     AND logo_svg IS NOT NULL 
                     AND logo_svg != ''
@@ -953,7 +953,7 @@ async def get_pending_batches(
             SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
             SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_count,
             SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_count
-        FROM "PendingWorldTransaction"
+        FROM "pending_world_transactions"
         WHERE user_id = :user_id
         GROUP BY upload_batch_id, pdf_filename
         ORDER BY MIN(created_at) DESC
@@ -1031,7 +1031,7 @@ async def approve_pending_world_transaction(
             if transaction.transaction_type in ('BUY', 'SELL'):
                 # Insert into WorldStockTransaction
                 insert_query = text("""
-                    INSERT INTO "WorldStockTransaction" 
+                    INSERT INTO "world_stock_transactions" 
                     (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
                      transaction_type, quantity, price, total_value, commission, currency, source_pdf, created_at, updated_at)
                     VALUES (:user_id, :ticker, :symbol, :company_name, :transaction_date, :transaction_time,
@@ -1059,7 +1059,7 @@ async def approve_pending_world_transaction(
             elif transaction.transaction_type == 'DIVIDEND':
                 # Insert into WorldDividend
                 insert_query = text("""
-                    INSERT INTO "WorldDividend" 
+                    INSERT INTO "world_dividends" 
                     (user_id, ticker, symbol, company_name, payment_date, amount, tax, net_amount, currency, source_pdf, created_at, updated_at)
                     VALUES (:user_id, :ticker, :symbol, :company_name, :payment_date, :amount, :tax, :net_amount, :currency, :source_pdf, :created_at, :updated_at)
                 """)
@@ -1149,7 +1149,7 @@ async def approve_all_world_in_batch(
                 # Based on transaction type, insert into appropriate table
                 if t.transaction_type in ('BUY', 'SELL'):
                     insert_query = text("""
-                        INSERT INTO "WorldStockTransaction" 
+                        INSERT INTO "world_stock_transactions" 
                         (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
                          transaction_type, quantity, price, total_value, commission, currency, source_pdf, created_at, updated_at)
                         VALUES (:user_id, :ticker, :symbol, :company_name, :transaction_date, :transaction_time,
@@ -1181,7 +1181,7 @@ async def approve_all_world_in_batch(
                     
                     # Check if holding exists for this user and ticker
                     existing_holding = conn.execute(text("""
-                        SELECT id, quantity, purchase_cost FROM "WorldStockHolding"
+                        SELECT id, quantity, purchase_cost FROM "world_stock_holdings"
                         WHERE user_id = :user_id AND ticker = :ticker
                     """), {"user_id": str(current_user.id), "ticker": actual_ticker}).fetchone()
                     
@@ -1191,14 +1191,14 @@ async def approve_all_world_in_batch(
                             new_qty = float(existing_holding[1] or 0) + quantity
                             new_cost = float(existing_holding[2] or 0) + cost
                             conn.execute(text("""
-                                UPDATE "WorldStockHolding" 
+                                UPDATE "world_stock_holdings" 
                                 SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
                                 WHERE id = :id
                             """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
                         else:
                             # Create new holding
                             conn.execute(text("""
-                                INSERT INTO "WorldStockHolding" 
+                                INSERT INTO "world_stock_holdings" 
                                 (user_id, ticker, symbol, company_name, quantity, purchase_cost, 
                                  current_value, currency, source_pdf, created_at, updated_at)
                                 VALUES (:user_id, :ticker, :symbol, :company_name, :quantity, :purchase_cost,
@@ -1225,19 +1225,19 @@ async def approve_all_world_in_batch(
                                 original_qty = float(existing_holding[1] or 1)
                                 new_cost = float(existing_holding[2] or 0) * (new_qty / original_qty)
                                 conn.execute(text("""
-                                    UPDATE "WorldStockHolding" 
+                                    UPDATE "world_stock_holdings" 
                                     SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
                                     WHERE id = :id
                                 """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
                             else:
                                 # Position closed - delete holding
                                 conn.execute(text("""
-                                    DELETE FROM "WorldStockHolding" WHERE id = :id
+                                    DELETE FROM "world_stock_holdings" WHERE id = :id
                                 """), {"id": existing_holding[0]})
                     
                 elif t.transaction_type == 'DIVIDEND':
                     insert_query = text("""
-                        INSERT INTO "WorldDividend" 
+                        INSERT INTO "world_dividends" 
                         (user_id, ticker, symbol, company_name, payment_date, amount, tax, net_amount, currency, source_pdf, created_at, updated_at)
                         VALUES (:user_id, :ticker, :symbol, :company_name, :payment_date, :amount, :tax, :net_amount, :currency, :source_pdf, :created_at, :updated_at)
                     """)
@@ -1402,7 +1402,7 @@ async def get_multiple_stock_prices(
         text("""
             SELECT ticker, company_name, current_price, previous_close, 
                    price_change, price_change_pct, price_updated_at
-            FROM "WorldStocks"
+            FROM "world_stocks"
             WHERE ticker = ANY(:tickers)
         """),
         {"tickers": ticker_list}
@@ -1441,7 +1441,7 @@ async def get_stock_price(
             SELECT ticker, company_name, current_price, previous_close, 
                    price_change, price_change_pct, day_high, day_low, 
                    volume, market_cap, price_updated_at
-            FROM "WorldStocks"
+            FROM "world_stocks"
             WHERE ticker = :ticker
         """),
         {"ticker": ticker.upper()}
@@ -1480,8 +1480,8 @@ async def get_holdings_with_prices(
                    h.purchase_cost, h.current_value, h.last_price,
                    sp.current_price, sp.previous_close, sp.price_change_pct,
                    sp.updated_at as price_updated_at
-            FROM "WorldStockHolding" h
-            LEFT JOIN "StockPrices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
+            FROM "world_stock_holdings" h
+            LEFT JOIN "stock_prices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
             WHERE h.user_id = :user_id AND h.quantity > 0
             ORDER BY h.current_value DESC NULLS LAST
         """),

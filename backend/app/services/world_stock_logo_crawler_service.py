@@ -148,12 +148,12 @@ class WorldStockLogoCrawlerService:
             with Session() as session:
                 if logo_url:
                     result = session.execute(
-                        text('UPDATE "WorldStocks" SET logo_url = :logo_url, logo_svg = :svg_content WHERE id = :stock_id'),
+                        text('UPDATE "world_stocks" SET logo_url = :logo_url, logo_svg = :svg_content WHERE id = :stock_id'),
                         {"logo_url": logo_url, "svg_content": svg_content, "stock_id": stock_id}
                     )
                 else:
                     result = session.execute(
-                        text('UPDATE "WorldStocks" SET logo_svg = :svg_content WHERE id = :stock_id'),
+                        text('UPDATE "world_stocks" SET logo_svg = :svg_content WHERE id = :stock_id'),
                         {"svg_content": svg_content, "stock_id": stock_id}
                     )
                 
@@ -184,7 +184,7 @@ class WorldStockLogoCrawlerService:
             Session = sessionmaker(bind=engine)
             with Session() as session:
                 result = session.execute(
-                    text('UPDATE "WorldStocks" SET logo_url = :url WHERE id = :id'),
+                    text('UPDATE "world_stocks" SET logo_url = :url WHERE id = :id'),
                     {"url": logo_url, "id": stock_id}
                 )
                 if result.rowcount and result.rowcount > 0:
@@ -211,7 +211,7 @@ class WorldStockLogoCrawlerService:
                 result = session.execute(
                     text("""
                         SELECT id, ticker, company_name, exchange 
-                        FROM "WorldStocks" 
+                        FROM "world_stocks" 
                         WHERE logo_svg IS NULL OR logo_svg = ''
                         ORDER BY ticker
                     """)
@@ -245,7 +245,7 @@ class WorldStockLogoCrawlerService:
                 result = session.execute(
                     text("""
                         SELECT id, ticker, company_name, logo_url 
-                        FROM "WorldStocks"
+                        FROM "world_stocks"
                         WHERE logo_url IS NOT NULL AND logo_url <> '' 
                         AND (logo_svg IS NULL OR logo_svg = '')
                         ORDER BY ticker
@@ -269,7 +269,7 @@ class WorldStockLogoCrawlerService:
                 result = session.execute(
                     text("""
                         SELECT id, ticker, company_name, exchange 
-                        FROM "WorldStocks" 
+                        FROM "world_stocks" 
                         WHERE logo_url IS NULL OR logo_url = ''
                         ORDER BY ticker
                     """),
@@ -288,7 +288,7 @@ class WorldStockLogoCrawlerService:
             Session = sessionmaker(bind=engine)
             with Session() as session:
                 result = session.execute(
-                    text('SELECT id, ticker, company_name, exchange FROM "WorldStocks" ORDER BY ticker')
+                    text('SELECT id, ticker, company_name, exchange FROM "world_stocks" ORDER BY ticker')
                 )
                 return [
                     {"id": r[0], "ticker": r[1], "company_name": r[2], "exchange": r[3]}
@@ -401,7 +401,7 @@ class WorldStockLogoCrawlerService:
                     res = session_db.execute(
                         text("""
                             SELECT id, ticker, company_name, logo_url 
-                            FROM "WorldStocks"
+                            FROM "world_stocks"
                             WHERE logo_url IS NOT NULL AND logo_url <> ''
                             ORDER BY ticker
                         """)
@@ -510,7 +510,7 @@ class WorldStockLogoCrawlerService:
             Session = sessionmaker(bind=engine)
             with Session() as session_db:
                 res = session_db.execute(
-                    text('SELECT id, ticker, company_name FROM "WorldStocks" WHERE ticker ILIKE :ticker LIMIT 1'),
+                    text('SELECT id, ticker, company_name FROM "world_stocks" WHERE ticker ILIKE :ticker LIMIT 1'),
                     {"ticker": ticker}
                 ).fetchone()
                 if not res:

@@ -74,7 +74,7 @@ class WorldStockService:
             conn = self.create_database_connection()
             cursor = conn.cursor()
             
-            cursor.execute('SELECT * FROM "WorldStocks"')
+            cursor.execute('SELECT * FROM "world_stocks"')
             columns = [desc[0] for desc in cursor.description]
             rows = cursor.fetchall()
             
@@ -798,7 +798,7 @@ class WorldStockService:
             if unique_tickers:
                 placeholders = ','.join(['%s'] * len(unique_tickers))
                 cursor.execute(f'''
-                    SELECT ticker, id FROM "WorldStocks"
+                    SELECT ticker, id FROM "world_stocks"
                     WHERE ticker IN ({placeholders})
                 ''', tuple(unique_tickers))
                 
@@ -913,7 +913,7 @@ class WorldStockService:
             # Batch insert all pending records
             if pending_records:
                 cursor.executemany('''
-                    INSERT INTO "PendingWorldTransaction" 
+                    INSERT INTO "pending_world_transactions" 
                     (user_id, upload_batch_id, pdf_filename, ticker, stock_name, world_stock_id, transaction_type,
                      transaction_date, transaction_time, quantity, price, amount,
                      commission, tax, currency, status)
@@ -1451,14 +1451,14 @@ class WorldStockService:
             cursor = conn.cursor()
             
             # Clear existing holdings for this account
-            cursor.execute('DELETE FROM "WorldStockHolding" WHERE user_id = %s AND account_id = %s', 
+            cursor.execute('DELETE FROM "world_stock_holdings" WHERE user_id = %s AND account_id = %s', 
                          (user_id, account_id))
             
             saved_count = 0
             for holding in holdings:
                 try:
                     cursor.execute('''
-                        INSERT INTO "WorldStockHolding" 
+                        INSERT INTO "world_stock_holdings" 
                         (user_id, account_id, symbol, company_name, quantity, avg_entry_price,
                          current_price, current_value, purchase_cost, unrealized_pl, 
                          unrealized_pl_percent, currency, source_pdf)
@@ -1509,7 +1509,7 @@ class WorldStockService:
                     # Handle NULL transaction_time properly
                     if transaction.get('transaction_time'):
                         cursor.execute('''
-                            SELECT id FROM "WorldStockTransaction" 
+                            SELECT id FROM "world_stock_transactions" 
                             WHERE user_id = %s AND account_id = %s AND symbol = %s 
                             AND transaction_date = %s AND transaction_time = %s
                         ''', (
@@ -1522,7 +1522,7 @@ class WorldStockService:
                     else:
                         # If no time, check by symbol, date, quantity, and price
                         cursor.execute('''
-                            SELECT id FROM "WorldStockTransaction" 
+                            SELECT id FROM "world_stock_transactions" 
                             WHERE user_id = %s AND account_id = %s AND symbol = %s 
                             AND transaction_date = %s AND transaction_time IS NULL
                             AND quantity = %s AND trade_price = %s
@@ -1540,7 +1540,7 @@ class WorldStockService:
                         continue  # Skip duplicates
                     
                     cursor.execute('''
-                        INSERT INTO "WorldStockTransaction" 
+                        INSERT INTO "world_stock_transactions" 
                         (user_id, account_id, symbol, transaction_date, transaction_time,
                          transaction_type, quantity, trade_price, close_price, proceeds,
                          commission, basis, realized_pl, mtm_pl, trade_code, currency, source_pdf)
@@ -1593,7 +1593,7 @@ class WorldStockService:
                 try:
                     # Check if dividend already exists (by symbol, payment_date, and amount)
                     cursor.execute('''
-                        SELECT id FROM "WorldStockDividend" 
+                        SELECT id FROM "world_dividends" 
                         WHERE user_id = %s AND account_id = %s AND symbol = %s 
                         AND payment_date = %s AND amount = %s
                     ''', (
@@ -1609,7 +1609,7 @@ class WorldStockService:
                         continue  # Skip duplicates
                     
                     cursor.execute('''
-                        INSERT INTO "WorldStockDividend" 
+                        INSERT INTO "world_dividends" 
                         (user_id, account_id, symbol, isin, payment_date, amount,
                          amount_per_share, withholding_tax, net_amount, dividend_type, 
                          currency, source_pdf)

@@ -263,63 +263,63 @@ def reset_user_stock_data(
         with engine.connect() as conn:
             # Delete Israeli pending transactions first (foreign key to upload_batch_id)
             israeli_pending_result = conn.execute(
-                text('DELETE FROM "PendingIsraeliTransaction" WHERE user_id = :user_id'),
+                text('DELETE FROM "pending_israeli_transactions" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
             israeli_pending_deleted = israeli_pending_result.rowcount
             
             # Delete World pending transactions
             world_pending_result = conn.execute(
-                text('DELETE FROM "PendingWorldTransaction" WHERE user_id = :user_id'),
+                text('DELETE FROM "pending_world_transactions" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
             world_pending_deleted = world_pending_result.rowcount
             
             # Delete uploaded PDF reports (will cascade delete due to foreign key, but doing explicitly for count)
             reports_result = conn.execute(
-                text('DELETE FROM "IsraeliReportUpload" WHERE user_id = :user_id'),
+                text('DELETE FROM "israeli_report_uploads" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
             reports_deleted = reports_result.rowcount
             
             # Delete Israeli holdings
             israeli_holdings_result = conn.execute(
-                text('DELETE FROM "IsraeliStockHolding" WHERE user_id = :user_id'),
+                text('DELETE FROM "israeli_stock_holdings" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
             israeli_holdings_deleted = israeli_holdings_result.rowcount
             
             # Delete Israeli transactions
             israeli_transactions_result = conn.execute(
-                text('DELETE FROM "IsraeliStockTransaction" WHERE user_id = :user_id'),
+                text('DELETE FROM "israeli_stock_transactions" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
             israeli_transactions_deleted = israeli_transactions_result.rowcount
             
             # Delete Israeli dividends
             israeli_dividends_result = conn.execute(
-                text('DELETE FROM "IsraeliDividend" WHERE user_id = :user_id'),
+                text('DELETE FROM "israeli_dividends" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
             israeli_dividends_deleted = israeli_dividends_result.rowcount
             
             # Delete World holdings
             world_holdings_result = conn.execute(
-                text('DELETE FROM "WorldStockHolding" WHERE user_id = :user_id'),
+                text('DELETE FROM "world_stock_holdings" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
             world_holdings_deleted = world_holdings_result.rowcount
             
             # Delete World transactions
             world_transactions_result = conn.execute(
-                text('DELETE FROM "WorldStockTransaction" WHERE user_id = :user_id'),
+                text('DELETE FROM "world_stock_transactions" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
             world_transactions_deleted = world_transactions_result.rowcount
             
             # Delete World dividends
             world_dividends_result = conn.execute(
-                text('DELETE FROM "WorldDividend" WHERE user_id = :user_id'),
+                text('DELETE FROM "world_dividends" WHERE user_id = :user_id'),
                 {"user_id": user_id}
             )
             world_dividends_deleted = world_dividends_result.rowcount
@@ -688,9 +688,9 @@ def get_detailed_price_stats(
             COUNT(DISTINCT CASE WHEN wsh.ticker IS NOT NULL THEN ws.ticker END) as in_holdings,
             MIN(sp.updated_at) as oldest_update,
             MAX(sp.updated_at) as newest_update
-        FROM "WorldStocks" ws
-        LEFT JOIN "StockPrices" sp ON ws.ticker = sp.ticker AND sp.market = 'world'
-        LEFT JOIN "WorldStockHolding" wsh ON ws.ticker = wsh.ticker AND wsh.quantity > 0
+        FROM "world_stocks" ws
+        LEFT JOIN "stock_prices" sp ON ws.ticker = sp.ticker AND sp.market = 'world'
+        LEFT JOIN "world_stock_holdings" wsh ON ws.ticker = wsh.ticker AND wsh.quantity > 0
     """))
     world_row = world_result.fetchone()
     
@@ -705,9 +705,9 @@ def get_detailed_price_stats(
             COUNT(DISTINCT CASE WHEN ish.symbol IS NOT NULL THEN is2.symbol END) as in_holdings,
             MIN(sp.updated_at) as oldest_update,
             MAX(sp.updated_at) as newest_update
-        FROM "IsraeliStocks" is2
-        LEFT JOIN "StockPrices" sp ON is2.symbol = sp.ticker AND sp.market = 'israeli'
-        LEFT JOIN "IsraeliStockHolding" ish ON is2.symbol = ish.symbol AND ish.quantity > 0
+        FROM "israeli_stocks" is2
+        LEFT JOIN "stock_prices" sp ON is2.symbol = sp.ticker AND sp.market = 'israeli'
+        LEFT JOIN "israeli_stock_holdings" ish ON is2.symbol = ish.symbol AND ish.quantity > 0
     """))
     israeli_row = israeli_result.fetchone()
     

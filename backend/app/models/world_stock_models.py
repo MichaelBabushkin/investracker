@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 class WorldStock(Base):
     """Model for world stocks (primarily US stocks)"""
-    __tablename__ = "WorldStocks"
+    __tablename__ = "world_stocks"
     
     id = Column(Integer, primary_key=True, index=True)
     ticker = Column(String(20), nullable=False, index=True)
@@ -63,7 +63,7 @@ class WorldStock(Base):
 
 class WorldStockHolding(Base):
     """Model for world stock holdings (current positions)"""
-    __tablename__ = "WorldStockHolding"
+    __tablename__ = "world_stock_holdings"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String(255), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -102,7 +102,7 @@ class WorldStockHolding(Base):
 
 class WorldStockTransaction(Base):
     """Model for world stock transactions (buy/sell activities)"""
-    __tablename__ = "WorldStockTransaction"
+    __tablename__ = "world_stock_transactions"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String(255), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -137,7 +137,7 @@ class WorldStockTransaction(Base):
 
 class WorldDividend(Base):
     """Model for world stock dividends"""
-    __tablename__ = "WorldDividend"
+    __tablename__ = "world_dividends"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String(255), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -167,7 +167,7 @@ class WorldDividend(Base):
 
 class PendingWorldTransaction(Base):
     """Model for pending world transactions awaiting user approval"""
-    __tablename__ = "PendingWorldTransaction"
+    __tablename__ = "pending_world_transactions"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String(255), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -175,7 +175,7 @@ class PendingWorldTransaction(Base):
     pdf_filename = Column(String(255), nullable=True)
     ticker = Column(String(20), nullable=False)
     stock_name = Column(String(255), nullable=True)
-    world_stock_id = Column(Integer, ForeignKey('WorldStocks.id', ondelete='SET NULL'), nullable=True)
+    world_stock_id = Column(Integer, ForeignKey('world_stocks.id', ondelete='SET NULL'), nullable=True)
     transaction_type = Column(String(20), nullable=False)
     transaction_date = Column(String(50), nullable=True)
     transaction_time = Column(String(10), nullable=True)
@@ -205,7 +205,7 @@ class PendingWorldTransaction(Base):
 
 class ExchangeRate(Base):
     """Model for currency exchange rates"""
-    __tablename__ = "ExchangeRate"
+    __tablename__ = "exchange_rates"
     
     id = Column(Integer, primary_key=True, index=True)
     from_currency = Column(String(10), nullable=False)

@@ -775,8 +775,6 @@ export default function Dashboard() {
             <div className="p-6">
               <ReportUploader
                 onUploadComplete={(results) => {
-                  console.log("Upload results:", results);
-                  // Here you could update the dashboard data with real extracted data
                   setShowUploader(false);
                 }}
                 maxFiles={3}

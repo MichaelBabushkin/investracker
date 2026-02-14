@@ -81,8 +81,6 @@ export default function WorldStockUploader({
 
           results.push(result);
         } catch (error: any) {
-          console.error("Upload error:", error);
-
           setUploadedFiles((prev) =>
             prev.map((f, idx) =>
               idx === fileIndex

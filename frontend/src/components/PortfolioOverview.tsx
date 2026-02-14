@@ -55,8 +55,8 @@ export default function PortfolioOverview() {
         const worldPending = await worldStocksAPI.getPendingTransactions(undefined, "pending");
         const worldCount = worldPending.count || 0;
         setWorldPendingCount(worldCount);
-      } catch (err) {
-        console.error("Failed to fetch world pending:", err);
+      } catch {
+        // World pending unavailable
       }
 
       // Check session storage for recent uploads
@@ -68,12 +68,12 @@ export default function PortfolioOverview() {
             setPendingBatchIds(batchIds);
             setActiveView("review");
           }
-        } catch (e) {
-          console.error("Failed to parse pending batch IDs", e);
+        } catch {
+          // Invalid JSON in session storage
         }
       }
-    } catch (error) {
-      console.error("Failed to check pending transactions:", error);
+    } catch {
+      // Failed to check pending transactions
     }
   };
 

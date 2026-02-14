@@ -6,18 +6,31 @@ import os
 class Settings(BaseSettings):
     # Application
     APP_NAME: str = os.getenv("APP_NAME", "Investracker")
-    DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
+    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     API_VERSION: str = os.getenv("API_VERSION", "v1")
     
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5433/investracker_db")
     DATABASE_URL_TEST: str = os.getenv("DATABASE_URL_TEST", "postgresql://postgres:postgres@localhost:5433/investracker_test_db")
     
-    # JWT
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-super-secret-key-change-this-in-production")
+    # JWT — SECRET_KEY must be set via environment variable
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
+
+    @field_validator("SECRET_KEY", mode="before")
+    @classmethod
+    def validate_secret_key(cls, v):
+        if not v or v == "your-super-secret-key-change-this-in-production":
+            import warnings
+            warnings.warn(
+                "SECRET_KEY is not set! Using a dev-only key. "
+                "Set SECRET_KEY env var in production.",
+                stacklevel=2,
+            )
+            return "dev-only-secret-key-do-not-use-in-production"
+        return v
     
     # CORS - accepts comma-separated string or list from environment variable
     CORS_ORIGINS: Union[List[str], str] = "http://localhost:3000,http://127.0.0.1:3000"

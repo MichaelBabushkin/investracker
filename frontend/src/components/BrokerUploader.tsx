@@ -170,7 +170,6 @@ export default function BrokerUploader({
 
       onUploadComplete(results);
     } catch (err: any) {
-      console.error("Upload error:", err);
       setError(
         err.response?.data?.detail || err.message || "Upload failed"
       );

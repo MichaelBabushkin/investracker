@@ -10,7 +10,7 @@ from app.core.database import Base
 
 class StockPrice(Base):
     """Stock price data - frequently updated, separated from reference data"""
-    __tablename__ = "StockPrices"
+    __tablename__ = "stock_prices"
     
     id = Column(Integer, primary_key=True, index=True)
     ticker = Column(String(20), nullable=False, index=True)

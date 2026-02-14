@@ -33,8 +33,8 @@ export default function WorldStocksDashboard() {
       if (!selectedAccountId && data.length > 0) {
         setSelectedAccountId(data[0].id);
       }
-    } catch (err) {
-      console.error("Failed to fetch accounts:", err);
+    } catch {
+      // Failed to fetch accounts
     }
   }, [selectedAccountId]);
 

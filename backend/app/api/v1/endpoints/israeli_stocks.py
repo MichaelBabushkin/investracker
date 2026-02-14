@@ -603,7 +603,7 @@ async def crawl_single_stock_logo(
             result = conn.execute(
                 text("""
                     SELECT id, symbol, name, logo_svg IS NOT NULL as has_logo
-                    FROM "IsraeliStocks" 
+                    FROM "israeli_stocks" 
                     WHERE name ILIKE :name OR symbol ILIKE :symbol
                     LIMIT 1
                 """),
@@ -753,7 +753,7 @@ async def update_stock_logo_manual(
         with engine.connect() as conn:
             # Check if stock exists
             result = conn.execute(
-                text('SELECT symbol, name FROM "IsraeliStocks" WHERE id = :id'),
+                text('SELECT symbol, name FROM "israeli_stocks" WHERE id = :id'),
                 {"id": stock_id}
             )
             stock_info = result.fetchone()
@@ -765,12 +765,12 @@ async def update_stock_logo_manual(
             # Update the logo fields
             if logo_url:
                 result = conn.execute(
-                    text('UPDATE "IsraeliStocks" SET logo_url = :url, logo_svg = :svg WHERE id = :id'),
+                    text('UPDATE "israeli_stocks" SET logo_url = :url, logo_svg = :svg WHERE id = :id'),
                     {"url": logo_url, "svg": svg_content, "id": stock_id}
                 )
             else:
                 result = conn.execute(
-                    text('UPDATE "IsraeliStocks" SET logo_svg = :svg WHERE id = :id'),
+                    text('UPDATE "israeli_stocks" SET logo_svg = :svg WHERE id = :id'),
                     {"svg": svg_content, "id": stock_id}
                 )
 
@@ -807,7 +807,7 @@ async def remove_stock_logo(
         with engine.connect() as conn:
             # Check if stock exists
             result = conn.execute(
-                text('SELECT symbol, name, logo_svg IS NOT NULL as has_logo FROM "IsraeliStocks" WHERE id = :id'),
+                text('SELECT symbol, name, logo_svg IS NOT NULL as has_logo FROM "israeli_stocks" WHERE id = :id'),
                 {"id": stock_id}
             )
             stock_info = result.fetchone()
@@ -826,7 +826,7 @@ async def remove_stock_logo(
             
             # Remove the logo
             result = conn.execute(
-                text('UPDATE "IsraeliStocks" SET logo_svg = NULL WHERE id = :id'),
+                text('UPDATE "israeli_stocks" SET logo_svg = NULL WHERE id = :id'),
                 {"id": stock_id}
             )
             
@@ -881,7 +881,7 @@ async def get_stocks_with_logos(
                     SELECT id, name, symbol, security_no, 
                            CASE WHEN logo_svg IS NOT NULL AND logo_svg != '' 
                            THEN true ELSE false END as has_logo
-                    FROM "IsraeliStocks" 
+                    FROM "israeli_stocks" 
                     WHERE is_active = true 
                     AND logo_svg IS NOT NULL 
                     AND logo_svg != ''
@@ -941,7 +941,7 @@ async def import_stocks_from_csv(
                         
                         # Check if stock already exists
                         check_result = conn.execute(
-                            text('SELECT id FROM "IsraeliStocks" WHERE security_no = :security_no'),
+                            text('SELECT id FROM "israeli_stocks" WHERE security_no = :security_no'),
                             {"security_no": security_no}
                         )
                         existing = check_result.fetchone()
@@ -953,7 +953,7 @@ async def import_stocks_from_csv(
                         # Insert new stock
                         conn.execute(
                             text('''
-                                INSERT INTO "IsraeliStocks" 
+                                INSERT INTO "israeli_stocks" 
                                 (name, symbol, security_no, index_name, is_active, logo_svg, logo_url, created_at, updated_at)
                                 VALUES (:name, :symbol, :security_no, :index_name, :is_active, :logo_svg, :logo_url, NOW(), NOW())
                             '''),
@@ -976,7 +976,7 @@ async def import_stocks_from_csv(
         
         # Count total stocks in database
         with engine.connect() as conn:
-            result = conn.execute(text('SELECT COUNT(*) FROM "IsraeliStocks"'))
+            result = conn.execute(text('SELECT COUNT(*) FROM "israeli_stocks"'))
             total_count = result.scalar()
         
         return {

@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
-import { apiGet } from "@/utils/api";
+import { calendarAPI, userSettingsAPI } from "@/services/api";
 import {
   XMarkIcon,
   ChevronLeftIcon,
@@ -41,11 +41,11 @@ const EventBanner: React.FC = () => {
   const fetchUpcomingEvents = async () => {
     try {
       // Get user's notification preferences
-      const prefs = await apiGet("/user-settings/notification-preferences");
+      const prefs = await userSettingsAPI.getNotificationPreferences();
       const daysAhead = prefs.notify_days_before || 1;
 
       // Fetch upcoming events
-      const allEvents = await apiGet(`/calendar/upcoming?days_ahead=${daysAhead}`);
+      const allEvents = await calendarAPI.getUpcoming(daysAhead);
 
       // Filter by user's preferences
       const filteredEvents = allEvents.filter((event: CalendarEvent) => {
@@ -63,8 +63,7 @@ const EventBanner: React.FC = () => {
       setEvents(unseenEvents);
       setVisible(unseenEvents.length > 0);
       setLoading(false);
-    } catch (error) {
-      console.error("Failed to fetch events:", error);
+    } catch {
       setLoading(false);
     }
   };

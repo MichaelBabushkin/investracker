@@ -41,12 +41,6 @@ export default function RegisterPage() {
     }
 
     try {
-      console.log("Attempting registration with:", {
-        email: formData.email,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-      });
-
       // Call the backend API
       const response = await authAPI.register({
         email: formData.email,
@@ -55,8 +49,6 @@ export default function RegisterPage() {
         last_name: formData.last_name,
       });
 
-      console.log("Registration response:", response);
-
       setSuccess("Registration successful! Redirecting to login...");
 
       // Redirect to login after 2 seconds
@@ -64,7 +56,6 @@ export default function RegisterPage() {
         router.push("/auth/login");
       }, 2000);
     } catch (error: any) {
-      console.error("Registration error:", error);
       const errorMessage = parseBackendError(error);
       setError(errorMessage);
     } finally {

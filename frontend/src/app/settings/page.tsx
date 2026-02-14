@@ -10,8 +10,7 @@ import {
   GlobeAltIcon,
 } from "@heroicons/react/24/outline";
 import ProtectedRoute from "@/components/ProtectedRoute";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { userSettingsAPI } from "@/services/api";
 
 type Theme = "light" | "dark" | "auto";
 type Currency = "USD" | "ILS" | "EUR" | "GBP";
@@ -61,58 +60,32 @@ export default function SettingsPage() {
 
   const loadCalendarPreferences = async () => {
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(
-        `${API_BASE_URL}/api/v1/user-settings/notification-preferences`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setCalendarPreferences({
-          notify_markets: data.notify_markets || ["US", "IL"],
-          notify_event_types: data.notify_event_types || [
-            "MARKET_CLOSED",
-            "EARLY_CLOSE",
-            "EARNINGS",
-            "ECONOMIC_DATA",
-            "FOMC",
-            "HOLIDAY"
-          ],
-          notify_days_before: data.notify_days_before || 1,
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load calendar preferences:", error);
+      const data = await userSettingsAPI.getNotificationPreferences();
+      setCalendarPreferences({
+        notify_markets: data.notify_markets || ["US", "IL"],
+        notify_event_types: data.notify_event_types || [
+          "MARKET_CLOSED",
+          "EARLY_CLOSE",
+          "EARNINGS",
+          "ECONOMIC_DATA",
+          "FOMC",
+          "HOLIDAY"
+        ],
+        notify_days_before: data.notify_days_before || 1,
+      });
+    } catch {
+      // Silently fail — user may not have preferences yet
     }
   };
 
   const handleSaveCalendarPreferences = async () => {
     setLoadingCalendarPrefs(true);
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(
-        `${API_BASE_URL}/api/v1/user-settings/notification-preferences`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(calendarPreferences),
-        }
-      );
-
-      if (response.ok) {
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
-      }
-    } catch (error) {
-      console.error("Failed to save calendar preferences:", error);
+      await userSettingsAPI.updateNotificationPreferences(calendarPreferences);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch {
+      // Save failed silently
     } finally {
       setLoadingCalendarPrefs(false);
     }

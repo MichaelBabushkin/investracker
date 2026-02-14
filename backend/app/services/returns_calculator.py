@@ -60,7 +60,7 @@ class ReturnsCalculator:
         Returns:
             TWR as percentage, or None if calculation fails
         """
-        table = 'WorldStockTransaction' if market == 'world' else 'IsraeliStockTransaction'
+        table = 'world_stock_transactions' if market == 'world' else 'israeli_stock_transactions'
         ticker_field = 'ticker' if market == 'world' else 'symbol'
         
         # Get all transactions ordered by time
@@ -85,7 +85,7 @@ class ReturnsCalculator:
         price_result = self.db.execute(
             text("""
                 SELECT current_price 
-                FROM "StockPrices"
+                FROM "stock_prices"
                 WHERE ticker = :ticker AND market = :market
             """),
             {"ticker": ticker, "market": market}
@@ -165,7 +165,7 @@ class ReturnsCalculator:
         Returns:
             MWR (IRR) as percentage, or None if calculation fails
         """
-        table = 'WorldStockTransaction' if market == 'world' else 'IsraeliStockTransaction'
+        table = 'world_stock_transactions' if market == 'world' else 'israeli_stock_transactions'
         ticker_field = 'ticker' if market == 'world' else 'symbol'
         
         # Get all transactions
@@ -186,7 +186,7 @@ class ReturnsCalculator:
             return None
         
         # Get current holding value
-        holding_table = 'WorldStockHolding' if market == 'world' else 'IsraeliStockHolding'
+        holding_table = 'world_stock_holdings' if market == 'world' else 'israeli_stock_holdings'
         holding_result = self.db.execute(
             text(f"""
                 SELECT quantity, current_value
@@ -281,7 +281,7 @@ class ReturnsCalculator:
         Returns:
             True if successful, False otherwise
         """
-        holding_table = 'WorldStockHolding' if market == 'world' else 'IsraeliStockHolding'
+        holding_table = 'world_stock_holdings' if market == 'world' else 'israeli_stock_holdings'
         ticker_field = 'ticker' if market == 'world' else 'symbol'
         
         # Get current holding data
@@ -370,7 +370,7 @@ class ReturnsCalculator:
                 # Get all world holdings
                 result = self.db.execute(
                     text("""
-                        SELECT ticker FROM "WorldStockHolding"
+                        SELECT ticker FROM "world_stock_holdings"
                         WHERE user_id = :user_id
                     """),
                     {"user_id": user_id}
@@ -393,7 +393,7 @@ class ReturnsCalculator:
                 # Get all Israeli holdings
                 result = self.db.execute(
                     text("""
-                        SELECT symbol FROM "IsraeliStockHolding"
+                        SELECT symbol FROM "israeli_stock_holdings"
                         WHERE user_id = :user_id
                     """),
                     {"user_id": user_id}

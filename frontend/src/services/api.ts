@@ -757,6 +757,40 @@ export const adminAPI = {
     const response = await api.post(`/admin/prices/refresh-single/${ticker}`, { market });
     return response.data;
   },
+
+  seedCalendarEvents: async (market: string) => {
+    const response = await api.post(`/admin/seed-calendar-events?market=${market}`);
+    return response.data;
+  },
+
+  runMigrations: async () => {
+    const response = await api.post("/admin/run-migrations");
+    return response.data;
+  },
+};
+
+export const calendarAPI = {
+  getEvents: async (params?: { start_date?: string; end_date?: string; market?: string; event_type?: string }) => {
+    const response = await api.get("/calendar/events", { params });
+    return response.data;
+  },
+
+  getUpcoming: async (daysAhead: number = 1) => {
+    const response = await api.get(`/calendar/upcoming?days_ahead=${daysAhead}`);
+    return response.data;
+  },
+};
+
+export const userSettingsAPI = {
+  getNotificationPreferences: async () => {
+    const response = await api.get("/user-settings/notification-preferences");
+    return response.data;
+  },
+
+  updateNotificationPreferences: async (prefs: Record<string, unknown> | { notify_markets: string[]; notify_event_types: string[]; notify_days_before: number }) => {
+    const response = await api.put("/user-settings/notification-preferences", prefs);
+    return response.data;
+  },
 };
 
 export default api;

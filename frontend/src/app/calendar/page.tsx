@@ -12,8 +12,7 @@ import {
   ListBulletIcon,
   Squares2X2Icon,
 } from "@heroicons/react/24/outline";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { calendarAPI } from "@/services/api";
 
 interface CalendarEvent {
   id: number;
@@ -42,30 +41,14 @@ export default function CalendarPage() {
 
   const fetchEvents = useCallback(async () => {
     try {
-      const authToken = token || localStorage.getItem("access_token");
-      
-      if (!authToken) {
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/calendar/events`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // API returns object with events array and total count
-        setEvents(data.events || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch events:", error);
+      const data = await calendarAPI.getEvents();
+      setEvents(data.events || []);
+    } catch {
+      // Failed to fetch events
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   const filterEvents = useCallback(() => {
     if (!Array.isArray(events)) {
@@ -73,9 +56,7 @@ export default function CalendarPage() {
       return;
     }
     
-    console.log(' events', events);
     let filtered = [...events];
-    console.log('filttred events', filtered);
 
     if (selectedMarket !== "all") {
       filtered = filtered.filter((event) => event.market === selectedMarket);

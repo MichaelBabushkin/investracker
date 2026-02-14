@@ -11,7 +11,7 @@ from app.core.database import Base
 class PendingIsraeliTransaction(Base):
     """Pending transactions extracted from PDFs awaiting user review"""
     
-    __tablename__ = "PendingIsraeliTransaction"
+    __tablename__ = "pending_israeli_transactions"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, nullable=False, index=True)

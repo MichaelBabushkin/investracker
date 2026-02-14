@@ -86,7 +86,7 @@ class IsraeliStockService:
             conn = self.create_database_connection()
             cursor = conn.cursor()
             
-            cursor.execute('SELECT security_no, symbol, name, index_name FROM "IsraeliStocks"')
+            cursor.execute('SELECT security_no, symbol, name, index_name FROM "israeli_stocks"')
             stocks = cursor.fetchall()
             
             # Convert to dictionary: security_no -> (symbol, name, index)
@@ -814,7 +814,7 @@ class IsraeliStockService:
             
             if bulk_data:
                 insert_sql = """
-                INSERT INTO "IsraeliStockHolding" (
+                INSERT INTO "israeli_stock_holdings" (
                     user_id, security_no, symbol, company_name, quantity, 
                     last_price, purchase_cost, current_value, portfolio_percentage,
                     currency, holding_date, source_pdf
@@ -880,7 +880,7 @@ class IsraeliStockService:
             
             if bulk_data:
                 insert_sql = """
-                INSERT INTO "IsraeliStockTransaction" (
+                INSERT INTO "israeli_stock_transactions" (
                     user_id, security_no, symbol, company_name, transaction_type,
                     transaction_date, transaction_time, quantity, price, total_value,
                     commission, tax, currency, source_pdf
@@ -932,7 +932,7 @@ class IsraeliStockService:
             
             if bulk_data:
                 insert_sql = """
-                INSERT INTO "IsraeliDividend" (
+                INSERT INTO "israeli_dividends" (
                     user_id, security_no, symbol, company_name, payment_date,
                     amount, tax, currency, source_pdf
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -987,7 +987,7 @@ class IsraeliStockService:
             # Check if this PDF was already uploaded by this user
             check_sql = """
             SELECT id, upload_date 
-            FROM "IsraeliReportUpload" 
+            FROM "israeli_report_uploads" 
             WHERE user_id = %s AND filename = %s
             LIMIT 1
             """
@@ -1006,7 +1006,7 @@ class IsraeliStockService:
             
             # No duplicate, proceed with insert
             insert_sql = """
-            INSERT INTO "IsraeliReportUpload" (
+            INSERT INTO "israeli_report_uploads" (
                 user_id, filename, file_data, file_size, broker, upload_batch_id
             ) VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
@@ -1233,7 +1233,7 @@ class IsraeliStockService:
             
             if pending_records:
                 insert_sql = """
-                INSERT INTO "PendingIsraeliTransaction" (
+                INSERT INTO "pending_israeli_transactions" (
                     user_id, upload_batch_id, pdf_filename, transaction_date,
                     transaction_time, security_no, stock_name, transaction_type, quantity, price,
                     amount, commission, tax, currency, status, raw_data
@@ -1275,7 +1275,7 @@ class IsraeliStockService:
         # Check if holding already exists (one holding per user per stock)
         cursor.execute(
             '''SELECT id, quantity, purchase_cost, last_price 
-               FROM "IsraeliStockHolding" 
+               FROM "israeli_stock_holdings" 
                WHERE user_id = %s AND security_no = %s''',
             (user_id, security_no)
         )
@@ -1303,7 +1303,7 @@ class IsraeliStockService:
                 new_current_value = new_quantity * new_last_price
                 
                 cursor.execute(
-                    '''UPDATE "IsraeliStockHolding" 
+                    '''UPDATE "israeli_stock_holdings" 
                        SET quantity = %s, 
                            purchase_cost = %s,
                            last_price = %s,
@@ -1318,7 +1318,7 @@ class IsraeliStockService:
                 current_value = quantity * price
                 
                 cursor.execute(
-                    '''INSERT INTO "IsraeliStockHolding" 
+                    '''INSERT INTO "israeli_stock_holdings" 
                        (user_id, security_no, symbol, company_name, quantity,
                         last_price, purchase_cost, current_value, currency, holding_date, source_pdf)
                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
@@ -1339,7 +1339,7 @@ class IsraeliStockService:
                 if new_quantity <= 0:
                     # Sold all or more - delete the holding
                     cursor.execute(
-                        'DELETE FROM "IsraeliStockHolding" WHERE id = %s',
+                        'DELETE FROM "israeli_stock_holdings" WHERE id = %s',
                         (holding_id,)
                     )
                 else:
@@ -1353,7 +1353,7 @@ class IsraeliStockService:
                     new_current_value = new_quantity * new_last_price
                     
                     cursor.execute(
-                        '''UPDATE "IsraeliStockHolding" 
+                        '''UPDATE "israeli_stock_holdings" 
                            SET quantity = %s,
                                purchase_cost = %s,
                                last_price = %s,
@@ -1381,7 +1381,7 @@ class IsraeliStockService:
             conn = self.create_database_connection()
             cursor = conn.cursor()
             cursor.execute(
-                'SELECT symbol, name FROM "IsraeliStocks" WHERE security_no = %s',
+                'SELECT symbol, name FROM "israeli_stocks" WHERE security_no = %s',
                 (pending_transaction.security_no,)
             )
             stock_info = cursor.fetchone()
@@ -1396,7 +1396,7 @@ class IsraeliStockService:
                     payment_date = self.parse_date_string(payment_date)
                 
                 insert_sql = """
-                INSERT INTO "IsraeliDividend" (
+                INSERT INTO "israeli_dividends" (
                     user_id, security_no, symbol, company_name, payment_date,
                     amount, tax, currency, source_pdf
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -1431,7 +1431,7 @@ class IsraeliStockService:
                 transaction_time = pending_transaction.transaction_time if hasattr(pending_transaction, 'transaction_time') else None
                 
                 insert_sql = """
-                INSERT INTO "IsraeliStockTransaction" (
+                INSERT INTO "israeli_stock_transactions" (
                     user_id, security_no, symbol, company_name, transaction_type,
                     transaction_date, transaction_time, quantity, price, total_value, 
                     commission, tax, currency, source_pdf, created_at
@@ -1488,7 +1488,7 @@ class IsraeliStockService:
                 transaction_time = pending_transaction.transaction_time if hasattr(pending_transaction, 'transaction_time') else None
                 
                 insert_sql = """
-                INSERT INTO "IsraeliStockTransaction" (
+                INSERT INTO "israeli_stock_transactions" (
                     user_id, security_no, symbol, company_name, transaction_type,
                     transaction_date, transaction_time, quantity, price, total_value, 
                     commission, tax, currency, source_pdf, created_at
@@ -1562,9 +1562,9 @@ class IsraeliStockService:
                            ELSE h.unrealized_gain_pct
                        END as unrealized_gain_pct,
                        h.twr, h.mwr
-                FROM "IsraeliStockHolding" h
-                LEFT JOIN "IsraeliStocks" s ON h.security_no = s.security_no
-                LEFT JOIN "StockPrices" sp ON h.symbol = sp.ticker AND sp.market = 'israeli'
+                FROM "israeli_stock_holdings" h
+                LEFT JOIN "israeli_stocks" s ON h.security_no = s.security_no
+                LEFT JOIN "stock_prices" sp ON h.symbol = sp.ticker AND sp.market = 'israeli'
                 WHERE h.user_id = %s AND h.quantity > 0
                 ORDER BY current_value DESC NULLS LAST
             '''
@@ -1636,8 +1636,8 @@ class IsraeliStockService:
                 SELECT t.id, t.security_no, t.symbol, t.company_name, t.transaction_type,
                        t.transaction_date, t.transaction_time, t.quantity, t.price, t.total_value,
                        t.commission, t.tax, t.currency, t.created_at, s.logo_svg
-                FROM "IsraeliStockTransaction" t
-                LEFT JOIN "IsraeliStocks" s ON t.security_no = s.security_no
+                FROM "israeli_stock_transactions" t
+                LEFT JOIN "israeli_stocks" s ON t.security_no = s.security_no
                 WHERE t.user_id = %s 
                 ORDER BY t.transaction_date DESC, t.created_at DESC
             '''
@@ -1685,8 +1685,8 @@ class IsraeliStockService:
             query = '''
                 SELECT d.id, d.security_no, d.symbol, d.company_name, d.payment_date,
                        d.amount, d.tax, d.currency, d.source_pdf, d.created_at, s.logo_svg
-                FROM "IsraeliDividend" d
-                LEFT JOIN "IsraeliStocks" s ON d.security_no = s.security_no
+                FROM "israeli_dividends" d
+                LEFT JOIN "israeli_stocks" s ON d.security_no = s.security_no
                 WHERE d.user_id = %s 
                 ORDER BY d.payment_date DESC, d.created_at DESC
             '''
@@ -1727,7 +1727,7 @@ class IsraeliStockService:
             conn = self.create_database_connection()
             cursor = conn.cursor()
             
-            query = 'SELECT security_no, symbol, name, index_name FROM "IsraeliStocks"'
+            query = 'SELECT security_no, symbol, name, index_name FROM "israeli_stocks"'
             params = []
             
             if index_name:
@@ -1766,7 +1766,7 @@ class IsraeliStockService:
             cursor = conn.cursor()
             
             cursor.execute(
-                'DELETE FROM "IsraeliStockHolding" WHERE id = %s AND user_id = %s',
+                'DELETE FROM "israeli_stock_holdings" WHERE id = %s AND user_id = %s',
                 (holding_id, user_id)
             )
             
@@ -1788,7 +1788,7 @@ class IsraeliStockService:
             cursor = conn.cursor()
             
             insert_sql = """
-            INSERT INTO "IsraeliStockTransaction" (
+            INSERT INTO "israeli_stock_transactions" (
                 user_id, security_no, symbol, company_name, transaction_type,
                 transaction_date, transaction_time, quantity, price, total_value,
                 commission, tax, currency, source_pdf
@@ -1831,7 +1831,7 @@ class IsraeliStockService:
             cursor = conn.cursor()
             
             update_sql = """
-            UPDATE "IsraeliStockTransaction" 
+            UPDATE "israeli_stock_transactions" 
             SET security_no = %s, symbol = %s, company_name = %s, transaction_type = %s,
                 transaction_date = %s, transaction_time = %s, quantity = %s, price = %s, 
                 total_value = %s, commission = %s, tax = %s, currency = %s
@@ -1873,7 +1873,7 @@ class IsraeliStockService:
             cursor = conn.cursor()
             
             cursor.execute(
-                'DELETE FROM "IsraeliStockTransaction" WHERE id = %s AND user_id = %s',
+                'DELETE FROM "israeli_stock_transactions" WHERE id = %s AND user_id = %s',
                 (transaction_id, user_id)
             )
             

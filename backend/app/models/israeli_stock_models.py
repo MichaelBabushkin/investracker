@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 class IsraeliStock(Base):
     """Model for Israeli stocks (TA-125 and SME-60 indexes)"""
-    __tablename__ = "IsraeliStocks"
+    __tablename__ = "israeli_stocks"
     
     id = Column(Integer, primary_key=True, index=True)
     security_no = Column(String(20), unique=True, nullable=False, index=True)
@@ -53,7 +53,7 @@ class IsraeliStock(Base):
 
 class IsraeliStockHolding(Base):
     """Model for Israeli stock holdings (current positions)"""
-    __tablename__ = "IsraeliStockHolding"
+    __tablename__ = "israeli_stock_holdings"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String(50), nullable=False, index=True)
@@ -91,7 +91,7 @@ class IsraeliStockHolding(Base):
 
 class IsraeliStockTransaction(Base):
     """Model for Israeli stock transactions (buy/sell activities)"""
-    __tablename__ = "IsraeliStockTransaction"
+    __tablename__ = "israeli_stock_transactions"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String(50), nullable=False, index=True)
@@ -127,7 +127,7 @@ class IsraeliStockTransaction(Base):
 
 class IsraeliDividend(Base):
     """Model for Israeli stock dividends (auto-populated from transactions)"""
-    __tablename__ = "IsraeliDividend"
+    __tablename__ = "israeli_dividends"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String(50), nullable=False, index=True)

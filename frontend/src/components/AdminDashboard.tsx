@@ -102,7 +102,6 @@ export default function AdminDashboard() {
       let combined: any[] = [];
       // Primary: public stocks endpoint (should work without auth)
       const allRes = await israeliStocksAPI.getStocks(undefined, 1000);
-      console.log("GET /israeli-stocks/stocks response:", allRes);
       combined = Array.isArray(allRes) ? allRes : allRes?.stocks || [];
       // Fallback: split endpoints (may require auth)
       if (!combined.length) {
@@ -111,15 +110,12 @@ export default function AdminDashboard() {
             israeliStocksAPI.getStocksWithoutLogos(),
             israeliStocksAPI.getStocksWithLogos(),
           ]);
-          console.log("GET /stocks-without-logos:", withoutRes);
-          console.log("GET /stocks-with-logos:", withRes);
           combined = [
             ...(withRes?.stocks || []),
             ...(withoutRes?.stocks || []),
           ];
         } catch (e: any) {
           // Keep combined as-is; set error below if still empty
-          console.warn("Fallback stocks endpoints failed", e);
         }
       }
       const normalized = combined.map((s: any) => ({
@@ -151,7 +147,6 @@ export default function AdminDashboard() {
         if (updated) setSelectedStock(updated);
       }
     } catch (e) {
-      console.error("Failed to load stocks", e);
       const msg =
         (e as any)?.response?.data?.detail ||
         (e as any)?.message ||

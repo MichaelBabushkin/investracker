@@ -149,12 +149,12 @@ class LogoCrawlerService:
                 # Update the stock record
                 if logo_url:
                     result = session.execute(
-                        text("UPDATE \"IsraeliStocks\" SET logo_url = :logo_url, logo_svg = :svg_content WHERE id = :stock_id"),
+                        text("UPDATE \"israeli_stocks\" SET logo_url = :logo_url, logo_svg = :svg_content WHERE id = :stock_id"),
                         {"logo_url": logo_url, "svg_content": svg_content, "stock_id": stock_id}
                     )
                 else:
                     result = session.execute(
-                        text("UPDATE \"IsraeliStocks\" SET logo_svg = :svg_content WHERE id = :stock_id"),
+                        text("UPDATE \"israeli_stocks\" SET logo_svg = :svg_content WHERE id = :stock_id"),
                         {"svg_content": svg_content, "stock_id": stock_id}
                     )
                 
@@ -185,7 +185,7 @@ class LogoCrawlerService:
             Session = sessionmaker(bind=engine)
             with Session() as session:
                 result = session.execute(
-                    text('UPDATE "IsraeliStocks" SET logo_url = :url WHERE id = :id'),
+                    text('UPDATE "israeli_stocks" SET logo_url = :url WHERE id = :id'),
                     {"url": logo_url, "id": stock_id}
                 )
                 if result.rowcount and result.rowcount > 0:
@@ -212,7 +212,7 @@ class LogoCrawlerService:
                 result = session.execute(
                     text("""
                         SELECT id, name, symbol, security_no 
-                        FROM "IsraeliStocks" 
+                        FROM "israeli_stocks" 
                         WHERE logo_svg IS NULL OR logo_svg = ''
                         ORDER BY name
                     """)
@@ -246,7 +246,7 @@ class LogoCrawlerService:
                 result = session.execute(
                     text(
                         """
-                        SELECT id, name, symbol, logo_url FROM "IsraeliStocks"
+                        SELECT id, name, symbol, logo_url FROM "israeli_stocks"
                         WHERE logo_url IS NOT NULL AND logo_url <> '' AND (logo_svg IS NULL OR logo_svg = '')
                         ORDER BY name
                         """
@@ -371,7 +371,7 @@ class LogoCrawlerService:
             Session = sessionmaker(bind=engine)
             with Session() as session:
                 result = session.execute(
-                    text('SELECT id, name, symbol, security_no FROM "IsraeliStocks" ORDER BY name')
+                    text('SELECT id, name, symbol, security_no FROM "israeli_stocks" ORDER BY name')
                 )
                 return [
                     {"id": r[0], "name": r[1], "symbol": r[2], "security_no": r[3]}
@@ -387,7 +387,7 @@ class LogoCrawlerService:
             Session = sessionmaker(bind=engine)
             with Session() as session:
                 result = session.execute(
-                    text('SELECT id, name, symbol, security_no FROM "IsraeliStocks" WHERE logo_url IS NULL OR logo_url = :empty ORDER BY name'),
+                    text('SELECT id, name, symbol, security_no FROM "israeli_stocks" WHERE logo_url IS NULL OR logo_url = :empty ORDER BY name'),
                     {"empty": ""}
                 )
                 return [
@@ -450,7 +450,7 @@ class LogoCrawlerService:
                     res = session_db.execute(
                         text(
                             """
-                            SELECT id, name, symbol, logo_url FROM "IsraeliStocks"
+                            SELECT id, name, symbol, logo_url FROM "israeli_stocks"
                             WHERE logo_url IS NOT NULL AND logo_url <> ''
                             ORDER BY name
                             """
@@ -507,7 +507,7 @@ class LogoCrawlerService:
             Session = sessionmaker(bind=engine)
             with Session() as session_db:
                 row = session_db.execute(
-                    text('SELECT logo_url FROM "IsraeliStocks" WHERE id = :id'),
+                    text('SELECT logo_url FROM "israeli_stocks" WHERE id = :id'),
                     {"id": stock_id}
                 ).fetchone()
                 if not row:
@@ -553,7 +553,7 @@ class LogoCrawlerService:
             Session = sessionmaker(bind=engine)
             with Session() as session_db:
                 res = session_db.execute(
-                    text('SELECT id, name, symbol FROM "IsraeliStocks" WHERE symbol ILIKE :sym LIMIT 1'),
+                    text('SELECT id, name, symbol FROM "israeli_stocks" WHERE symbol ILIKE :sym LIMIT 1'),
                     {"sym": f"%{symbol}%"}
                 ).fetchone()
                 if not res:
@@ -623,7 +623,7 @@ class LogoCrawlerService:
                 
                 with Session() as session:
                     result = session.execute(
-                        text("SELECT id FROM \"IsraeliStocks\" WHERE name ILIKE :name LIMIT 1"),
+                        text("SELECT id FROM \"israeli_stocks\" WHERE name ILIKE :name LIMIT 1"),
                         {"name": f"%{stock_name}%"}
                     )
                     row = result.fetchone()

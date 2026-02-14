@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { apiPost } from "@/utils/api";
+import { adminAPI } from "@/services/api";
 import {
   PlayIcon,
   ClockIcon,
@@ -25,7 +25,7 @@ const JobsSection: React.FC = () => {
     setSeedMessage("");
     
     try {
-      const data = await apiPost(`/admin/seed-calendar-events?market=${selectedMarket}`);
+      const data = await adminAPI.seedCalendarEvents(selectedMarket);
       setSeedMessage(
         `✓ Successfully seeded ${data.events_created} events for ${data.market} market (${data.years.join(", ")})`
       );
@@ -41,7 +41,7 @@ const JobsSection: React.FC = () => {
     setMigrationMessage("");
     
     try {
-      const data = await apiPost("/admin/run-migrations");
+      const data = await adminAPI.runMigrations();
       if (data.success) {
         setMigrationMessage(`✓ Migrations completed successfully`);
       } else {

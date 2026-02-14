@@ -46,7 +46,7 @@ class StockPriceService:
             result = self.db.execute(
                 text("""
                     SELECT DISTINCT ticker 
-                    FROM "WorldStockHolding" 
+                    FROM "world_stock_holdings" 
                     WHERE quantity > 0
                 """)
             )
@@ -54,7 +54,7 @@ class StockPriceService:
             result = self.db.execute(
                 text("""
                     SELECT DISTINCT symbol 
-                    FROM "IsraeliStockHolding" 
+                    FROM "israeli_stock_holdings" 
                     WHERE quantity > 0
                 """)
             )
@@ -65,17 +65,17 @@ class StockPriceService:
         cutoff = datetime.utcnow() - timedelta(hours=hours)
         
         if market == 'world':
-            table = '"WorldStocks"'
+            table = '"world_stocks"'
             ticker_field = 's.ticker'
         else:
-            table = '"IsraeliStocks"'
+            table = '"israeli_stocks"'
             ticker_field = 's.symbol'  # Use symbol (display ticker) for Israeli stocks
         
         result = self.db.execute(
             text(f"""
                 SELECT {ticker_field}
                 FROM {table} s
-                LEFT JOIN "StockPrices" sp ON {ticker_field} = sp.ticker AND sp.market = :market
+                LEFT JOIN "stock_prices" sp ON {ticker_field} = sp.ticker AND sp.market = :market
                 WHERE sp.updated_at IS NULL OR sp.updated_at < :cutoff
                 ORDER BY sp.updated_at ASC NULLS FIRST
                 LIMIT :limit
@@ -89,7 +89,7 @@ class StockPriceService:
         result = self.db.execute(
             text("""
                 SELECT symbol, yfinance_ticker 
-                FROM "IsraeliStocks" 
+                FROM "israeli_stocks" 
                 WHERE symbol = ANY(:tickers)
             """),
             {"tickers": display_tickers}
@@ -246,7 +246,7 @@ class StockPriceService:
                 # Use INSERT ... ON CONFLICT to upsert
                 self.db.execute(
                     text("""
-                        INSERT INTO "StockPrices" 
+                        INSERT INTO "stock_prices" 
                         (ticker, market, current_price, previous_close, price_change, price_change_pct,
                          day_high, day_low, volume, market_cap, updated_at, created_at)
                         VALUES (:ticker, :market, :current_price, :previous_close, :price_change, :price_change_pct,
@@ -295,14 +295,14 @@ class StockPriceService:
             market: 'world' or 'israeli'
         Returns number of holdings updated.
         """
-        table = '"WorldStockHolding"' if market == 'world' else '"IsraeliStockHolding"'
+        table = '"world_stock_holdings"' if market == 'world' else '"israeli_stock_holdings"'
         ticker_field = 'h.ticker' if market == 'world' else 'h.symbol'
         
         query = f"""
             UPDATE {table} h
             SET current_value = h.quantity * sp.current_price,
                 last_price = sp.current_price
-            FROM "StockPrices" sp
+            FROM "stock_prices" sp
             WHERE {ticker_field} = sp.ticker
             AND sp.market = :market
             AND sp.current_price IS NOT NULL
@@ -322,13 +322,13 @@ class StockPriceService:
         result = self.db.execute(
             text("""
                 SELECT 
-                    (SELECT COUNT(*) FROM "WorldStocks") as total,
+                    (SELECT COUNT(*) FROM "world_stocks") as total,
                     COUNT(sp.current_price) as with_price,
                     COUNT(CASE WHEN sp.updated_at > NOW() - INTERVAL '15 minutes' THEN 1 END) as fresh_15m,
                     COUNT(CASE WHEN sp.updated_at > NOW() - INTERVAL '24 hours' THEN 1 END) as fresh_24h,
                     MIN(sp.updated_at) as oldest_update,
                     MAX(sp.updated_at) as newest_update
-                FROM "StockPrices" sp
+                FROM "stock_prices" sp
             """)
         )
         row = result.fetchone()
