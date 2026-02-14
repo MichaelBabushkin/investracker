@@ -3,6 +3,9 @@ import { EducationProgress } from "./types";
 const STORAGE_KEY = "investracker_education_progress";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
+let lastSyncTimestamp = 0;
+const SYNC_COOLDOWN = 2000; // Don't sync more than once per 2 seconds
+
 // Helper to get auth token
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -68,21 +71,20 @@ export async function fetchProgress(): Promise<EducationProgress> {
 export function getProgress(): EducationProgress {
   const local = getLocalProgress();
   
-  // Fetch from API in background to stay in sync
-  fetchProgress().then((apiProgress) => {
-    if (JSON.stringify(apiProgress) !== JSON.stringify(local)) {
-      // API has different data, trigger a re-render by dispatching event
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("education-progress-updated"));
-      }
-    }
-  });
-
+  // Don't fetch from API in background on every call - this causes race conditions
+  // Only fetch on initial mount (handled by EducationCenter)
+  
   return local;
 }
 
 // Update progress on server
 async function syncProgressToServer(progress: EducationProgress): Promise<void> {
+  const now = Date.now();
+  if (now - lastSyncTimestamp < SYNC_COOLDOWN) {
+    console.log("🕐 Skipping sync - too soon since last sync");
+    return;
+  }
+  
   const token = getAuthToken();
   if (!token) {
     console.log("No auth token, skipping server sync");
@@ -90,6 +92,7 @@ async function syncProgressToServer(progress: EducationProgress): Promise<void> 
   }
 
   try {
+    lastSyncTimestamp = now;
     console.log("Syncing progress to server:", progress);
     const response = await fetch(`${API_BASE_URL}/education/progress`, {
       method: "PUT",
@@ -105,43 +108,50 @@ async function syncProgressToServer(progress: EducationProgress): Promise<void> 
     });
 
     if (response.ok) {
-      console.log("Progress synced successfully");
+      console.log("✅ Progress synced successfully");
     } else {
-      console.error("Failed to sync progress:", response.status, await response.text());
+      const errorText = await response.text();
+      console.error("❌ Failed to sync progress:", response.status, errorText);
+      lastSyncTimestamp = 0; // Allow retry
     }
   } catch (error) {
-    console.error("Failed to sync progress to server:", error);
+    console.error("❌ Failed to sync progress to server:", error);
+    lastSyncTimestamp = 0; // Allow retry
   }
 }
 
-export function saveProgress(progress: EducationProgress): void {
+export async function saveProgress(progress: EducationProgress): Promise<void> {
   console.log("💾 saveProgress called");
   saveLocalProgress(progress);
   console.log("💾 Local progress saved, now syncing to server...");
-  syncProgressToServer(progress); // Sync to backend (fire and forget)
-  console.log("💾 syncProgressToServer initiated");
-}
-
-export function markTopicComplete(topicId: string): EducationProgress {
+  
+  // Actually await the sync to ensure it completes
+  await syncProgressToServer(progress);
+  console.log("💾 Server sync completed");
+}void {
   console.log("📚 markTopicComplete called for:", topicId);
   const progress = getLocalProgress();
   if (!progress.completed.includes(topicId)) {
     progress.completed.push(topicId);
   }
   console.log("📚 Calling saveProgress with:", progress);
+  // Don't await here - let it sync in background
   saveProgress(progress);
-  return progress;
 }
 
 export function setLastVisited(topicId: string): void {
   const progress = getLocalProgress();
   progress.lastVisited = topicId;
-  saveProgress(progress);
+  // Don't sync just for last visited - too many calls
+  saveLocalProgress(progress);
 }
 
-export function saveQuizScore(topicId: string, score: number): EducationProgress {
+export function saveQuizScore(topicId: string, score: number): void {
   const progress = getLocalProgress();
   progress.quizScores[topicId] = score;
+  console.log("📝 Calling saveProgress with quiz score:", progress);
+  // Don't await here - let it sync in background
+  saveProgress(progress)ores[topicId] = score;
   saveProgress(progress);
   return progress;
 }
