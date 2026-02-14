@@ -29,6 +29,9 @@ from .calendar_event import CalendarEvent, EventType
 # User Notification Preferences
 from .user_event_notification_preferences import UserEventNotificationPreferences
 
+# Education Progress
+from .education_progress import EducationProgress
+
 __all__ = [
     "User",
     # Israeli Stock Models
@@ -48,5 +51,7 @@ __all__ = [
     # Calendar & Notifications
     "CalendarEvent",
     "EventType",
-    "UserEventNotificationPreferences"
+    "UserEventNotificationPreferences",
+    # Education
+    "EducationProgress",
 ]

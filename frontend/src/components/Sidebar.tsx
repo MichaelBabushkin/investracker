@@ -21,6 +21,7 @@ import {
   BuildingLibraryIcon,
   ChartPieIcon,
   CalendarIcon,
+  AcademicCapIcon,
 } from "@heroicons/react/24/outline";
 import Image from "next/image";
 
@@ -107,6 +108,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
       name: "Calendar",
       href: "/calendar",
       icon: CalendarIcon,
+      requiredRole: "viewer",
+    },
+    {
+      name: "Education",
+      href: "/education",
+      icon: AcademicCapIcon,
       requiredRole: "viewer",
     },
     {

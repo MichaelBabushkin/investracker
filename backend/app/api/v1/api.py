@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, israeli_stocks, admin, calendar, user_settings, world_stocks
+from app.api.v1.endpoints import auth, israeli_stocks, admin, calendar, user_settings, world_stocks, education
 
 api_router = APIRouter()
 
@@ -10,3 +10,4 @@ api_router.include_router(israeli_stocks.router, prefix="/israeli-stocks", tags=
 api_router.include_router(world_stocks.router, prefix="/world-stocks", tags=["world-stocks"])
 api_router.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
 api_router.include_router(user_settings.router, prefix="/user-settings", tags=["user-settings"])
+api_router.include_router(education.router, prefix="/education", tags=["education"])
