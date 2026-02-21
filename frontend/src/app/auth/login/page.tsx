@@ -55,32 +55,32 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-surface-dark">
-      {/* Left panel — branding (hidden on mobile) */}
-      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center bg-surface-dark-secondary">
-        <div className="absolute inset-0 dot-grid opacity-40" />
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[400px] bg-brand-400/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 text-center px-12">
-          <Image src="/images/investracker_logo-dark.svg" alt="Investracker" width={220} height={56} className="mx-auto mb-8" />
-          <h2 className="text-3xl font-heading font-bold text-gray-100 mb-3">
-            Welcome back
-          </h2>
-          <p className="text-gray-400 text-lg max-w-sm mx-auto">
-            Track your portfolio, analyze performance, and make smarter investment decisions.
-          </p>
+    <div className="min-h-screen flex flex-col lg:flex-row bg-surface-dark">
+      {/* Image panel — top on mobile, left on desktop */}
+      <div className="relative w-full h-[45vh] lg:h-auto lg:w-1/2 overflow-hidden flex-shrink-0">
+        <Image
+          src="/images/auth-login-stocks-3d.png"
+          alt="Stock portfolio visualization"
+          fill
+          className="object-cover object-center"
+          priority
+        />
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/40" />
+        {/* Logo pinned top-left */}
+        <div className="absolute top-5 left-5 lg:top-10 lg:left-10 z-10">
+          <Image src="/images/investracker_logo-dark.svg" alt="Investracker" width={150} height={38} className="lg:w-[180px]" />
         </div>
       </div>
 
-      {/* Right panel — form */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+      {/* Form panel — bottom on mobile, right on desktop */}
+      <div className="flex-1 flex items-center justify-center px-6 py-0 lg:py-12">
         <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex justify-center mb-8">
-            <Image src="/images/investracker_logo-dark.svg" alt="Investracker" width={180} height={44} />
-          </div>
+          <h1 className="text-3xl font-heading font-bold text-gray-100 mb-1">Welcome back</h1>
+          <p className="text-gray-500 text-sm mb-8">Track your portfolio, analyze performance, and make smarter investment decisions.</p>
 
-          <h1 className="text-2xl font-heading font-bold text-gray-100 mb-1">Sign in</h1>
-          <p className="text-sm text-gray-400 mb-8">
+          <h2 className="text-base font-heading font-semibold text-gray-100 mb-1">Sign in</h2>
+          <p className="text-sm text-gray-400 mb-6">
             Don&apos;t have an account?{" "}
             <Link href="/auth/register" className="text-brand-400 hover:text-brand-300 font-medium">
               Create one

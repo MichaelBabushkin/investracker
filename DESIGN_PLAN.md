@@ -225,33 +225,49 @@ Level 3: shadow-lg
 
 ### 3.2 Auth Pages (`/auth/login`, `/auth/register`)
 
-**Current:** Plain centered card on gray background.
-**New:** Split-screen fintech auth.
+**Current:** ✅ **Implemented** — Dark premium fintech design
+**Design:** Split-screen auth with dark theme
 
 **Desktop Layout:**
 ```
 ┌──────────────────┬──────────────────┐
 │                  │                  │
 │  Brand Panel     │   Auth Form      │
-│  (dark bg)       │   (light bg)     │
+│  (dark bg)       │   (dark bg)      │
 │                  │                  │
 │  Logo            │   Title          │
 │  Tagline         │   Inputs         │
-│  Lottie anim     │   Button         │
-│  or abstract     │   Link to other  │
+│  Dot grid        │   Button         │
+│  Subtle glow     │                  │
 │                  │                  │
 └──────────────────┴──────────────────┘
 ```
 
-- **Left panel (50%)**: Dark `#0B0F1A` background with logo, tagline, and a subtle Lottie or animated graph illustration
-- **Right panel (50%)**: Clean white form with generous padding
-- Inputs: **border-bottom style** (not boxed) with floating labels for a modern feel — or soft rounded inputs with focus ring in green
-- "Sign in" button: full-width, green, with loading spinner state
-- Social proof line: "Join 500+ Israeli investors" below the form
-- Error states: rose-colored inline messages (not toast)
+**Key Design Features:**
+- **Background**: `bg-surface-dark` (#0B0F1A) — dark, professional fintech look
+- **Left panel (50%)**: `bg-surface-dark-secondary` (#111827)
+  - Dot grid pattern overlay (opacity-40)
+  - Subtle green glow blob (bg-brand-400/5 blur-3xl)
+  - Centered logo + heading + tagline
+- **Right panel (50%)**:
+  - Direct on dark background (no card wrapper)
+  - Clean inputs: `bg-surface-dark-secondary` with border-white/10
+  - Focus state: ring-2 ring-brand-400/40
+  - Solid green button: `bg-brand-400` hover:bg-brand-500
+  - Labels in gray-300, text in gray-100
 
-**Tablet:** Same split but 40/60 ratio
-**Mobile:** Brand panel becomes a compact header (logo + tagline only, 120px), form takes rest of screen
+**Colors:**
+- Background: surface-dark (#0B0F1A)
+- Panel: surface-dark-secondary (#111827)
+- Button: brand-400 (green)
+- Text: gray-100 (primary), gray-400 (secondary)
+- Inputs: white/10 borders, gray-100 text
+
+**Responsive:**
+- **Tablet:** Same split layout
+- **Mobile:** Left panel hidden, logo shown above form, form takes full width
+
+**Note:** A light/vivid variant was tested (gradients, glass-morphism, light backgrounds) but the **dark version was preferred**. The light version code is preserved in git history for future A/B testing.
 
 ---
 
