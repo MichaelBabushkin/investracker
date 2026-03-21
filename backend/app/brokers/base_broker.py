@@ -12,6 +12,15 @@ import pandas as pd
 class BaseBrokerParser(ABC):
     """Base class for broker-specific PDF parsers"""
     
+    def detect_column_indices(self, df: pd.DataFrame) -> Dict[str, int]:
+        """Detect column indices from DataFrame headers.
+        
+        Returns a mapping from semantic name to column index.
+        Subclasses should override this for broker-specific column detection.
+        Default implementation returns empty dict (use hardcoded defaults).
+        """
+        return {}
+    
     @abstractmethod
     def get_hebrew_headings(self) -> Dict[str, str]:
         """
@@ -39,11 +48,13 @@ class BaseBrokerParser(ABC):
     
     @abstractmethod
     def parse_transaction_row(self, row: pd.Series, security_no: str, symbol: str,
-                            name: str, pdf_name: str, holding_date: Optional[datetime] = None) -> Optional[Dict]:
+                            name: str, pdf_name: str, holding_date: Optional[datetime] = None,
+                            col_map: Optional[Dict[str, int]] = None) -> Optional[Dict]:
         """
         Parse a transaction row from the broker's format
         Args:
             holding_date: Report date used to filter transactions to the report's month only
+            col_map: Optional pre-computed column mapping from detect_column_indices
         Returns: dict with transaction data or None if invalid
         """
         pass

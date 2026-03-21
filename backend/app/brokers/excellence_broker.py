@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 class ExcellenceBrokerParser(BaseBrokerParser):
     """Parser for Excellence/Meitav broker PDFs"""
     
-    # Column indices for transaction parsing (Excellence format)
+    # Default column indices for transaction parsing (Excellence 13-column format)
+    # These are used as fallback if dynamic detection fails
     COL_BALANCE = 0          # Remaining balance after transaction
     COL_DATE = 1             # Transaction date (DD/MM/YY)
     COL_AMOUNT = 2           # Transaction amount (ILS)
@@ -32,6 +33,67 @@ class ExcellenceBrokerParser(BaseBrokerParser):
     COL_SECURITY_ID = 10     # Security/Stock ID
     COL_EXECUTION_DATE = 12  # Execution date (rightmost column)
     
+    # Hebrew column header patterns for dynamic detection
+    # Each key maps to the semantic column name, values are possible Hebrew headers
+    # IMPORTANT: Patterns must be specific enough to avoid partial matches
+    # e.g., 'סמ' (tax) must not match 'רפסמ\nריינ' (security number)
+    HEBREW_COLUMN_PATTERNS = {
+        'security_id': ['רפסמ\nריינ', 'רפסמ ריינ'],
+        'description': ['ריינ םש', 'םש ריינ'],
+        'type': ['גוס\nהעונת', 'גוס העונת'],
+        'quantity': ['תומכ'],
+        'price': ['עוציב רעש\nהקסע', 'עוציב רעש', 'רעש עוציב'],
+        'total': ['םוכס\nיוכיז/בויחל', 'םוכס יוכיז/בויחל', 'יוכיז/בויחל'],
+        'commission': ['הלמע'],
+        'tax': ['סמ'],
+        'balance': ['תיפסכ הרתי'],
+        'execution_date': ['ךיראת\nעוציב', 'ךיראת עוציב'],
+        'value_date': ['םוי\nךרע', 'םוי ךרע'],
+        'time': ['העש'],
+        'qty_balance': ['תומכ תרתי'],
+    }
+    
+    def detect_column_indices(self, df: pd.DataFrame) -> Dict[str, int]:
+        """Dynamically detect column indices from Hebrew headers.
+        
+        Returns a mapping from semantic name to column index.
+        This handles different PDF formats (12-col vs 13-col) automatically.
+        """
+        columns = list(df.columns)
+        col_map = {}
+        
+        # Process in order from most-specific (longest patterns) to least-specific
+        # This prevents short patterns like 'סמ' from stealing columns meant for 'רפסמ\nריינ'
+        # Sort semantic names by the length of their longest pattern (descending)
+        sorted_names = sorted(
+            self.HEBREW_COLUMN_PATTERNS.keys(),
+            key=lambda name: max(len(p) for p in self.HEBREW_COLUMN_PATTERNS[name]),
+            reverse=True
+        )
+        
+        claimed_cols = set()  # Track which columns have been claimed
+        
+        for semantic_name in sorted_names:
+            patterns = self.HEBREW_COLUMN_PATTERNS[semantic_name]
+            for i, col_header in enumerate(columns):
+                if i in claimed_cols:
+                    continue  # Skip already-claimed columns
+                col_str = str(col_header).strip()
+                for pattern in patterns:
+                    # Exact match or pattern is a substring of the column header
+                    if col_str == pattern or pattern in col_str:
+                        col_map[semantic_name] = i
+                        claimed_cols.add(i)
+                        break
+                if semantic_name in col_map:
+                    break
+        
+        # Log detected mapping
+        num_cols = len(columns)
+        print(f"DEBUG: Dynamic column detection ({num_cols} columns): {col_map}")
+        
+        return col_map
+    
     def get_hebrew_headings(self) -> Dict[str, str]:
         """Hebrew heading patterns for Excellence broker"""
         return {
@@ -42,13 +104,16 @@ class ExcellenceBrokerParser(BaseBrokerParser):
         """Extract deposits and withdrawals (security_no = 900) from Excellence format"""
         results = []
         
-        # Look for rows with security ID 900 in column 10
+        # Use dynamic column detection
+        col_map = self.detect_column_indices(df)
+        security_id_col = col_map.get('security_id', self.COL_SECURITY_ID)
+        
+        # Look for rows with security ID 900
         for idx, row in df.iterrows():
             row_values = [str(val).strip() if pd.notna(val) else '' for val in row.values]
             
-            # Check column 10 (COL_SECURITY_ID) for '900'
-            if len(row_values) > self.COL_SECURITY_ID:
-                security_id = str(row_values[self.COL_SECURITY_ID]).strip()
+            if len(row_values) > security_id_col:
+                security_id = str(row_values[security_id_col]).strip()
                 
                 if security_id == '900':
                     # Verify it's actually a deposit/withdrawal by checking for Hebrew keywords
@@ -63,7 +128,7 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                     
                     if any(keyword in row_str for keyword in keywords):
                         # Parse the transaction using the standard parser (with month filtering)
-                        transaction = self.parse_transaction_row(row, '900', 'CASH', 'Cash Transaction', pdf_name, holding_date)
+                        transaction = self.parse_transaction_row(row, '900', 'CASH', 'Cash Transaction', pdf_name, holding_date, col_map=col_map)
                         if transaction:
                             results.append(transaction)
         
@@ -129,15 +194,43 @@ class ExcellenceBrokerParser(BaseBrokerParser):
         return None
     
     def parse_transaction_row(self, row: pd.Series, security_no: str, symbol: str,
-                            name: str, pdf_name: str, holding_date: Optional[datetime] = None) -> Optional[Dict]:
+                            name: str, pdf_name: str, holding_date: Optional[datetime] = None,
+                            col_map: Optional[Dict[str, int]] = None) -> Optional[Dict]:
         """Parse Excellence transaction row format with Hebrew mappings.
         
         Args:
             holding_date: Report date - transactions will be filtered to match this month only.
                          This prevents duplicates when uploading multiple monthly reports.
+            col_map: Optional pre-computed column mapping. If None, will use default indices.
         """
         row_values = [str(val).strip() if pd.notna(val) else '' for val in row.values]
         row_values_no_commas = [s.replace(',', '') for s in row_values]
+        
+        # Use dynamic column indices if col_map provided, otherwise fall back to defaults
+        if col_map:
+            idx_security_id = col_map.get('security_id', self.COL_SECURITY_ID)
+            idx_description = col_map.get('description', self.COL_DESCRIPTION)
+            idx_type = col_map.get('type', self.COL_TYPE)
+            idx_quantity = col_map.get('quantity', self.COL_QUANTITY)
+            idx_price = col_map.get('price', self.COL_PRICE)
+            idx_total = col_map.get('total', self.COL_TOTAL)
+            idx_commission = col_map.get('commission', self.COL_COMMISSION)
+            idx_tax = col_map.get('tax', self.COL_TAX)
+            idx_balance = col_map.get('balance', self.COL_BALANCE)
+            idx_execution_date = col_map.get('execution_date', self.COL_EXECUTION_DATE)
+            idx_value_date = col_map.get('value_date', len(row_values) - 1)
+        else:
+            idx_security_id = self.COL_SECURITY_ID
+            idx_description = self.COL_DESCRIPTION
+            idx_type = self.COL_TYPE
+            idx_quantity = self.COL_QUANTITY
+            idx_price = self.COL_PRICE
+            idx_total = self.COL_TOTAL
+            idx_commission = self.COL_COMMISSION
+            idx_tax = self.COL_TAX
+            idx_balance = self.COL_BALANCE
+            idx_execution_date = self.COL_EXECUTION_DATE
+            idx_value_date = len(row_values) - 1
         
         # Detect if this is an international stock
         is_world_stock = self._is_world_stock(name, symbol)
@@ -209,9 +302,9 @@ class ExcellenceBrokerParser(BaseBrokerParser):
         # Check for security ID 900 (deposits) or description containing העברה
         is_deposit = False
         transaction_type = None
-        if len(row_values) >= 11:
-            security_id = str(row_values[self.COL_SECURITY_ID]).strip()
-            description = str(row_values[self.COL_DESCRIPTION]).strip() if len(row_values) > 9 else ''
+        if len(row_values) > idx_security_id:
+            security_id = str(row_values[idx_security_id]).strip()
+            description = str(row_values[idx_description]).strip() if len(row_values) > idx_description else ''
             if security_id == '900' or 'העברה' in description.lower() or 'הפקדה' in description.lower():
                 is_deposit = True
                 transaction_type = 'DEPOSIT'
@@ -233,14 +326,21 @@ class ExcellenceBrokerParser(BaseBrokerParser):
         transaction_date = None
         transaction_time = None
         
-        # Priority 1: Execution date (Col 12) - this is the actual transaction date
-        # Settlement date (Col 1) is when money clears, not when transaction occurred
-        if len(row_values) >= 12:
-            exec_date = str(row_values[self.COL_EXECUTION_DATE]).strip()
+        # Priority 1: Value date (rightmost date column) - this is the actual transaction date
+        if len(row_values) > idx_value_date:
+            val_date = str(row_values[idx_value_date]).strip()
+            date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', val_date)
+            if date_match:
+                transaction_date = date_match.group(1)
+                print(f"DEBUG: Using value date from Col {idx_value_date}: {transaction_date}")
+        
+        # Priority 2: Execution date column
+        if not transaction_date and len(row_values) > idx_execution_date:
+            exec_date = str(row_values[idx_execution_date]).strip()
             date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})', exec_date)
             if date_match:
                 transaction_date = date_match.group(1)
-                print(f"DEBUG: Using execution date from Col 12: {transaction_date}")
+                print(f"DEBUG: Using execution date from Col {idx_execution_date}: {transaction_date}")
         
         # Priority 2: Settlement date (Col 1) - only if execution date not found
         if not transaction_date and len(row_values) > self.COL_DATE:
@@ -275,11 +375,11 @@ class ExcellenceBrokerParser(BaseBrokerParser):
             # Parse based on transaction type
             if numeric_values:
                 if transaction_type == 'DIVIDEND':
-                    transaction = self._parse_excellence_dividend(transaction, row_values, numeric_values)
+                    transaction = self._parse_excellence_dividend(transaction, row_values, numeric_values, col_map)
                 elif transaction_type in ('DEPOSIT', 'WITHDRAWAL'):
-                    transaction = self._parse_excellence_deposit_withdrawal(transaction, row_values, numeric_values)
+                    transaction = self._parse_excellence_deposit_withdrawal(transaction, row_values, numeric_values, col_map)
                 else:  # BUY or SELL
-                    transaction = self._parse_excellence_buy_sell(transaction, row_values, row_values_no_commas, numeric_values, symbol)
+                    transaction = self._parse_excellence_buy_sell(transaction, row_values, row_values_no_commas, numeric_values, symbol, col_map)
             
             # Only return if we have essential data
             if transaction_type or transaction_date:
@@ -307,18 +407,24 @@ class ExcellenceBrokerParser(BaseBrokerParser):
             return None
     
     def _parse_excellence_dividend(self, transaction: Dict, row_values: List[str], 
-                                   numeric_values: List[float]) -> Dict:
+                                   numeric_values: List[float], col_map: Optional[Dict[str, int]] = None) -> Dict:
         """Parse dividend-specific fields for Excellence format"""
+        # Use dynamic indices if available
+        idx_total = col_map.get('total', self.COL_TOTAL) if col_map else self.COL_TOTAL
+        idx_tax = col_map.get('tax', self.COL_TAX) if col_map else self.COL_TAX
+        idx_quantity = col_map.get('quantity', self.COL_QUANTITY) if col_map else self.COL_QUANTITY
+        idx_balance = col_map.get('balance', self.COL_BALANCE) if col_map else self.COL_BALANCE
+        
         try:
             net_amount = 0
             tax_amount = 0
             
-            # Excellence format: Column 5 = net amount, Column 3 = tax
-            if len(row_values) >= 6 and row_values[5]:
-                net_amount = float(str(row_values[5]).replace('₪', '').replace(',', '').strip())
+            # Excellence format: total column = net amount, tax column = tax
+            if len(row_values) > idx_total and row_values[idx_total]:
+                net_amount = float(str(row_values[idx_total]).replace('₪', '').replace(',', '').strip())
             
-            if len(row_values) >= 4 and row_values[3]:
-                tax_amount = float(str(row_values[3]).replace('₪', '').replace(',', '').strip())
+            if len(row_values) > idx_tax and row_values[idx_tax]:
+                tax_amount = float(str(row_values[idx_tax]).replace('₪', '').replace(',', '').strip())
                 transaction['tax'] = abs(tax_amount)
             
             # Calculate gross amount
@@ -329,15 +435,15 @@ class ExcellenceBrokerParser(BaseBrokerParser):
             elif net_amount > 0:
                 transaction['total_value'] = abs(net_amount)
             
-            # Column 7: Dividend amount (for world stocks) or Column 0: Balance (for Israeli stocks)
-            # Try column 7 first (dividend amount in movement column)
-            if len(row_values) >= 8 and row_values[7]:
-                dividend_amt = self.clean_numeric_value(row_values[7])
+            # Quantity column: Dividend amount (for world stocks) or Balance column (for Israeli stocks)
+            # Try quantity column first (dividend amount in movement column)
+            if len(row_values) > idx_quantity and row_values[idx_quantity]:
+                dividend_amt = self.clean_numeric_value(row_values[idx_quantity])
                 if dividend_amt is not None and dividend_amt != 0:
                     transaction['quantity'] = abs(dividend_amt)
-            # Fallback to Column 0 (balance) for Israeli stocks
-            elif len(row_values) >= 1 and row_values[0]:
-                qty = float(str(row_values[0]).replace('₪', '').replace(',', '').strip())
+            # Fallback to balance column for Israeli stocks
+            elif len(row_values) > idx_balance and row_values[idx_balance]:
+                qty = float(str(row_values[idx_balance]).replace('₪', '').replace(',', '').strip())
                 if qty > 0:
                     transaction['quantity'] = abs(qty)
                     
@@ -352,19 +458,26 @@ class ExcellenceBrokerParser(BaseBrokerParser):
     
     def _parse_excellence_buy_sell(self, transaction: Dict, row_values: List[str],
                                    row_values_no_commas: List[str], numeric_values: List[float],
-                                   symbol: str) -> Dict:
+                                   symbol: str, col_map: Optional[Dict[str, int]] = None) -> Dict:
         """Parse buy/sell transaction fields for Excellence format"""
         def to_float(val: str) -> Optional[float]:
             return self.clean_numeric_value(val)
         
+        # Use dynamic indices if available
+        idx_quantity = col_map.get('quantity', self.COL_QUANTITY) if col_map else self.COL_QUANTITY
+        idx_price = col_map.get('price', self.COL_PRICE) if col_map else self.COL_PRICE
+        idx_commission = col_map.get('commission', self.COL_COMMISSION) if col_map else self.COL_COMMISSION
+        idx_tax = col_map.get('tax', self.COL_TAX) if col_map else self.COL_TAX
+        idx_total = col_map.get('total', self.COL_TOTAL) if col_map else self.COL_TOTAL
+        
         # Excellence format has 12+ columns with specific positions
         if len(row_values) >= 12:
             print(f"DEBUG: Excellence row with {len(row_values)} columns for {symbol}")
-            qty = to_float(row_values[7])  # quantity
-            price_raw = to_float(row_values[6])  # price (in agorot)
-            commission = to_float(row_values[4]) or 0.0
-            tax = to_float(row_values[3]) or 0.0
-            total = to_float(row_values[5])  # net/total
+            qty = to_float(row_values[idx_quantity])  # quantity
+            price_raw = to_float(row_values[idx_price])  # price (in agorot)
+            commission = to_float(row_values[idx_commission]) or 0.0
+            tax = to_float(row_values[idx_tax]) or 0.0
+            total = to_float(row_values[idx_total])  # net/total
             
             print(f"DEBUG: Excellence extracted - qty={qty}, price={price_raw}, commission={commission}, tax={tax}, total={total}")
             
@@ -377,10 +490,10 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                 transaction['commission'] = abs(commission)
             if tax is not None:
                 transaction['tax'] = abs(tax)
-            if total is not None:
+            if total is not None and total != 0.0:
                 transaction['total_value'] = abs(total)
             else:
-                # Calculate total
+                # Calculate total when not provided or zero
                 if transaction.get('quantity') and transaction.get('price'):
                     base = float(transaction['quantity']) * float(transaction['price'])
                     if transaction['transaction_type'] == 'SELL':
@@ -404,25 +517,30 @@ class ExcellenceBrokerParser(BaseBrokerParser):
         return transaction
     
     def _parse_excellence_deposit_withdrawal(self, transaction: Dict, row_values: List[str],
-                                            numeric_values: List[float]) -> Dict:
+                                            numeric_values: List[float], col_map: Optional[Dict[str, int]] = None) -> Dict:
         """Parse deposit/withdrawal transaction fields for Excellence format"""
+        # Use dynamic indices if available
+        idx_total = col_map.get('total', self.COL_TOTAL) if col_map else self.COL_TOTAL
+        idx_balance = col_map.get('balance', self.COL_BALANCE) if col_map else self.COL_BALANCE
+        idx_description = col_map.get('description', self.COL_DESCRIPTION) if col_map else self.COL_DESCRIPTION
+        
         try:
-            # Column 5: Transaction amount (the actual deposit/withdrawal amount)
-            if len(row_values) > self.COL_TOTAL:
-                amount = self.clean_numeric_value(row_values[self.COL_TOTAL])
+            # Total column: Transaction amount (the actual deposit/withdrawal amount)
+            if len(row_values) > idx_total:
+                amount = self.clean_numeric_value(row_values[idx_total])
                 if amount is not None:
                     transaction['total_value'] = abs(amount)
             
-            # Column 0: Balance after transaction
-            if len(row_values) > self.COL_BALANCE:
-                balance = self.clean_numeric_value(row_values[self.COL_BALANCE])
+            # Balance column: Balance after transaction
+            if len(row_values) > idx_balance:
+                balance = self.clean_numeric_value(row_values[idx_balance])
                 if balance is not None:
                     # Store as quantity for consistency (represents cash balance)
                     transaction['quantity'] = abs(balance)
             
-            # Column 9: Description (optional)
-            if len(row_values) > self.COL_DESCRIPTION:
-                description = str(row_values[self.COL_DESCRIPTION]).strip()
+            # Description column (optional)
+            if len(row_values) > idx_description:
+                description = str(row_values[idx_description]).strip()
                 if description:
                     transaction['description'] = description
             
@@ -468,8 +586,10 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                 return True
         
         # Check for common US stock name patterns with ticker symbols
-        # Example: "NIKE (NKE)", "APPLE INC (AAPL)"
-        if re.search(r'\([A-Z]{1,5}\)', name):  # Ticker in parentheses
+        # Example: "NIKE (NKE)", "APPLE INC (AAPL)", "CATERPILLAR(CAT" (truncated)
+        if re.search(r'\([A-Z]{1,5}\)', name):  # Ticker in parentheses - complete
+            return True
+        if re.search(r'\([A-Z]{1,5}$', name):  # Ticker in parentheses - truncated (missing closing paren)
             return True
         
         # If none of the above patterns match, it's likely Israeli

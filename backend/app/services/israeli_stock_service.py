@@ -464,15 +464,20 @@ class IsraeliStockService:
                 
                 print(f"DEBUG: {filename} - Scanning for world stocks...")
                 
+                # Dynamically detect column indices from Hebrew headers
+                col_map = self.broker_parser.detect_column_indices(df)
+                idx_security_id = col_map.get('security_id', 10)
+                idx_description = col_map.get('description', 9)
+                
                 # Two-pass approach: first collect all transactions, then process commissions
                 all_rows = []
                 
                 # First pass: collect all world stock rows
                 for idx, row in df.iterrows():
                     try:
-                        # Extract security number and name from specific columns
-                        security_no_raw = row.iloc[10] if len(row) > 10 else None
-                        name_raw = row.iloc[9] if len(row) > 9 else None
+                        # Extract security number and name using dynamic column indices
+                        security_no_raw = row.iloc[idx_security_id] if len(row) > idx_security_id else None
+                        name_raw = row.iloc[idx_description] if len(row) > idx_description else None
                         
                         if pd.isna(security_no_raw) or pd.isna(name_raw):
                             continue
@@ -514,7 +519,8 @@ class IsraeliStockService:
                         transaction = self.broker_parser.parse_transaction_row(
                             row_data['row'], row_data['security_no'], 
                             row_data['security_no'], row_data['name'], 
-                            row_data['pdf_name'], row_data['holding_date']
+                            row_data['pdf_name'], row_data['holding_date'],
+                            col_map=col_map
                         )
                         
                         if not transaction or not transaction.get('is_world_stock'):
@@ -705,6 +711,9 @@ class IsraeliStockService:
         """Find Israeli stocks in a CSV DataFrame"""
         results = []
         
+        # Detect column indices dynamically for this DataFrame
+        col_map = self.broker_parser.detect_column_indices(df)
+        
         # First, check for deposits/withdrawals using broker-specific logic
         if csv_type == "transactions" and hasattr(self.broker_parser, 'extract_deposits_withdrawals'):
             deposits = self.broker_parser.extract_deposits_withdrawals(df, pdf_name, holding_date)
@@ -731,7 +740,7 @@ class IsraeliStockService:
                         results.append(holding_data)
             else:
                 # Transaction tables - extract all transaction types including dividends
-                transaction_data = self.extract_transaction_from_csv(df, security_no, symbol, name, pdf_name, holding_date)
+                transaction_data = self.extract_transaction_from_csv(df, security_no, symbol, name, pdf_name, holding_date, col_map=col_map)
                 if transaction_data:
                     results.extend(transaction_data)
         
@@ -759,22 +768,24 @@ class IsraeliStockService:
     
     
     def extract_transaction_from_csv(self, df: pd.DataFrame, security_no: str, symbol: str, 
-                                   name: str, pdf_name: str, holding_date: Optional[datetime] = None) -> List[Dict]:
+                                   name: str, pdf_name: str, holding_date: Optional[datetime] = None,
+                                   col_map: Optional[Dict] = None) -> List[Dict]:
         """Extract transaction details for a specific stock from CSV"""
         transactions = []
         mask = df.astype(str).apply(lambda x: x.str.contains(security_no, na=False)).any(axis=1)
         relevant_rows = df[mask]
         
         for idx, row in relevant_rows.iterrows():
-            transaction = self.parse_transaction_row(row, security_no, symbol, name, pdf_name, holding_date)
+            transaction = self.parse_transaction_row(row, security_no, symbol, name, pdf_name, holding_date, col_map=col_map)
             if transaction:
                 transactions.append(transaction)
         
         return transactions
     
-    def parse_transaction_row(self, row, security_no: str, symbol: str, name: str, pdf_name: str, holding_date: Optional[datetime] = None) -> Optional[Dict]:
+    def parse_transaction_row(self, row, security_no: str, symbol: str, name: str, pdf_name: str, 
+                             holding_date: Optional[datetime] = None, col_map: Optional[Dict] = None) -> Optional[Dict]:
         """Parse a single row into transaction data (delegates to broker parser)"""
-        return self.broker_parser.parse_transaction_row(row, security_no, symbol, name, pdf_name, holding_date)
+        return self.broker_parser.parse_transaction_row(row, security_no, symbol, name, pdf_name, holding_date, col_map=col_map)
     
     def save_holdings_to_database(self, holdings: List[Dict], user_id: str) -> int:
         """Save holdings to database using bulk insert"""

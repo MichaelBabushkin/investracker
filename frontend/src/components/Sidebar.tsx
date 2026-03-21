@@ -126,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOp
       {/* Header */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-white/5">
         {!isCollapsed ? (
-          <Image src="/images/investracker_logo-dark.svg" alt="Investracker" width={140} height={36} className="h-8 w-auto" />
+          <Image src="/images/investracker_logo.svg" alt="Investracker" width={140} height={36} className="max-w-80 h-auto" />
         ) : (
           <Image src="/images/small_logo.svg" alt="Investracker" width={32} height={32} className="w-8 h-8 mx-auto" />
         )}
