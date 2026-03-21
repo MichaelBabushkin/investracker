@@ -472,7 +472,10 @@ class IsraeliStockService:
                 # Two-pass approach: first collect all transactions, then process commissions
                 all_rows = []
                 
-                # First pass: collect all world stock rows
+                # Column indices for type checking
+                idx_type = col_map.get('type', 8)
+                
+                # First pass: collect all world stock rows AND currency conversion rows
                 for idx, row in df.iterrows():
                     try:
                         # Extract security number and name using dynamic column indices
@@ -485,7 +488,21 @@ class IsraeliStockService:
                         security_no = str(security_no_raw).replace('.0', '').strip()
                         name = str(name_raw).strip()
                         
+                        # Check for currency conversion (security 99028, description = דולר ארה"ב / US Dollar)
+                        # These are ILS→USD conversion transactions
+                        is_currency_conversion = False
+                        if security_no == '99028':
+                            # Check if description contains "dollar" in Hebrew (forward or reversed)
+                            dollar_keywords = ['דולר', 'רלוד', 'dollar']
+                            if any(kw in name.lower() for kw in dollar_keywords):
+                                # Verify it's a BUY type (קניה), not a commission (משלעמל)
+                                type_val = str(row.iloc[idx_type]).strip() if len(row) > idx_type else ''
+                                buy_types = ['הינק', 'קניה', 'קנייה']
+                                if any(bt in type_val for bt in buy_types):
+                                    is_currency_conversion = True
+                        
                         # Clean the name by removing Hebrew transaction type prefixes
+                        original_name = name
                         for prefix in hebrew_prefixes:
                             if name.startswith(prefix):
                                 name = name[len(prefix):].strip()
@@ -493,18 +510,21 @@ class IsraeliStockService:
                         
                         # Skip if security_no is 0 or empty, or name is too short
                         if not security_no or security_no == '0' or len(name) < 2:
-                            continue
+                            if not is_currency_conversion:
+                                continue
                         
-                        # Check if it's a world stock
-                        is_world = self.broker_parser._is_world_stock(name, security_no)
+                        # Check if it's a world stock or currency conversion
+                        is_world = self.broker_parser._is_world_stock(name, security_no) or is_currency_conversion
                         
                         if is_world:
                             all_rows.append({
                                 'row': row,
                                 'security_no': security_no,
                                 'name': name,
+                                'original_name': original_name,
                                 'pdf_name': pdf_name,
-                                'holding_date': holding_date
+                                'holding_date': holding_date,
+                                'is_currency_conversion': is_currency_conversion,
                             })
                     except Exception as e:
                         continue
@@ -516,6 +536,46 @@ class IsraeliStockService:
                 
                 for row_data in all_rows:
                     try:
+                        # Handle currency conversion specially
+                        if row_data.get('is_currency_conversion'):
+                            transaction = self.broker_parser.parse_transaction_row(
+                                row_data['row'], row_data['security_no'], 
+                                row_data['security_no'], row_data['name'], 
+                                row_data['pdf_name'], row_data['holding_date'],
+                                col_map=col_map
+                            )
+                            if transaction:
+                                # Override to CURRENCY_CONVERSION type
+                                transaction['transaction_type'] = 'CURRENCY_CONVERSION'
+                                transaction['is_world_stock'] = True
+                                transaction['symbol'] = 'USD'
+                                transaction['ticker'] = 'USD'
+                                transaction['name'] = 'US Dollar (ILS → USD)'
+                                transaction['stock_name'] = 'US Dollar (ILS → USD)'
+                                transaction['currency'] = 'ILS'
+                                
+                                # For currency conversion:
+                                # quantity = USD amount purchased
+                                # price = exchange rate (already converted from agorot to ILS by parse_transaction_row)
+                                # total_value = ILS amount spent (the סכום לחיוב/זיכוי column)
+                                exchange_rate = transaction.get('price', 0)
+                                usd_amount = transaction.get('quantity', 0)
+                                ils_total = transaction.get('total_value', 0)
+                                
+                                # If total wasn't parsed correctly, calculate from qty * rate
+                                if not ils_total and usd_amount and exchange_rate:
+                                    ils_total = abs(usd_amount * exchange_rate)
+                                
+                                transaction['exchange_rate'] = exchange_rate
+                                transaction['amount'] = abs(ils_total) if ils_total else None
+                                transaction['total_value'] = abs(ils_total) if ils_total else None
+                                transaction['quantity'] = abs(usd_amount) if usd_amount else None
+                                transaction['price'] = exchange_rate
+                                
+                                print(f"DEBUG: Currency conversion - ${transaction['quantity']:.2f} at ₪{exchange_rate:.4f}/USD = ₪{transaction['amount']:.2f}")
+                                all_world_transactions.append(transaction)
+                            continue
+                        
                         transaction = self.broker_parser.parse_transaction_row(
                             row_data['row'], row_data['security_no'], 
                             row_data['security_no'], row_data['name'], 
@@ -580,35 +640,41 @@ class IsraeliStockService:
                 # Key insight: Different Hebrew types mean different things:
                 # - 'חסמ/שמ' = dividend withholding tax (should go to DIVIDEND.tax)
                 # - 'מש/עמל' or 'למע/שמ' = trading commission (should go to BUY/SELL.commission)
+                # Commission matching uses DATE to disambiguate when multiple BUY/SELL exist for the same ticker
                 import re
+                
+                def find_matching_txn(txn_list, target_types, comm_date=None):
+                    """Find the best matching transaction by type and date"""
+                    # First try: match by type AND date
+                    if comm_date:
+                        for txn in txn_list:
+                            if txn.get('transaction_type') in target_types and txn.get('transaction_date') == comm_date:
+                                return txn
+                    # Fallback: match by type only (first unmatched)
+                    for txn in txn_list:
+                        if txn.get('transaction_type') in target_types:
+                            return txn
+                    return None
+                
                 for comm_row in commission_rows:
                     comm_transaction = comm_row['transaction']
                     comm_name = comm_row['name']
                     comm_amt = abs(comm_transaction.get('quantity', 0.0) or 0.0)
+                    comm_date = comm_transaction.get('transaction_date')
                     raw_hebrew_type = comm_transaction.get('raw_hebrew_type', '')
                     
                     # Determine if this is a dividend withholding tax or trading commission
                     is_dividend_tax = raw_hebrew_type in ('חסמ/שמ',)
-                    is_trading_commission = raw_hebrew_type in ('מש/עמל', 'למע/שמ', 'עמל')
+                    target_types = ('DIVIDEND',) if is_dividend_tax else ('BUY', 'SELL')
                     
                     if comm_amt > 0:
                         target_txn = None
                         
-                        # Try exact match first
+                        # Try exact name match first
                         if comm_name in transactions_by_stock:
-                            txn_list = transactions_by_stock[comm_name]
-                            if is_dividend_tax:
-                                for txn in txn_list:
-                                    if txn.get('transaction_type') == 'DIVIDEND':
-                                        target_txn = txn
-                                        break
-                            else:
-                                for txn in txn_list:
-                                    if txn.get('transaction_type') in ('BUY', 'SELL'):
-                                        target_txn = txn
-                                        break
+                            target_txn = find_matching_txn(transactions_by_stock[comm_name], target_types, comm_date)
                         
-                        # If no match found, try partial matching
+                        # If no match found, try partial ticker matching
                         if not target_txn:
                             for stored_name, stored_txn_list in transactions_by_stock.items():
                                 stored_tickers = re.findall(r'\b([A-Z]{2,5})\b|\(([A-Z]+)\)', stored_name)
@@ -623,16 +689,7 @@ class IsraeliStockService:
                                 
                                 if stored_tickers and current_tickers:
                                     if any(t in current_tickers for t in stored_tickers):
-                                        if is_dividend_tax:
-                                            for txn in stored_txn_list:
-                                                if txn.get('transaction_type') == 'DIVIDEND':
-                                                    target_txn = txn
-                                                    break
-                                        else:
-                                            for txn in stored_txn_list:
-                                                if txn.get('transaction_type') in ('BUY', 'SELL'):
-                                                    target_txn = txn
-                                                    break
+                                        target_txn = find_matching_txn(stored_txn_list, target_types, comm_date)
                                         if target_txn:
                                             break
                         

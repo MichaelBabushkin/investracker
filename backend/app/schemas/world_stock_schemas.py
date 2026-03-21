@@ -79,11 +79,13 @@ class WorldStockTransactionResponse(BaseModel):
     tax: Optional[Decimal] = None
     currency: str = "USD"
     exchange_rate: Optional[Decimal] = None
+    realized_pl: Optional[Decimal] = None
+    cost_basis: Optional[Decimal] = None
     source_pdf: str
     created_at: datetime
     updated_at: datetime
     
-    @field_serializer('quantity', 'price', 'total_value', 'commission', 'tax', 'exchange_rate')
+    @field_serializer('quantity', 'price', 'total_value', 'commission', 'tax', 'exchange_rate', 'realized_pl', 'cost_basis')
     def serialize_decimal(self, value: Optional[Decimal], _info):
         return float(value) if value is not None else None
 
@@ -133,14 +135,26 @@ class WorldStockSummaryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
     total_value: Decimal
+    total_cost: Decimal = Decimal('0')
     total_holdings: int
     total_transactions: int
     total_dividends: Decimal
     total_tax: Decimal
     total_commissions: Decimal
+    total_realized_pl: Decimal = Decimal('0')
+    total_unrealized_pl: Decimal = Decimal('0')
+    total_unrealized_pl_pct: Decimal = Decimal('0')
+    total_cash: Decimal = Decimal('0')
+    total_invested: Decimal = Decimal('0')
     holdings_count: int
     transactions_count: int
     dividends_count: int
+    
+    @field_serializer('total_value', 'total_cost', 'total_dividends', 'total_tax', 
+                      'total_commissions', 'total_realized_pl', 'total_unrealized_pl',
+                      'total_unrealized_pl_pct', 'total_cash', 'total_invested')
+    def serialize_decimal(self, value: Optional[Decimal], _info):
+        return float(value) if value is not None else 0.0
 
 
 # Pending transaction schemas (simplified)

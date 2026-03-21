@@ -229,7 +229,8 @@ async def get_world_stock_transactions(
             query = text(f"""
                 SELECT id, user_id, ticker, symbol, company_name, transaction_type,
                        transaction_date, transaction_time, quantity, price, total_value,
-                       commission, tax, currency, exchange_rate, source_pdf, created_at, updated_at
+                       commission, tax, currency, exchange_rate, source_pdf, created_at, updated_at,
+                       realized_pl, cost_basis
                 FROM "world_stock_transactions"
                 WHERE {where_clause}
                 ORDER BY transaction_date DESC NULLS LAST, created_at DESC
@@ -259,7 +260,9 @@ async def get_world_stock_transactions(
                     exchange_rate=row[14],
                     source_pdf=row[15],
                     created_at=row[16],
-                    updated_at=row[17]
+                    updated_at=row[17],
+                    realized_pl=row[18],
+                    cost_basis=row[19]
                 ))
             
             return transactions
@@ -349,14 +352,20 @@ async def get_world_stock_summary(
         params = {"user_id": target_user_id}
         
         with engine.connect() as conn:
-            # Get holdings summary
+            # Get holdings summary with real-time prices
             holdings_query = text("""
                 SELECT 
                     COUNT(*) as holdings_count,
-                    COALESCE(SUM(current_value), 0) as total_value,
-                    COALESCE(SUM(purchase_cost), 0) as total_cost
-                FROM "world_stock_holdings"
-                WHERE user_id = :user_id
+                    COALESCE(SUM(
+                        CASE WHEN sp.current_price IS NOT NULL 
+                             THEN h.quantity * sp.current_price
+                             ELSE h.current_value
+                        END
+                    ), 0) as total_value,
+                    COALESCE(SUM(h.purchase_cost), 0) as total_cost
+                FROM "world_stock_holdings" h
+                LEFT JOIN "stock_prices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
+                WHERE h.user_id = :user_id
             """)
             
             holdings_result = conn.execute(holdings_query, params).fetchone()
@@ -373,11 +382,15 @@ async def get_world_stock_summary(
             
             dividends_result = conn.execute(dividends_query, params).fetchone()
             
-            # Get transactions summary
+            # Get transactions summary including realized P/L
             transactions_query = text("""
                 SELECT 
                     COALESCE(SUM(commission), 0) as total_commissions,
-                    COUNT(*) as transactions_count
+                    COUNT(*) as transactions_count,
+                    COALESCE(SUM(CASE WHEN transaction_type = 'SELL' THEN realized_pl ELSE 0 END), 0) as total_realized_pl,
+                    COALESCE(SUM(CASE WHEN transaction_type = 'SELL' THEN quantity * price - COALESCE(commission, 0) ELSE 0 END), 0) as total_sell_inflow,
+                    COALESCE(SUM(CASE WHEN transaction_type = 'CURRENCY_CONVERSION' THEN quantity ELSE 0 END), 0) as total_fx_usd,
+                    COALESCE(SUM(CASE WHEN transaction_type = 'BUY' THEN quantity * price + COALESCE(commission, 0) ELSE 0 END), 0) as total_buy_outflow
                 FROM "world_stock_transactions"
                 WHERE user_id = :user_id
             """)
@@ -394,21 +407,50 @@ async def get_world_stock_summary(
             
             total_commissions = transactions_result[0] or Decimal('0')
             transactions_count = transactions_result[1] or 0
+            total_realized_pl = transactions_result[2] or Decimal('0')
+            total_sell_inflow = transactions_result[3] or Decimal('0')
+            total_fx_usd = transactions_result[4] or Decimal('0')
+            total_buy_outflow = transactions_result[5] or Decimal('0')
             
-            # Calculate unrealized P/L and percentage
+            # Net dividends (after tax)
+            net_div_query = text("""
+                SELECT COALESCE(SUM(net_amount), 0) FROM "world_dividends" WHERE user_id = :user_id
+            """)
+            total_net_dividends = conn.execute(net_div_query, params).fetchone()[0] or Decimal('0')
+            
+            # Calculate unrealized P/L
             total_unrealized_pl = total_value - total_cost
+            total_unrealized_pl_pct = Decimal('0')
             if total_cost > 0:
-                total_unrealized_pl_percent = (total_unrealized_pl / total_cost) * 100
+                total_unrealized_pl_pct = (total_unrealized_pl / total_cost) * 100
+            
+            # Cash = FX deposits (USD) - BUY outflows + SELL inflows + net dividends
+            # If no FX deposit data, infer deposit = buy outflows (user deposited exactly enough)
+            # So available cash = sell net proceeds + net dividends
+            if total_fx_usd > 0:
+                total_cash = total_fx_usd - total_buy_outflow + total_sell_inflow + total_net_dividends
+                if total_cash < 0:
+                    total_cash = Decimal('0')
             else:
-                total_unrealized_pl_percent = Decimal('0')
+                # No FX data — cash from completed sells + dividends
+                total_cash = total_sell_inflow + total_net_dividends
+            
+            # Total invested = total cost of current holdings (including commissions)
+            total_invested = total_cost
             
             return WorldStockSummaryResponse(
                 total_value=total_value,
+                total_cost=total_cost,
                 total_holdings=holdings_count,
                 total_transactions=transactions_count,
                 total_dividends=total_dividends,
                 total_tax=total_tax,
                 total_commissions=total_commissions,
+                total_realized_pl=total_realized_pl,
+                total_unrealized_pl=total_unrealized_pl,
+                total_unrealized_pl_pct=total_unrealized_pl_pct,
+                total_cash=total_cash if total_cash > 0 else Decimal('0'),
+                total_invested=total_invested,
                 holdings_count=holdings_count,
                 transactions_count=transactions_count,
                 dividends_count=dividends_count
@@ -416,6 +458,142 @@ async def get_world_stock_summary(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error calculating summary: {str(e)}")
+
+
+@router.get("/portfolio-dashboard")
+async def get_portfolio_dashboard(
+    user_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get combined portfolio data for the dashboard homepage"""
+    try:
+        from sqlalchemy import text
+        from app.core.database import engine
+        from decimal import Decimal
+        
+        target_user_id = user_id or current_user.id
+        params = {"user_id": target_user_id}
+        
+        with engine.connect() as conn:
+            # Holdings with real-time prices
+            holdings_query = text("""
+                SELECT h.ticker, h.symbol, h.company_name, h.quantity, 
+                       h.purchase_cost,
+                       COALESCE(sp.current_price, h.last_price, 0) as current_price,
+                       CASE 
+                           WHEN sp.current_price IS NOT NULL THEN h.quantity * sp.current_price
+                           ELSE h.current_value
+                       END as market_value,
+                       ws.sector
+                FROM "world_stock_holdings" h
+                LEFT JOIN "stock_prices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
+                LEFT JOIN "world_stocks" ws ON h.ticker = ws.ticker
+                WHERE h.user_id = :user_id AND h.quantity > 0
+                ORDER BY 
+                    CASE WHEN sp.current_price IS NOT NULL THEN h.quantity * sp.current_price ELSE h.current_value END DESC NULLS LAST
+            """)
+            holdings_rows = conn.execute(holdings_query, params).fetchall()
+            
+            holdings = []
+            total_value = Decimal('0')
+            total_cost = Decimal('0')
+            sectors = {}
+            
+            for row in holdings_rows:
+                qty = float(row[3] or 0)
+                cost = float(row[4] or 0)
+                price = float(row[5] or 0)
+                value = float(row[6] or 0)
+                gain = value - cost
+                gain_pct = (gain / cost * 100) if cost > 0 else 0
+                sector = row[7] or "Other"
+                
+                total_value += Decimal(str(value))
+                total_cost += Decimal(str(cost))
+                sectors[sector] = sectors.get(sector, 0) + value
+                
+                holdings.append({
+                    "symbol": row[1] or row[0],
+                    "name": row[2] or row[1] or row[0],
+                    "shares": qty,
+                    "currentPrice": price,
+                    "value": value,
+                    "gainLoss": round(gain, 2),
+                    "gainLossPercent": round(gain_pct, 1),
+                })
+            
+            # Recent transactions (last 10)
+            txn_query = text("""
+                SELECT id, ticker, symbol, transaction_type, transaction_date, quantity, price, total_value, commission
+                FROM "world_stock_transactions"
+                WHERE user_id = :user_id
+                ORDER BY transaction_date DESC NULLS LAST, created_at DESC
+                LIMIT 10
+            """)
+            txn_rows = conn.execute(txn_query, params).fetchall()
+            
+            recent_transactions = []
+            for row in txn_rows:
+                txn_type = (row[3] or "").upper()
+                recent_transactions.append({
+                    "id": row[0],
+                    "type": txn_type.lower(),
+                    "symbol": row[2] or row[1],
+                    "shares": float(row[5] or 0),
+                    "price": float(row[6] or 0),
+                    "date": str(row[4]) if row[4] else None,
+                    "total": float(row[7] or 0),
+                })
+            
+            # Realized P/L + commissions
+            pl_query = text("""
+                SELECT 
+                    COALESCE(SUM(CASE WHEN transaction_type = 'SELL' THEN realized_pl ELSE 0 END), 0),
+                    COALESCE(SUM(commission), 0)
+                FROM "world_stock_transactions"
+                WHERE user_id = :user_id
+            """)
+            pl_row = conn.execute(pl_query, params).fetchone()
+            total_realized_pl = float(pl_row[0] or 0)
+            total_commissions = float(pl_row[1] or 0)
+            
+            # Dividends
+            div_query = text("""
+                SELECT COALESCE(SUM(net_amount), 0) FROM "world_dividends" WHERE user_id = :user_id
+            """)
+            total_net_dividends = float(conn.execute(div_query, params).fetchone()[0] or 0)
+            
+            total_gain_loss = float(total_value - total_cost) + total_realized_pl
+            total_invested = float(total_cost)
+            total_val = float(total_value)
+            
+            # Sector allocation
+            sector_data = []
+            if total_val > 0:
+                for sector_name, sector_val in sorted(sectors.items(), key=lambda x: -x[1]):
+                    pct = round(sector_val / total_val * 100, 1)
+                    if pct > 0:
+                        sector_data.append({"name": sector_name, "value": pct})
+            
+            return {
+                "portfolioData": {
+                    "totalValue": total_val,
+                    "dayChange": 0,  # Would need previous close data
+                    "dayChangePercent": 0,
+                    "totalGainLoss": round(total_gain_loss, 2),
+                    "totalGainLossPercent": round((total_gain_loss / total_invested * 100) if total_invested > 0 else 0, 1),
+                    "totalInvested": total_invested,
+                    "totalRealizedPL": total_realized_pl,
+                    "totalDividends": total_net_dividends,
+                    "totalCommissions": total_commissions,
+                },
+                "holdings": holdings,
+                "recentTransactions": recent_transactions[:5],
+                "sectorData": sector_data,
+            }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading dashboard: {str(e)}")
 
 
 @router.delete("/holdings/{holding_id}")
@@ -888,6 +1066,201 @@ async def get_logo_statistics(
 
 # ===== PENDING TRANSACTIONS ENDPOINTS =====
 
+def _extract_ticker(ticker_field: str, stock_name: str):
+    """Extract actual ticker from stock_name (e.g., 'NKE US' -> 'NKE', 'FORD MOTOR(F)' -> 'F', 'CATERPILLAR(CAT' -> 'CAT')"""
+    import re
+    actual_ticker = ticker_field
+    stock_name_for_display = stock_name
+    
+    if stock_name:
+        name = stock_name.strip()
+        if ' US' in name:
+            actual_ticker = name.replace(' US', '').strip()
+        elif '(' in name and ')' in name:
+            # Full paren: "FORD MOTOR(F)" -> ticker="F"
+            start = name.rfind('(')
+            end = name.rfind(')')
+            if start != -1 and end != -1:
+                actual_ticker = name[start+1:end]
+                stock_name_for_display = name[:start].strip()
+        elif '(' in name:
+            # Truncated paren (PDF column cutoff): "CATERPILLAR(CAT" -> ticker="CAT"
+            start = name.rfind('(')
+            candidate = name[start+1:].strip()
+            # Validate it looks like a ticker (1-5 uppercase letters)
+            if candidate and re.match(r'^[A-Z]{1,5}$', candidate):
+                actual_ticker = candidate
+                stock_name_for_display = name[:start].strip()
+    
+    return actual_ticker, stock_name_for_display
+
+
+def _process_approved_transaction(conn, t, user_id: str, now):
+    """Process a single approved transaction into final tables.
+    
+    Handles BUY, SELL (with realized P/L), DIVIDEND, and CURRENCY_CONVERSION.
+    """
+    actual_ticker, stock_name_for_display = _extract_ticker(t.ticker, t.stock_name)
+    
+    if t.transaction_type in ('BUY', 'SELL'):
+        quantity = float(t.quantity or 0)
+        price = float(t.price or 0)
+        buy_commission = float(t.commission or 0) if t.transaction_type == 'BUY' else 0
+        cost = quantity * price + buy_commission  # Include buy commission in cost basis
+        realized_pl = None
+        cost_basis = None
+        
+        # For SELL, compute realized P/L BEFORE modifying the holding
+        if t.transaction_type == 'SELL':
+            existing = conn.execute(text("""
+                SELECT id, quantity, purchase_cost FROM "world_stock_holdings"
+                WHERE user_id = :user_id AND ticker = :ticker
+            """), {"user_id": user_id, "ticker": actual_ticker}).fetchone()
+            
+            if existing and float(existing[1] or 0) > 0:
+                avg_cost_per_share = float(existing[2] or 0) / float(existing[1])
+                cost_basis = avg_cost_per_share * quantity
+                # Use gross proceeds (qty * price), then subtract commission once
+                gross_proceeds = quantity * price
+                sell_commission = float(t.commission or 0)
+                realized_pl = gross_proceeds - cost_basis - sell_commission
+        
+        # Insert transaction record
+        conn.execute(text("""
+            INSERT INTO "world_stock_transactions" 
+            (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
+             transaction_type, quantity, price, total_value, commission, currency, 
+             source_pdf, realized_pl, cost_basis, created_at, updated_at)
+            VALUES (:user_id, :ticker, :symbol, :company_name, :transaction_date, :transaction_time,
+                    :transaction_type, :quantity, :price, :total_value, :commission, :currency, 
+                    :source_pdf, :realized_pl, :cost_basis, :created_at, :updated_at)
+        """), {
+            "user_id": user_id,
+            "ticker": actual_ticker,
+            "symbol": actual_ticker,
+            "company_name": stock_name_for_display,
+            "transaction_date": t.transaction_date,
+            "transaction_time": t.transaction_time,
+            "transaction_type": t.transaction_type,
+            "quantity": t.quantity,
+            "price": t.price,
+            "total_value": t.amount,
+            "commission": t.commission,
+            "currency": t.currency or "USD",
+            "source_pdf": t.pdf_filename,
+            "realized_pl": realized_pl,
+            "cost_basis": cost_basis,
+            "created_at": now,
+            "updated_at": now
+        })
+        
+        # Update or create holding
+        existing_holding = conn.execute(text("""
+            SELECT id, quantity, purchase_cost FROM "world_stock_holdings"
+            WHERE user_id = :user_id AND ticker = :ticker
+        """), {"user_id": user_id, "ticker": actual_ticker}).fetchone()
+        
+        if t.transaction_type == 'BUY':
+            if existing_holding:
+                new_qty = float(existing_holding[1] or 0) + quantity
+                new_cost = float(existing_holding[2] or 0) + cost
+                conn.execute(text("""
+                    UPDATE "world_stock_holdings" 
+                    SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
+                    WHERE id = :id
+                """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
+            else:
+                conn.execute(text("""
+                    INSERT INTO "world_stock_holdings" 
+                    (user_id, ticker, symbol, company_name, quantity, purchase_cost, 
+                     current_value, currency, source_pdf, created_at, updated_at)
+                    VALUES (:user_id, :ticker, :symbol, :company_name, :quantity, :purchase_cost,
+                            :current_value, :currency, :source_pdf, :created_at, :updated_at)
+                """), {
+                    "user_id": user_id,
+                    "ticker": actual_ticker,
+                    "symbol": actual_ticker,
+                    "company_name": stock_name_for_display,
+                    "quantity": quantity,
+                    "purchase_cost": cost,
+                    "current_value": cost,
+                    "currency": t.currency or "USD",
+                    "source_pdf": t.pdf_filename,
+                    "created_at": now,
+                    "updated_at": now
+                })
+        elif t.transaction_type == 'SELL':
+            if existing_holding:
+                new_qty = float(existing_holding[1] or 0) - quantity
+                if new_qty > 0.001:
+                    original_qty = float(existing_holding[1] or 1)
+                    new_cost = float(existing_holding[2] or 0) * (new_qty / original_qty)
+                    conn.execute(text("""
+                        UPDATE "world_stock_holdings" 
+                        SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
+                        WHERE id = :id
+                    """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
+                else:
+                    conn.execute(text("""
+                        DELETE FROM "world_stock_holdings" WHERE id = :id
+                    """), {"id": existing_holding[0]})
+    
+    elif t.transaction_type == 'DIVIDEND':
+        gross_amount = t.amount or 0
+        tax_amount = t.tax or 0
+        net_amount = gross_amount - tax_amount
+        
+        conn.execute(text("""
+            INSERT INTO "world_dividends" 
+            (user_id, ticker, symbol, company_name, payment_date, amount, tax, net_amount, 
+             currency, source_pdf, created_at, updated_at)
+            VALUES (:user_id, :ticker, :symbol, :company_name, :payment_date, :amount, :tax, :net_amount, 
+                    :currency, :source_pdf, :created_at, :updated_at)
+        """), {
+            "user_id": user_id,
+            "ticker": actual_ticker,
+            "symbol": actual_ticker,
+            "company_name": stock_name_for_display,
+            "payment_date": t.transaction_date,
+            "amount": t.amount,
+            "tax": t.tax,
+            "net_amount": net_amount,
+            "currency": t.currency or "USD",
+            "source_pdf": t.pdf_filename,
+            "created_at": now,
+            "updated_at": now
+        })
+    
+    elif t.transaction_type == 'CURRENCY_CONVERSION':
+        # Store as a transaction for cash tracking (ILS -> USD conversion)
+        conn.execute(text("""
+            INSERT INTO "world_stock_transactions" 
+            (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
+             transaction_type, quantity, price, total_value, commission, currency, 
+             exchange_rate, source_pdf, created_at, updated_at)
+            VALUES (:user_id, :ticker, :symbol, :company_name, :transaction_date, :transaction_time,
+                    :transaction_type, :quantity, :price, :total_value, :commission, :currency, 
+                    :exchange_rate, :source_pdf, :created_at, :updated_at)
+        """), {
+            "user_id": user_id,
+            "ticker": "USD",
+            "symbol": "USD",
+            "company_name": "Currency Conversion ILS→USD",
+            "transaction_date": t.transaction_date,
+            "transaction_time": t.transaction_time,
+            "transaction_type": "CURRENCY_CONVERSION",
+            "quantity": t.quantity,  # USD amount
+            "price": t.price,  # Exchange rate
+            "total_value": t.amount,  # ILS amount
+            "commission": t.commission,
+            "currency": t.currency or "ILS",
+            "exchange_rate": t.exchange_rate or t.price,
+            "source_pdf": t.pdf_filename,
+            "created_at": now,
+            "updated_at": now
+        })
+
+
 @router.get("/pending-transactions")
 async def get_pending_world_transactions(
     batch_id: Optional[str] = None,
@@ -1000,154 +1373,14 @@ async def approve_pending_world_transaction(
     if transaction.status not in ("pending", "modified"):
         raise HTTPException(status_code=400, detail=f"Transaction already {transaction.status}")
     
-    # Process transaction into final tables
     try:
-        # Import here to avoid circular dependency
         from sqlalchemy import text
         
         with engine.connect() as conn:
             now = datetime.now()
-            
-            # Extract actual ticker from stock_name (e.g., "NKE US" -> "NKE", "FORD MOTOR(F)" -> "F")
-            # If stock_name contains a ticker, use it; otherwise fall back to the ticker field
-            actual_ticker = transaction.ticker
-            stock_name_for_display = transaction.stock_name
-            
-            if transaction.stock_name:
-                # Handle formats like "NKE US", "FORD MOTOR(F)", etc.
-                name = transaction.stock_name.strip()
-                if ' US' in name:
-                    # Format: "NKE US" -> extract "NKE"
-                    actual_ticker = name.replace(' US', '').strip()
-                elif '(' in name and ')' in name:
-                    # Format: "FORD MOTOR(F)" -> extract "F"
-                    start = name.rfind('(')
-                    end = name.rfind(')')
-                    if start != -1 and end != -1:
-                        actual_ticker = name[start+1:end]
-                        stock_name_for_display = name[:start].strip()
-            
-            # Based on transaction type, insert into appropriate table
-            if transaction.transaction_type in ('BUY', 'SELL'):
-                # Insert into WorldStockTransaction
-                insert_query = text("""
-                    INSERT INTO "world_stock_transactions" 
-                    (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
-                     transaction_type, quantity, price, total_value, commission, currency, source_pdf, created_at, updated_at)
-                    VALUES (:user_id, :ticker, :symbol, :company_name, :transaction_date, :transaction_time,
-                            :transaction_type, :quantity, :price, :total_value, :commission, :currency, :source_pdf, :created_at, :updated_at)
-                """)
-                
-                conn.execute(insert_query, {
-                    "user_id": str(current_user.id),
-                    "ticker": actual_ticker,
-                    "symbol": actual_ticker,
-                    "company_name": stock_name_for_display,
-                    "transaction_date": transaction.transaction_date,
-                    "transaction_time": transaction.transaction_time,
-                    "transaction_type": transaction.transaction_type,
-                    "quantity": transaction.quantity,
-                    "price": transaction.price,
-                    "total_value": transaction.amount,
-                    "commission": transaction.commission,
-                    "currency": transaction.currency or "USD",
-                    "source_pdf": transaction.pdf_filename,
-                    "created_at": now,
-                    "updated_at": now
-                })
-                
-                # Update or create holdings based on transaction type
-                quantity = float(transaction.quantity or 0)
-                price = float(transaction.price or 0)
-                cost = quantity * price
-                
-                # Check if holding exists for this user and ticker
-                existing_holding = conn.execute(text("""
-                    SELECT id, quantity, purchase_cost FROM "world_stock_holdings"
-                    WHERE user_id = :user_id AND ticker = :ticker
-                """), {"user_id": str(current_user.id), "ticker": actual_ticker}).fetchone()
-                
-                if transaction.transaction_type == 'BUY':
-                    if existing_holding:
-                        # Update existing holding - add quantity and cost
-                        new_qty = float(existing_holding[1] or 0) + quantity
-                        new_cost = float(existing_holding[2] or 0) + cost
-                        conn.execute(text("""
-                            UPDATE "world_stock_holdings" 
-                            SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
-                            WHERE id = :id
-                        """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
-                    else:
-                        # Create new holding
-                        conn.execute(text("""
-                            INSERT INTO "world_stock_holdings" 
-                            (user_id, ticker, symbol, company_name, quantity, purchase_cost, 
-                             current_value, currency, source_pdf, created_at, updated_at)
-                            VALUES (:user_id, :ticker, :symbol, :company_name, :quantity, :purchase_cost,
-                                    :current_value, :currency, :source_pdf, :created_at, :updated_at)
-                        """), {
-                            "user_id": str(current_user.id),
-                            "ticker": actual_ticker,
-                            "symbol": actual_ticker,
-                            "company_name": stock_name_for_display,
-                            "quantity": quantity,
-                            "purchase_cost": cost,
-                            "current_value": cost,  # Initial current value = purchase cost
-                            "currency": transaction.currency or "USD",
-                            "source_pdf": transaction.pdf_filename,
-                            "created_at": now,
-                            "updated_at": now
-                        })
-                elif transaction.transaction_type == 'SELL':
-                    if existing_holding:
-                        # Update existing holding - reduce quantity
-                        new_qty = float(existing_holding[1] or 0) - quantity
-                        if new_qty > 0:
-                            # Proportionally reduce cost
-                            original_qty = float(existing_holding[1] or 1)
-                            new_cost = float(existing_holding[2] or 0) * (new_qty / original_qty)
-                            conn.execute(text("""
-                                UPDATE "world_stock_holdings" 
-                                SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
-                                WHERE id = :id
-                            """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
-                        else:
-                            # Position closed - delete holding
-                            conn.execute(text("""
-                                DELETE FROM "world_stock_holdings" WHERE id = :id
-                            """), {"id": existing_holding[0]})
-                
-            elif transaction.transaction_type == 'DIVIDEND':
-                # Insert into WorldDividend
-                insert_query = text("""
-                    INSERT INTO "world_dividends" 
-                    (user_id, ticker, symbol, company_name, payment_date, amount, tax, net_amount, currency, source_pdf, created_at, updated_at)
-                    VALUES (:user_id, :ticker, :symbol, :company_name, :payment_date, :amount, :tax, :net_amount, :currency, :source_pdf, :created_at, :updated_at)
-                """)
-                
-                # Calculate net amount if not provided
-                gross_amount = transaction.amount or 0
-                tax_amount = transaction.tax or 0
-                net_amount = gross_amount - tax_amount
-                
-                conn.execute(insert_query, {
-                    "user_id": str(current_user.id),
-                    "ticker": actual_ticker,
-                    "symbol": actual_ticker,
-                    "company_name": stock_name_for_display,
-                    "payment_date": transaction.transaction_date,
-                    "amount": transaction.amount,
-                    "tax": transaction.tax,
-                    "net_amount": net_amount,
-                    "currency": transaction.currency or "USD",
-                    "source_pdf": transaction.pdf_filename,
-                    "created_at": now,
-                    "updated_at": now
-                })
-            
+            _process_approved_transaction(conn, transaction, str(current_user.id), now)
             conn.commit()
         
-        # Update status after successful processing
         transaction.status = "approved"
         transaction.reviewed_at = datetime.now()
         transaction.reviewed_by = str(current_user.id)
@@ -1184,148 +1417,12 @@ async def approve_all_world_in_batch(
     errors = []
     now = datetime.now()
     
-    # Helper function to extract actual ticker from stock_name
-    def extract_ticker(ticker_field: str, stock_name: str):
-        actual_ticker = ticker_field
-        stock_name_for_display = stock_name
-        
-        if stock_name:
-            name = stock_name.strip()
-            if ' US' in name:
-                actual_ticker = name.replace(' US', '').strip()
-            elif '(' in name and ')' in name:
-                start = name.rfind('(')
-                end = name.rfind(')')
-                if start != -1 and end != -1:
-                    actual_ticker = name[start+1:end]
-                    stock_name_for_display = name[:start].strip()
-        
-        return actual_ticker, stock_name_for_display
-    
     for t in transactions:
         try:
-            actual_ticker, stock_name_for_display = extract_ticker(t.ticker, t.stock_name)
-            
             with engine.connect() as conn:
-                # Based on transaction type, insert into appropriate table
-                if t.transaction_type in ('BUY', 'SELL'):
-                    insert_query = text("""
-                        INSERT INTO "world_stock_transactions" 
-                        (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
-                         transaction_type, quantity, price, total_value, commission, currency, source_pdf, created_at, updated_at)
-                        VALUES (:user_id, :ticker, :symbol, :company_name, :transaction_date, :transaction_time,
-                                :transaction_type, :quantity, :price, :total_value, :commission, :currency, :source_pdf, :created_at, :updated_at)
-                    """)
-                    
-                    conn.execute(insert_query, {
-                        "user_id": str(current_user.id),
-                        "ticker": actual_ticker,
-                        "symbol": actual_ticker,
-                        "company_name": stock_name_for_display,
-                        "transaction_date": t.transaction_date,
-                        "transaction_time": t.transaction_time,
-                        "transaction_type": t.transaction_type,
-                        "quantity": t.quantity,
-                        "price": t.price,
-                        "total_value": t.amount,
-                        "commission": t.commission,
-                        "currency": t.currency or "USD",
-                        "source_pdf": t.pdf_filename,
-                        "created_at": now,
-                        "updated_at": now
-                    })
-                    
-                    # Also update or create holdings based on transaction type
-                    quantity = float(t.quantity or 0)
-                    price = float(t.price or 0)
-                    cost = quantity * price
-                    
-                    # Check if holding exists for this user and ticker
-                    existing_holding = conn.execute(text("""
-                        SELECT id, quantity, purchase_cost FROM "world_stock_holdings"
-                        WHERE user_id = :user_id AND ticker = :ticker
-                    """), {"user_id": str(current_user.id), "ticker": actual_ticker}).fetchone()
-                    
-                    if t.transaction_type == 'BUY':
-                        if existing_holding:
-                            # Update existing holding - add quantity and cost
-                            new_qty = float(existing_holding[1] or 0) + quantity
-                            new_cost = float(existing_holding[2] or 0) + cost
-                            conn.execute(text("""
-                                UPDATE "world_stock_holdings" 
-                                SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
-                                WHERE id = :id
-                            """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
-                        else:
-                            # Create new holding
-                            conn.execute(text("""
-                                INSERT INTO "world_stock_holdings" 
-                                (user_id, ticker, symbol, company_name, quantity, purchase_cost, 
-                                 current_value, currency, source_pdf, created_at, updated_at)
-                                VALUES (:user_id, :ticker, :symbol, :company_name, :quantity, :purchase_cost,
-                                        :current_value, :currency, :source_pdf, :created_at, :updated_at)
-                            """), {
-                                "user_id": str(current_user.id),
-                                "ticker": actual_ticker,
-                                "symbol": actual_ticker,
-                                "company_name": stock_name_for_display,
-                                "quantity": quantity,
-                                "purchase_cost": cost,
-                                "current_value": cost,  # Initial current value = purchase cost
-                                "currency": t.currency or "USD",
-                                "source_pdf": t.pdf_filename,
-                                "created_at": now,
-                                "updated_at": now
-                            })
-                    elif t.transaction_type == 'SELL':
-                        if existing_holding:
-                            # Update existing holding - reduce quantity
-                            new_qty = float(existing_holding[1] or 0) - quantity
-                            if new_qty > 0:
-                                # Proportionally reduce cost
-                                original_qty = float(existing_holding[1] or 1)
-                                new_cost = float(existing_holding[2] or 0) * (new_qty / original_qty)
-                                conn.execute(text("""
-                                    UPDATE "world_stock_holdings" 
-                                    SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
-                                    WHERE id = :id
-                                """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
-                            else:
-                                # Position closed - delete holding
-                                conn.execute(text("""
-                                    DELETE FROM "world_stock_holdings" WHERE id = :id
-                                """), {"id": existing_holding[0]})
-                    
-                elif t.transaction_type == 'DIVIDEND':
-                    insert_query = text("""
-                        INSERT INTO "world_dividends" 
-                        (user_id, ticker, symbol, company_name, payment_date, amount, tax, net_amount, currency, source_pdf, created_at, updated_at)
-                        VALUES (:user_id, :ticker, :symbol, :company_name, :payment_date, :amount, :tax, :net_amount, :currency, :source_pdf, :created_at, :updated_at)
-                    """)
-                    
-                    # Calculate net amount
-                    gross_amount = t.amount or 0
-                    tax_amount = t.tax or 0
-                    net_amount = gross_amount - tax_amount
-                    
-                    conn.execute(insert_query, {
-                        "user_id": str(current_user.id),
-                        "ticker": actual_ticker,
-                        "symbol": actual_ticker,
-                        "company_name": stock_name_for_display,
-                        "payment_date": t.transaction_date,
-                        "amount": t.amount,
-                        "tax": t.tax,
-                        "net_amount": net_amount,
-                        "currency": t.currency or "USD",
-                        "source_pdf": t.pdf_filename,
-                        "created_at": now,
-                        "updated_at": now
-                    })
-                
+                _process_approved_transaction(conn, t, str(current_user.id), now)
                 conn.commit()
             
-            # Update status after successful processing
             t.status = "approved"
             t.reviewed_at = datetime.now()
             t.reviewed_by = str(current_user.id)
@@ -1364,135 +1461,10 @@ async def approve_all_world_batches(
     errors = []
     now = datetime.now()
     
-    # Helper function to extract actual ticker from stock_name
-    def extract_ticker(ticker_field: str, stock_name: str):
-        actual_ticker = ticker_field
-        stock_name_for_display = stock_name
-        
-        if stock_name:
-            name = stock_name.strip()
-            if ' US' in name:
-                actual_ticker = name.replace(' US', '').strip()
-            elif '(' in name and ')' in name:
-                start = name.rfind('(')
-                end = name.rfind(')')
-                if start != -1 and end != -1:
-                    actual_ticker = name[start+1:end]
-                    stock_name_for_display = name[:start].strip()
-        
-        return actual_ticker, stock_name_for_display
-    
     for t in transactions:
         try:
-            actual_ticker, stock_name_for_display = extract_ticker(t.ticker, t.stock_name)
-            
             with engine.connect() as conn:
-                if t.transaction_type in ('BUY', 'SELL'):
-                    insert_query = text("""
-                        INSERT INTO "world_stock_transactions" 
-                        (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
-                         transaction_type, quantity, price, total_value, commission, currency, source_pdf, created_at, updated_at)
-                        VALUES (:user_id, :ticker, :symbol, :company_name, :transaction_date, :transaction_time,
-                                :transaction_type, :quantity, :price, :total_value, :commission, :currency, :source_pdf, :created_at, :updated_at)
-                    """)
-                    
-                    conn.execute(insert_query, {
-                        "user_id": str(current_user.id),
-                        "ticker": actual_ticker,
-                        "symbol": actual_ticker,
-                        "company_name": stock_name_for_display,
-                        "transaction_date": t.transaction_date,
-                        "transaction_time": t.transaction_time,
-                        "transaction_type": t.transaction_type,
-                        "quantity": t.quantity,
-                        "price": t.price,
-                        "total_value": t.amount,
-                        "commission": t.commission,
-                        "currency": t.currency or "USD",
-                        "source_pdf": t.pdf_filename,
-                        "created_at": now,
-                        "updated_at": now
-                    })
-                    
-                    # Update or create holdings
-                    quantity = float(t.quantity or 0)
-                    price = float(t.price or 0)
-                    cost = quantity * price
-                    
-                    existing_holding = conn.execute(text("""
-                        SELECT id, quantity, purchase_cost FROM "world_stock_holdings"
-                        WHERE user_id = :user_id AND ticker = :ticker
-                    """), {"user_id": str(current_user.id), "ticker": actual_ticker}).fetchone()
-                    
-                    if t.transaction_type == 'BUY':
-                        if existing_holding:
-                            new_qty = float(existing_holding[1] or 0) + quantity
-                            new_cost = float(existing_holding[2] or 0) + cost
-                            conn.execute(text("""
-                                UPDATE "world_stock_holdings" 
-                                SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
-                                WHERE id = :id
-                            """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
-                        else:
-                            conn.execute(text("""
-                                INSERT INTO "world_stock_holdings" 
-                                (user_id, ticker, symbol, company_name, quantity, purchase_cost, 
-                                 current_value, currency, source_pdf, created_at, updated_at)
-                                VALUES (:user_id, :ticker, :symbol, :company_name, :quantity, :purchase_cost,
-                                        :current_value, :currency, :source_pdf, :created_at, :updated_at)
-                            """), {
-                                "user_id": str(current_user.id),
-                                "ticker": actual_ticker,
-                                "symbol": actual_ticker,
-                                "company_name": stock_name_for_display,
-                                "quantity": quantity,
-                                "purchase_cost": cost,
-                                "current_value": cost,
-                                "currency": t.currency or "USD",
-                                "source_pdf": t.pdf_filename,
-                                "created_at": now,
-                                "updated_at": now
-                            })
-                    elif t.transaction_type == 'SELL':
-                        if existing_holding:
-                            new_qty = float(existing_holding[1] or 0) - quantity
-                            if new_qty > 0:
-                                original_qty = float(existing_holding[1] or 1)
-                                new_cost = float(existing_holding[2] or 0) * (new_qty / original_qty)
-                                conn.execute(text("""
-                                    UPDATE "world_stock_holdings" 
-                                    SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
-                                    WHERE id = :id
-                                """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
-                            else:
-                                conn.execute(text("""
-                                    DELETE FROM "world_stock_holdings" WHERE id = :id
-                                """), {"id": existing_holding[0]})
-                    
-                elif t.transaction_type == 'DIVIDEND':
-                    gross_amount = t.amount or 0
-                    tax_amount = t.tax or 0
-                    net_amount = gross_amount - tax_amount
-                    
-                    conn.execute(text("""
-                        INSERT INTO "world_dividends" 
-                        (user_id, ticker, symbol, company_name, payment_date, amount, tax, net_amount, currency, source_pdf, created_at, updated_at)
-                        VALUES (:user_id, :ticker, :symbol, :company_name, :payment_date, :amount, :tax, :net_amount, :currency, :source_pdf, :created_at, :updated_at)
-                    """), {
-                        "user_id": str(current_user.id),
-                        "ticker": actual_ticker,
-                        "symbol": actual_ticker,
-                        "company_name": stock_name_for_display,
-                        "payment_date": t.transaction_date,
-                        "amount": t.amount,
-                        "tax": t.tax,
-                        "net_amount": net_amount,
-                        "currency": t.currency or "USD",
-                        "source_pdf": t.pdf_filename,
-                        "created_at": now,
-                        "updated_at": now
-                    })
-                
+                _process_approved_transaction(conn, t, str(current_user.id), now)
                 conn.commit()
             
             t.status = "approved"

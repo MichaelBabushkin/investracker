@@ -93,6 +93,9 @@ class BaseBrokerParser(ABC):
         """Clean and convert numeric string to float"""
         try:
             clean_value = str(value).replace('₪', '').replace(',', '').replace(' ', '').replace('+', '').strip()
+            # Handle trailing minus sign (Israeli number format: "30,000.00-" → -30000.00)
+            if clean_value.endswith('-'):
+                clean_value = '-' + clean_value[:-1]
             if clean_value and clean_value.replace('.', '').replace('-', '').isdigit():
                 return float(clean_value)
         except (ValueError, AttributeError):

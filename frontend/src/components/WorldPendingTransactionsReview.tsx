@@ -210,6 +210,8 @@ export default function WorldPendingTransactionsReview({
         return "text-purple-400 bg-purple-400/10";
       case "WITHDRAWAL":
         return "text-orange-400 bg-orange-400/10";
+      case "CURRENCY_CONVERSION":
+        return "text-cyan-400 bg-cyan-400/10";
       default:
         return "text-gray-300 bg-surface-dark";
     }
@@ -340,6 +342,7 @@ export default function WorldPendingTransactionsReview({
                           <option value="BUY">BUY</option>
                           <option value="SELL">SELL</option>
                           <option value="DIVIDEND">DIVIDEND</option>
+                          <option value="CURRENCY_CONVERSION">FX</option>
                         </select>
                       </td>
                       <td className="px-4 py-4 text-right">
@@ -454,22 +457,28 @@ export default function WorldPendingTransactionsReview({
                             transaction.transaction_type
                           )}`}
                         >
-                          {transaction.transaction_type}
+                          {transaction.transaction_type === "CURRENCY_CONVERSION" ? "ILS → USD" : transaction.transaction_type}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-100">
                         {transaction.quantity !== null
-                          ? transaction.quantity.toFixed(2)
+                          ? transaction.transaction_type === "CURRENCY_CONVERSION"
+                            ? `$${transaction.quantity.toFixed(2)}`
+                            : transaction.quantity.toFixed(2)
                           : "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-100">
                         {transaction.price !== null
-                          ? `$${transaction.price.toFixed(2)}`
+                          ? transaction.transaction_type === "CURRENCY_CONVERSION"
+                            ? `₪${transaction.price.toFixed(4)}`
+                            : `$${transaction.price.toFixed(2)}`
                           : "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-100">
                         {transaction.amount !== null
-                          ? `$${transaction.amount.toFixed(2)}`
+                          ? transaction.transaction_type === "CURRENCY_CONVERSION"
+                            ? `₪${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : `$${transaction.amount.toFixed(2)}`
                           : "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-400">

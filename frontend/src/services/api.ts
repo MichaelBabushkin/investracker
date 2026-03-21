@@ -636,6 +636,11 @@ export const worldStocksAPI = {
     return response.data;
   },
 
+  getPortfolioDashboard: async () => {
+    const response = await api.get("/world-stocks/portfolio-dashboard");
+    return response.data;
+  },
+
   deleteHolding: async (holdingId: number) => {
     const response = await api.delete(`/world-stocks/holdings/${holdingId}`);
     return response.data;

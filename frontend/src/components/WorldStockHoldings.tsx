@@ -36,14 +36,26 @@ export default function WorldStockHoldings({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "chart">("table");
+  const [summaryData, setSummaryData] = useState<{
+    total_realized_pl: number;
+    total_cash: number;
+    total_unrealized_pl: number;
+    total_unrealized_pl_pct: number;
+    total_cost: number;
+    total_invested: number;
+  } | null>(null);
   const { confirm, ConfirmDialogElement } = useConfirmDialog();
 
   const fetchHoldings = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await worldStocksAPI.getHoldings(accountId);
+      const [data, summary] = await Promise.all([
+        worldStocksAPI.getHoldings(accountId),
+        worldStocksAPI.getSummary(accountId),
+      ]);
       setHoldings(data);
+      setSummaryData(summary);
     } catch (err: any) {
       setError(
         err.response?.data?.detail || err.message || "Failed to load holdings"
@@ -107,9 +119,9 @@ export default function WorldStockHoldings({
       ? (totalUnrealizedPL / (totalValue - totalUnrealizedPL)) * 100
       : 0;
   
-  // TODO: Calculate from actual realized transactions (dividends, sales)
-  const totalRealizedPL = 0;
-  const totalCash = 0;
+  // Use summary data from API for realized P/L and cash
+  const totalRealizedPL = summaryData?.total_realized_pl || 0;
+  const totalCash = summaryData?.total_cash || 0;
 
   // Prepare pie chart data
   const pieChartData = Array.isArray(holdings)
