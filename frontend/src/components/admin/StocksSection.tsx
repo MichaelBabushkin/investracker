@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { israeliStocksAPI, worldStocksAPI } from "@/services/api";
 import toast from "react-hot-toast";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 
 const StocksSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
@@ -22,10 +23,11 @@ const StocksSection: React.FC = () => {
   const [isCrawling, setIsCrawling] = useState(false);
   const [singleTicker, setSingleTicker] = useState("");
 
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
+
   const handleImportStocks = async () => {
-    if (!confirm("This will import all Israeli stocks from the CSV file. Existing stocks will be skipped. Continue?")) {
-      return;
-    }
+    const ok = await confirm({ title: "Import Israeli stocks?", message: "This will import all stocks from the CSV file. Existing stocks will be skipped.", confirmLabel: "Import", variant: "info" });
+    if (!ok) return;
 
     setIsImporting(true);
     const loadingToast = toast.loading("Importing Israeli stocks...");
@@ -338,9 +340,8 @@ const StocksSection: React.FC = () => {
 
                     <button
                       onClick={async () => {
-                        if (!confirm("This will crawl logos for all world stocks that don't have them. Continue?")) {
-                          return;
-                        }
+                        const ok = await confirm({ title: "Crawl world stock logos?", message: "This will crawl logos for all world stocks that don\u2019t have them yet.", confirmLabel: "Start Crawl", variant: "info" });
+                        if (!ok) return;
                         
                         setIsCrawling(true);
                         const loadingToast = toast.loading("Crawling world stock logos...");
@@ -558,6 +559,7 @@ const StocksSection: React.FC = () => {
           </div>
         )}
       </div>
+      {ConfirmDialogElement}
     </div>
   );
 };

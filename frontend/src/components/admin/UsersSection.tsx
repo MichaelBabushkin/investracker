@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { adminAPI } from "@/services/api";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 
 interface User {
   id: string;
@@ -34,6 +35,7 @@ const UsersSection: React.FC = () => {
     success: boolean;
     message: string;
   } | null>(null);
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
 
   const handleResetStockData = async () => {
     if (!resetEmail || !resetEmail.includes("@")) {
@@ -44,9 +46,12 @@ const UsersSection: React.FC = () => {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ALL Israeli stock data for ${resetEmail}?\n\nThis will delete:\n- All holdings\n- All transactions\n- All dividends\n\nThis action cannot be undone!`
-    );
+    const confirmed = await confirm({
+      title: "Delete all stock data?",
+      message: `This will permanently delete ALL Israeli stock data for ${resetEmail} — holdings, transactions, and dividends. This action cannot be undone.`,
+      confirmLabel: "Delete Everything",
+      variant: "danger",
+    });
 
     if (!confirmed) return;
 
@@ -205,6 +210,7 @@ const UsersSection: React.FC = () => {
           </tbody>
         </table>
       </div>
+      {ConfirmDialogElement}
     </div>
   );
 };

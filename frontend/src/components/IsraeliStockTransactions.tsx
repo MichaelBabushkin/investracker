@@ -19,6 +19,7 @@ import {
 import { israeliStocksAPI } from "@/services/api";
 import { IsraeliStockTransaction } from "@/types/israeli-stocks";
 import StockLogo from "./StockLogo";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 import {
   ResponsiveContainer,
   BarChart,
@@ -51,6 +52,7 @@ export default function IsraeliStockTransactions({
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<string>("transaction_date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
 
   const fetchTransactions = async () => {
     try {
@@ -80,7 +82,8 @@ export default function IsraeliStockTransactions({
   }, [filterType, searchTerm, sortField, sortDirection]);
 
   const handleDeleteTransaction = async (transactionId: number) => {
-    if (!confirm("Are you sure you want to delete this transaction?")) return;
+    const ok = await confirm({ title: "Delete transaction?", message: "This transaction will be permanently removed from your portfolio. This cannot be undone.", confirmLabel: "Delete", variant: "danger" });
+    if (!ok) return;
 
     try {
       await israeliStocksAPI.deleteTransaction(transactionId);
@@ -807,6 +810,7 @@ export default function IsraeliStockTransactions({
           })()}
         </>
       )}
+      {ConfirmDialogElement}
     </div>
   );
 }

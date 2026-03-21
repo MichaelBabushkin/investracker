@@ -24,6 +24,7 @@ import {
 import { israeliStocksAPI } from "@/services/api";
 import { IsraeliStockHolding } from "@/types/israeli-stocks";
 import StockLogo from "./StockLogo";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 
 interface IsraeliStockHoldingsProps {
   refreshTrigger?: number;
@@ -37,6 +38,7 @@ export default function IsraeliStockHoldings({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "chart">("table");
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
 
   const fetchHoldings = async () => {
     try {
@@ -62,7 +64,8 @@ export default function IsraeliStockHoldings({
   }, [refreshTrigger]);
 
   const handleDeleteHolding = async (holdingId: number) => {
-    if (!confirm("Are you sure you want to delete this holding?")) return;
+    const ok = await confirm({ title: "Delete holding?", message: "This holding will be permanently removed. This cannot be undone.", confirmLabel: "Delete", variant: "danger" });
+    if (!ok) return;
 
     try {
       await israeliStocksAPI.deleteHolding(holdingId);
@@ -652,6 +655,7 @@ export default function IsraeliStockHoldings({
           )}
         </>
       )}
+      {ConfirmDialogElement}
     </div>
   );
 }

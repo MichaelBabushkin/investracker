@@ -1057,6 +1057,9 @@ async def approve_pending_transaction(
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     
+    if transaction.status not in ("pending", "modified"):
+        raise HTTPException(status_code=400, detail=f"Transaction already {transaction.status}")
+    
     # Process transaction into final tables
     service = IsraeliStockService()
     try:
@@ -1087,7 +1090,7 @@ async def approve_all_in_batch(
     transactions = db.query(PendingIsraeliTransaction).filter(
         PendingIsraeliTransaction.upload_batch_id == batch_id,
         PendingIsraeliTransaction.user_id == str(current_user.id),
-        PendingIsraeliTransaction.status == "pending"
+        PendingIsraeliTransaction.status.in_(["pending", "modified"])
     ).all()
     
     service = IsraeliStockService()
@@ -1125,7 +1128,7 @@ async def approve_all_batches(
     """Approve ALL pending transactions for the current user across all batches"""
     transactions = db.query(PendingIsraeliTransaction).filter(
         PendingIsraeliTransaction.user_id == str(current_user.id),
-        PendingIsraeliTransaction.status == "pending"
+        PendingIsraeliTransaction.status.in_(["pending", "modified"])
     ).all()
     
     service = IsraeliStockService()
@@ -1165,7 +1168,7 @@ async def reject_all_in_batch(
     transactions = db.query(PendingIsraeliTransaction).filter(
         PendingIsraeliTransaction.upload_batch_id == batch_id,
         PendingIsraeliTransaction.user_id == str(current_user.id),
-        PendingIsraeliTransaction.status == "pending"
+        PendingIsraeliTransaction.status.in_(["pending", "modified"])
     ).all()
     
     rejected_count = len(transactions)
@@ -1192,6 +1195,47 @@ async def reject_all_in_batch(
         "message": f"Rejected {rejected_count} transactions" + (" and deleted PDF report" if pdf_deleted else ""),
         "rejected_count": rejected_count,
         "pdf_deleted": pdf_deleted
+    }
+
+
+@router.post("/pending-transactions/reject-all-batches")
+async def reject_all_batches(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Reject ALL pending transactions for the current user across all batches"""
+    transactions = db.query(PendingIsraeliTransaction).filter(
+        PendingIsraeliTransaction.user_id == str(current_user.id),
+        PendingIsraeliTransaction.status.in_(["pending", "modified"])
+    ).all()
+    
+    rejected_count = len(transactions)
+    
+    # Collect unique batch IDs to find associated PDFs
+    batch_ids = set(t.upload_batch_id for t in transactions if t.upload_batch_id)
+    
+    # Delete all pending transactions
+    for t in transactions:
+        db.delete(t)
+    
+    # Delete associated PDF reports
+    pdfs_deleted = 0
+    for bid in batch_ids:
+        pdf_report = db.query(IsraeliReportUpload).filter(
+            IsraeliReportUpload.upload_batch_id == bid,
+            IsraeliReportUpload.user_id == str(current_user.id)
+        ).first()
+        if pdf_report:
+            db.delete(pdf_report)
+            pdfs_deleted += 1
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Rejected {rejected_count} transactions across all batches",
+        "rejected_count": rejected_count,
+        "pdfs_deleted": pdfs_deleted
     }
 
 
@@ -1234,8 +1278,8 @@ async def update_pending_transaction(
     
     # Update allowed fields
     allowed_fields = [
-        "transaction_date", "security_no", "stock_name", "transaction_type",
-        "quantity", "price", "amount", "currency", "review_notes"
+        "transaction_date", "transaction_time", "security_no", "stock_name", "transaction_type",
+        "quantity", "price", "amount", "commission", "tax", "currency", "review_notes"
     ]
     
     for field in allowed_fields:

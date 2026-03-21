@@ -21,6 +21,7 @@ import {
 } from "recharts";
 import { worldStocksAPI } from "@/services/api";
 import { WorldStockHolding } from "@/types/world-stocks";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 
 interface WorldStockHoldingsProps {
   refreshTrigger?: number;
@@ -35,6 +36,7 @@ export default function WorldStockHoldings({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "chart">("table");
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
 
   const fetchHoldings = useCallback(async () => {
     try {
@@ -56,7 +58,8 @@ export default function WorldStockHoldings({
   }, [fetchHoldings, refreshTrigger]);
 
   const handleDeleteHolding = async (holdingId: number) => {
-    if (!confirm("Are you sure you want to delete this holding?")) return;
+    const ok = await confirm({ title: "Delete holding?", message: "This holding will be permanently removed. This cannot be undone.", confirmLabel: "Delete", variant: "danger" });
+    if (!ok) return;
 
     try {
       await worldStocksAPI.deleteHolding(holdingId);
@@ -553,6 +556,7 @@ export default function WorldStockHoldings({
           </ResponsiveContainer>
         </div>
       )}
+      {ConfirmDialogElement}
     </div>
   );
 }

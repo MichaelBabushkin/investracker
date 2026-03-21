@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { israeliStocksAPI } from "@/services/api";
 import { Check, X, Pencil } from "lucide-react";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 
 interface PendingTransaction {
   id: number;
@@ -39,6 +40,7 @@ export default function PendingTransactionsReview({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState<any>({});
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
 
   const loadTransactions = async () => {
     try {
@@ -46,9 +48,11 @@ export default function PendingTransactionsReview({
       setError(null);
       const data = await israeliStocksAPI.getPendingTransactions(
         batchId,
-        "pending"
+        undefined
       );
-      setTransactions(data.transactions || []);
+      setTransactions((data.transactions || []).filter(
+        (t: PendingTransaction) => t.status === "pending" || t.status === "modified"
+      ));
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to load transactions");
     } finally {
@@ -77,7 +81,8 @@ export default function PendingTransactionsReview({
   };
 
   const handleReject = async (id: number) => {
-    if (!confirm("Are you sure you want to reject this transaction?")) return;
+    const ok = await confirm({ title: "Reject transaction?", message: "This transaction will be discarded and won\u2019t be added to your portfolio.", confirmLabel: "Reject", variant: "danger" });
+    if (!ok) return;
 
     setProcessingIds((prev) => new Set(prev).add(id));
     try {
@@ -95,21 +100,16 @@ export default function PendingTransactionsReview({
   };
 
   const handleApproveAll = async () => {
-    if (!batchId) {
-      setError("No batch ID provided");
-      return;
-    }
-
-    if (
-      !confirm(
-        `Are you sure you want to approve all ${transactions.length} transaction(s)?`
-      )
-    )
-      return;
+    const ok = await confirm({ title: "Approve all transactions?", message: `This will approve all ${transactions.length} transaction(s) and add them to your portfolio.`, confirmLabel: "Approve All", variant: "success" });
+    if (!ok) return;
 
     try {
       setLoading(true);
-      await israeliStocksAPI.approveAllInBatch(batchId);
+      if (batchId) {
+        await israeliStocksAPI.approveAllInBatch(batchId);
+      } else {
+        await israeliStocksAPI.approveAllBatches();
+      }
       await loadTransactions();
       if (onApprovalComplete) onApprovalComplete(batchId);
     } catch (err: any) {
@@ -122,21 +122,16 @@ export default function PendingTransactionsReview({
   };
 
   const handleRejectAll = async () => {
-    if (!batchId) {
-      setError("No batch ID provided");
-      return;
-    }
-
-    if (
-      !confirm(
-        `Are you sure you want to reject all ${transactions.length} transaction(s)? This cannot be undone.`
-      )
-    )
-      return;
+    const ok = await confirm({ title: "Reject all transactions?", message: `This will reject all ${transactions.length} transaction(s). This action cannot be undone.`, confirmLabel: "Reject All", variant: "danger" });
+    if (!ok) return;
 
     try {
       setLoading(true);
-      await israeliStocksAPI.rejectAllInBatch(batchId);
+      if (batchId) {
+        await israeliStocksAPI.rejectAllInBatch(batchId);
+      } else {
+        await israeliStocksAPI.rejectAllBatches();
+      }
       await loadTransactions();
       if (onApprovalComplete) onApprovalComplete(batchId);
     } catch (err: any) {
@@ -520,6 +515,7 @@ export default function PendingTransactionsReview({
           </table>
         </div>
       </div>
+      {ConfirmDialogElement}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { worldStocksAPI } from "@/services/api";
 import { Check, X, Pencil } from "lucide-react";
+import { useConfirmDialog } from "@/components/ConfirmDialog";
 
 interface PendingWorldTransaction {
   id: number;
@@ -40,6 +41,7 @@ export default function WorldPendingTransactionsReview({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState<any>({});
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
+  const { confirm, ConfirmDialogElement } = useConfirmDialog();
 
   const loadTransactions = async () => {
     try {
@@ -47,9 +49,11 @@ export default function WorldPendingTransactionsReview({
       setError(null);
       const data = await worldStocksAPI.getPendingTransactions(
         batchId,
-        "pending"
+        undefined
       );
-      setTransactions(data.transactions || []);
+      setTransactions((data.transactions || []).filter(
+        (t: PendingWorldTransaction) => t.status === "pending" || t.status === "modified"
+      ));
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to load transactions");
     } finally {
@@ -78,7 +82,8 @@ export default function WorldPendingTransactionsReview({
   };
 
   const handleReject = async (id: number) => {
-    if (!confirm("Are you sure you want to reject this transaction?")) return;
+    const ok = await confirm({ title: "Reject transaction?", message: "This transaction will be discarded and won\u2019t be added to your portfolio.", confirmLabel: "Reject", variant: "danger" });
+    if (!ok) return;
 
     setProcessingIds((prev) => new Set(prev).add(id));
     try {
@@ -96,27 +101,19 @@ export default function WorldPendingTransactionsReview({
   };
 
   const handleApproveAll = async () => {
-    // Use provided batchId or extract from first transaction
-    const effectiveBatchId = batchId || (transactions.length > 0 ? transactions[0].upload_batch_id : null);
-    
-    if (!effectiveBatchId) {
-      setError("No batch ID available");
-      return;
-    }
-
-    if (
-      !confirm(
-        `Are you sure you want to approve all ${transactions.length} transactions?`
-      )
-    )
-      return;
+    const ok = await confirm({ title: "Approve all transactions?", message: `This will approve all ${transactions.length} transaction(s) and add them to your portfolio.`, confirmLabel: "Approve All", variant: "success" });
+    if (!ok) return;
 
     try {
       setLoading(true);
-      await worldStocksAPI.batchApprovePendingTransactions(effectiveBatchId);
+      if (batchId) {
+        await worldStocksAPI.batchApprovePendingTransactions(batchId);
+      } else {
+        await worldStocksAPI.approveAllBatches();
+      }
       await loadTransactions();
       if (onApprovalComplete) {
-        onApprovalComplete(effectiveBatchId);
+        onApprovalComplete(batchId);
       }
     } catch (err: any) {
       setError(
@@ -128,30 +125,38 @@ export default function WorldPendingTransactionsReview({
   };
 
   const handleRejectAll = async () => {
-    if (
-      !confirm(
-        `Are you sure you want to reject all ${transactions.length} transactions? This action cannot be undone.`
-      )
-    )
-      return;
+    const ok = await confirm({ title: "Reject all transactions?", message: `This will reject all ${transactions.length} transaction(s). This action cannot be undone.`, confirmLabel: "Reject All", variant: "danger" });
+    if (!ok) return;
 
-    setLoading(true);
-    const failedIds: number[] = [];
-
-    for (const transaction of transactions) {
-      try {
-        await worldStocksAPI.rejectPendingTransaction(transaction.id);
-      } catch (err) {
-        failedIds.push(transaction.id);
+    try {
+      setLoading(true);
+      if (batchId) {
+        // Per-batch reject (one by one since no batch reject endpoint)
+        const failedIds: number[] = [];
+        for (const transaction of transactions) {
+          try {
+            await worldStocksAPI.rejectPendingTransaction(transaction.id);
+          } catch (err) {
+            failedIds.push(transaction.id);
+          }
+        }
+        if (failedIds.length > 0) {
+          setError(`Failed to reject ${failedIds.length} transactions`);
+        }
+      } else {
+        await worldStocksAPI.rejectAllBatches();
       }
+      await loadTransactions();
+      if (onApprovalComplete) {
+        onApprovalComplete(batchId);
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data?.detail || "Failed to reject all transactions"
+      );
+    } finally {
+      setLoading(false);
     }
-
-    if (failedIds.length > 0) {
-      setError(`Failed to reject ${failedIds.length} transactions`);
-    }
-
-    await loadTransactions();
-    setLoading(false);
   };
 
   const startEdit = (transaction: PendingWorldTransaction) => {
@@ -523,6 +528,7 @@ export default function WorldPendingTransactionsReview({
           batch operations.
         </p>
       </div>
+      {ConfirmDialogElement}
     </div>
   );
 }

@@ -46,14 +46,18 @@ export default function PortfolioOverview() {
   const checkPendingTransactions = async () => {
     try {
       // Check Israeli pending - only count pending status
-      const israeliPending = await israeliStocksAPI.getPendingTransactions(undefined, "pending");
-      const israeliCount = israeliPending.count || 0;
+      const israeliPending = await israeliStocksAPI.getPendingTransactions(undefined, undefined);
+      const israeliCount = (israeliPending.transactions || []).filter(
+        (t: any) => t.status === "pending" || t.status === "modified"
+      ).length;
       setIsraeliPendingCount(israeliCount);
 
       // Check World pending - only count pending status
       try {
-        const worldPending = await worldStocksAPI.getPendingTransactions(undefined, "pending");
-        const worldCount = worldPending.count || 0;
+        const worldPending = await worldStocksAPI.getPendingTransactions(undefined, undefined);
+        const worldCount = (worldPending.transactions || []).filter(
+          (t: any) => t.status === "pending" || t.status === "modified"
+        ).length;
         setWorldPendingCount(worldCount);
       } catch {
         // World pending unavailable
@@ -112,12 +116,35 @@ export default function PortfolioOverview() {
     setActiveView("review");
   };
 
-  const handleApprovalComplete = () => {
+  const handleApprovalComplete = async () => {
     // Clear pending state and refresh
     sessionStorage.removeItem("pending_batch_ids");
     setPendingBatchIds([]);
-    setRefreshTrigger((prev) => prev + 1);
-    setActiveView("summary");
+    
+    // Re-check pending counts
+    try {
+      const israeliPending = await israeliStocksAPI.getPendingTransactions(undefined, undefined);
+      const israeliCount = (israeliPending.transactions || []).filter(
+        (t: any) => t.status === "pending" || t.status === "modified"
+      ).length;
+      setIsraeliPendingCount(israeliCount);
+
+      let worldCount = 0;
+      try {
+        const worldPending = await worldStocksAPI.getPendingTransactions(undefined, undefined);
+        worldCount = (worldPending.transactions || []).filter(
+          (t: any) => t.status === "pending" || t.status === "modified"
+        ).length;
+        setWorldPendingCount(worldCount);
+      } catch {}
+
+      // If nothing left, go to summary
+      if (israeliCount + worldCount === 0) {
+        setActiveView("summary");
+      }
+    } catch {
+      setActiveView("summary");
+    }
   };
 
   const totalPendingCount = israeliPendingCount + worldPendingCount;
@@ -381,20 +408,9 @@ export default function PortfolioOverview() {
                       Israeli Stocks Pending ({israeliPendingCount})
                     </h3>
                   </div>
-                  {pendingBatchIds.length > 0 ? (
-                    pendingBatchIds.map((batchId) => (
-                      <div key={batchId} className="mb-8">
-                        <PendingTransactionsReview
-                          batchId={batchId}
-                          onApprovalComplete={handleApprovalComplete}
-                        />
-                      </div>
-                    ))
-                  ) : (
-                    <PendingTransactionsReview
-                      onApprovalComplete={handleApprovalComplete}
-                    />
-                  )}
+                  <PendingTransactionsReview
+                    onApprovalComplete={handleApprovalComplete}
+                  />
                 </div>
               )}
 

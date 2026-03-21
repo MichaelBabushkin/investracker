@@ -1493,6 +1493,7 @@ class IsraeliStockService:
                     transaction_date, transaction_time, quantity, price, total_value, 
                     commission, tax, currency, source_pdf, created_at
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (user_id, security_no, transaction_date, transaction_type, source_pdf) DO NOTHING
                 """
                 
                 cursor.execute(insert_sql, (

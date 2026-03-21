@@ -457,6 +457,13 @@ export const israeliStocksAPI = {
     return response.data;
   },
 
+  rejectAllBatches: async () => {
+    const response = await api.post(
+      `/israeli-stocks/pending-transactions/reject-all-batches`
+    );
+    return response.data;
+  },
+
   // Admin: list stocks by logo presence
   getStocksWithoutLogos: async () => {
     const response = await api.get("/israeli-stocks/stocks-without-logos");
@@ -691,6 +698,20 @@ export const worldStocksAPI = {
   batchApprovePendingTransactions: async (batchId: string) => {
     const response = await api.post(
       `/world-stocks/pending-transactions/batch/${batchId}/approve-all`
+    );
+    return response.data;
+  },
+
+  approveAllBatches: async () => {
+    const response = await api.post(
+      `/world-stocks/pending-transactions/approve-all-batches`
+    );
+    return response.data;
+  },
+
+  rejectAllBatches: async () => {
+    const response = await api.post(
+      `/world-stocks/pending-transactions/reject-all-batches`
     );
     return response.data;
   },
