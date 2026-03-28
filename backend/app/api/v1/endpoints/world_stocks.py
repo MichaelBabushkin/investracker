@@ -563,9 +563,31 @@ async def get_portfolio_dashboard(
             """)
             total_net_dividends = float(conn.execute(div_query, params).fetchone()[0] or 0)
             
+            # Cash calculation (same logic as summary endpoint)
+            cash_query = text("""
+                SELECT
+                    COALESCE(SUM(CASE WHEN transaction_type = 'CURRENCY_CONVERSION' THEN quantity ELSE 0 END), 0) as total_fx_usd,
+                    COALESCE(SUM(CASE WHEN transaction_type = 'BUY' THEN quantity * price + COALESCE(commission, 0) ELSE 0 END), 0) as total_buy_outflow,
+                    COALESCE(SUM(CASE WHEN transaction_type = 'SELL' THEN quantity * price - COALESCE(commission, 0) ELSE 0 END), 0) as total_sell_inflow
+                FROM "world_stock_transactions"
+                WHERE user_id = :user_id
+            """)
+            cash_row = conn.execute(cash_query, params).fetchone()
+            fx_usd = float(cash_row[0] or 0)
+            buy_outflow = float(cash_row[1] or 0)
+            sell_inflow = float(cash_row[2] or 0)
+            
+            if fx_usd > 0:
+                total_cash = fx_usd - buy_outflow + sell_inflow + total_net_dividends
+                if total_cash < 0:
+                    total_cash = 0.0
+            else:
+                total_cash = sell_inflow + total_net_dividends
+            
             total_gain_loss = float(total_value - total_cost) + total_realized_pl
             total_invested = float(total_cost)
             total_val = float(total_value)
+            total_portfolio = total_val + total_cash
             
             # Sector allocation
             sector_data = []
@@ -578,6 +600,8 @@ async def get_portfolio_dashboard(
             return {
                 "portfolioData": {
                     "totalValue": total_val,
+                    "totalCash": round(total_cash, 2),
+                    "totalPortfolioValue": round(total_portfolio, 2),
                     "dayChange": 0,  # Would need previous close data
                     "dayChangePercent": 0,
                     "totalGainLoss": round(total_gain_loss, 2),
@@ -1232,7 +1256,7 @@ def _process_approved_transaction(conn, t, user_id: str, now):
         })
     
     elif t.transaction_type == 'CURRENCY_CONVERSION':
-        # Store as a transaction for cash tracking (ILS -> USD conversion)
+        # 1) Store USD inflow in world_stock_transactions
         conn.execute(text("""
             INSERT INTO "world_stock_transactions" 
             (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
@@ -1259,6 +1283,34 @@ def _process_approved_transaction(conn, t, user_id: str, now):
             "created_at": now,
             "updated_at": now
         })
+        
+        # 2) Store ILS debit in israeli_stock_transactions so it reduces the ILS balance
+        ils_amount = float(t.amount or 0)
+        if ils_amount > 0:
+            conn.execute(text("""
+                INSERT INTO "israeli_stock_transactions"
+                (user_id, security_no, symbol, company_name, transaction_type,
+                 transaction_date, transaction_time, quantity, price, total_value,
+                 commission, tax, currency, source_pdf)
+                VALUES (:user_id, :security_no, :symbol, :company_name, :transaction_type,
+                        :transaction_date, :transaction_time, :quantity, :price, :total_value,
+                        :commission, :tax, :currency, :source_pdf)
+            """), {
+                "user_id": user_id,
+                "security_no": "FX-USD",
+                "symbol": "USD",
+                "company_name": "המרת מט״ח ILS→USD",
+                "transaction_type": "FX_CONVERSION",
+                "transaction_date": t.transaction_date,
+                "transaction_time": t.transaction_time,
+                "quantity": t.quantity,  # USD amount purchased
+                "price": t.price,  # Exchange rate
+                "total_value": ils_amount,  # ILS amount debited
+                "commission": t.commission,
+                "tax": None,
+                "currency": "ILS",
+                "source_pdf": t.pdf_filename,
+            })
 
 
 @router.get("/pending-transactions")

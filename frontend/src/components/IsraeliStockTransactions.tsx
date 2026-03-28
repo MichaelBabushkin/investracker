@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   ArrowRight,
   ArrowLeft,
+  ArrowLeftRight,
   Calendar,
   Banknote,
   TrendingUp,
@@ -162,6 +163,8 @@ export default function IsraeliStockTransactions({
         return <Banknote className={`${sizeClass} text-purple-400`} />;
       case "WITHDRAWAL":
         return <Banknote className={`${sizeClass} text-orange-400`} />;
+      case "FX_CONVERSION":
+        return <ArrowLeftRight className={`${sizeClass} text-cyan-400`} />;
       default:
         return <ArrowRight className={`${sizeClass} text-gray-400`} />;
     }
@@ -179,6 +182,8 @@ export default function IsraeliStockTransactions({
         return "text-purple-400 bg-purple-400/10 border-purple-400/20";
       case "WITHDRAWAL":
         return "text-orange-400 bg-orange-400/10 border-orange-400/20";
+      case "FX_CONVERSION":
+        return "text-cyan-400 bg-cyan-400/10 border-cyan-400/20";
       default:
         return "text-gray-400 bg-surface-dark border-white/10";
     }
@@ -220,6 +225,10 @@ export default function IsraeliStockTransactions({
 
   const totalWithdrawals = transactions
     .filter((t) => (t.transaction_type || "").toUpperCase() === "WITHDRAWAL")
+    .reduce((sum, t) => sum + (t.total_value || 0), 0);
+
+  const totalFxConversion = transactions
+    .filter((t) => (t.transaction_type || "").toUpperCase() === "FX_CONVERSION")
     .reduce((sum, t) => sum + (t.total_value || 0), 0);
 
   const totalCommission = transactions.reduce((sum, t) => {
@@ -424,7 +433,7 @@ export default function IsraeliStockTransactions({
 
       {/* Cash Flow Summary */}
       {transactions.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="metric-card bg-gradient-to-r from-purple-500 to-purple-600">
             <div className="flex items-center">
               <Banknote className="h-8 w-8 opacity-80" />
@@ -432,6 +441,18 @@ export default function IsraeliStockTransactions({
                 <p className="text-sm opacity-80">Total Deposits</p>
                 <p className="text-2xl font-bold">
                   {formatCurrency(totalDeposits)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="metric-card bg-gradient-to-r from-cyan-500 to-cyan-600">
+            <div className="flex items-center">
+              <ArrowLeftRight className="h-8 w-8 opacity-80" />
+              <div className="ml-3">
+                <p className="text-sm opacity-80">FX Converted (ILS→USD)</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(totalFxConversion)}
                 </p>
               </div>
             </div>
@@ -521,6 +542,7 @@ export default function IsraeliStockTransactions({
               <option value="DIVIDEND">Dividend</option>
               <option value="DEPOSIT">Deposit</option>
               <option value="WITHDRAWAL">Withdrawal</option>
+              <option value="FX_CONVERSION">FX Conversion</option>
             </select>
           </div>
         </div>
@@ -651,6 +673,7 @@ export default function IsraeliStockTransactions({
 
                     return paginatedTransactions.map((transaction) => {
                       const isDeposit = transaction.transaction_type === "DEPOSIT" || transaction.transaction_type === "WITHDRAWAL";
+                      const isFx = transaction.transaction_type === "FX_CONVERSION";
                       
                       return (
                         <tr key={transaction.id} className="hover:bg-white/5">
@@ -689,14 +712,14 @@ export default function IsraeliStockTransactions({
                               )}`}
                             >
                               {getTransactionIcon(transaction.transaction_type, "sm")}
-                              <span className="ml-1">{transaction.transaction_type}</span>
+                              <span className="ml-1">{transaction.transaction_type === "FX_CONVERSION" ? "FX" : transaction.transaction_type}</span>
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right text-sm text-gray-100">
-                            {isDeposit ? "-" : formatNumber(transaction.quantity)}
+                            {isDeposit ? "-" : isFx ? `$${formatNumber(transaction.quantity)}` : formatNumber(transaction.quantity)}
                           </td>
                           <td className="px-4 py-3 text-right text-sm text-gray-100">
-                            {isDeposit ? "-" : formatCurrency(transaction.price)}
+                            {isDeposit ? "-" : isFx ? `₪${formatNumber(transaction.price)}` : formatCurrency(transaction.price)}
                           </td>
                           <td className="px-4 py-3 text-right text-sm font-medium text-gray-100">
                             {formatCurrency(transaction.total_value)}

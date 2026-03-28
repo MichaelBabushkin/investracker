@@ -287,13 +287,16 @@ export default function WorldStockHoldings({
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl">
+          <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-6 rounded-xl">
             <div className="flex items-center">
               <Banknote className="h-8 w-8 opacity-80" />
               <div className="ml-3">
-                <p className="text-sm opacity-80">Current Value</p>
+                <p className="text-sm opacity-80">Total Portfolio</p>
                 <p className="text-2xl font-bold">
-                  {formatCurrency(totalValue)}
+                  {formatCurrency(totalValue + totalCash)}
+                </p>
+                <p className="text-xs opacity-70 mt-0.5">
+                  Holdings {formatCurrency(totalValue)} · Cash {formatCurrency(totalCash)}
                 </p>
               </div>
             </div>

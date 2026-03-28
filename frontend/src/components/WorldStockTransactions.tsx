@@ -100,6 +100,10 @@ export default function WorldStockTransactions({
         return "text-gain bg-gain/10 border-gain/20";
       case "SELL":
         return "text-loss bg-loss/10 border-loss/20";
+      case "DIVIDEND":
+        return "text-brand-400 bg-brand-400/10 border-brand-400/20";
+      case "CURRENCY_CONVERSION":
+        return "text-cyan-400 bg-cyan-400/10 border-cyan-400/20";
       default:
         return "text-gray-400 bg-surface-dark border-white/10";
     }
@@ -111,6 +115,10 @@ export default function WorldStockTransactions({
         return "Buy";
       case "SELL":
         return "Sell";
+      case "DIVIDEND":
+        return "Dividend";
+      case "CURRENCY_CONVERSION":
+        return "FX Deposit";
       default:
         return type || "Unknown";
     }
@@ -157,15 +165,19 @@ export default function WorldStockTransactions({
       return sum + Math.abs(parseNumeric(t.commission));
     }, 0);
 
-    // Volume statistics
-    const totalVolume = transactions.reduce((sum, t) => {
+    // Volume statistics (exclude FX/dividend — only BUY + SELL)
+    const tradeTxns = transactions.filter((t) => {
+      const tt = t.transaction_type?.toUpperCase();
+      return tt === "BUY" || tt === "SELL";
+    });
+    const totalVolume = tradeTxns.reduce((sum, t) => {
       const qty = Math.abs(parseNumeric(t.quantity));
       const price = parseNumeric(t.price || t.trade_price);
       return sum + qty * price;
     }, 0);
 
     const avgTradeSize =
-      transactions.length > 0 ? totalVolume / transactions.length : 0;
+      tradeTxns.length > 0 ? totalVolume / tradeTxns.length : 0;
 
     // Win rate
     const winRate =
@@ -674,6 +686,14 @@ export default function WorldStockTransactions({
                 const proceeds = parseNum(transaction.total_value || transaction.proceeds);
                 const commission = parseNum(transaction.commission);
                 const basis = parseNum(transaction.basis);
+                const isFx = (transaction.transaction_type || "").toUpperCase() === "CURRENCY_CONVERSION";
+
+                const formatILS = (amount: number) =>
+                  new Intl.NumberFormat("he-IL", {
+                    style: "currency",
+                    currency: "ILS",
+                    minimumFractionDigits: 2,
+                  }).format(amount);
 
                 return (
                   <tr key={transaction.id} className="hover:bg-white/5">
@@ -706,13 +726,21 @@ export default function WorldStockTransactions({
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
-                      {formatNumber(Math.abs(quantity))}
+                      {isFx ? formatCurrency(Math.abs(quantity)) : formatNumber(Math.abs(quantity))}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
-                      {formatCurrency(tradePrice)}
+                      {isFx ? (
+                        <span title="Exchange rate ILS/USD">{formatILS(tradePrice)}</span>
+                      ) : (
+                        formatCurrency(tradePrice)
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
-                      {formatCurrency(proceeds)}
+                      {isFx ? (
+                        <span title="ILS amount converted">{formatILS(proceeds)}</span>
+                      ) : (
+                        formatCurrency(proceeds)
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-400">
                       {formatCurrency(Math.abs(commission))}

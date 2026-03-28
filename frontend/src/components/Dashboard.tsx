@@ -7,6 +7,7 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
+  Banknote,
   BarChart3,
   Briefcase,
   Plus,
@@ -33,6 +34,8 @@ import { worldStocksAPI } from "@/services/api";
 
 interface PortfolioData {
   totalValue: number;
+  totalCash: number;
+  totalPortfolioValue: number;
   dayChange: number;
   dayChangePercent: number;
   totalGainLoss: number;
@@ -136,8 +139,9 @@ export default function Dashboard() {
         ) : portfolioData ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <MetricCard
-              label="Total Value"
-              value={`$${portfolioData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              label="Total Portfolio"
+              value={`$${portfolioData.totalPortfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              subValue={`Holdings: $${portfolioData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Cash: $${portfolioData.totalCash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               icon={<DollarSign size={18} />}
             />
             <MetricCard
@@ -155,10 +159,10 @@ export default function Dashboard() {
               icon={<BarChart3 size={18} />}
             />
             <MetricCard
-              label="Total Invested"
-              value={`$${portfolioData.totalInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-              subValue={portfolioData.totalInvested > 0 ? `${((portfolioData.totalValue / portfolioData.totalInvested - 1) * 100).toFixed(1)}% return` : "N/A"}
-              icon={<Briefcase size={18} />}
+              label="Cash Available"
+              value={`$${portfolioData.totalCash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              subValue={`Invested: $${portfolioData.totalInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              icon={<Banknote size={18} />}
             />
           </div>
         ) : error ? (
