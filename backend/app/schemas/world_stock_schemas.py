@@ -146,13 +146,14 @@ class WorldStockSummaryResponse(BaseModel):
     total_unrealized_pl_pct: Decimal = Decimal('0')
     total_cash: Decimal = Decimal('0')
     total_invested: Decimal = Decimal('0')
+    total_tax_withheld_ils: Decimal = Decimal('0')  # Capital gains tax withheld (מס עתידי) in ILS
     holdings_count: int
     transactions_count: int
     dividends_count: int
     
     @field_serializer('total_value', 'total_cost', 'total_dividends', 'total_tax', 
                       'total_commissions', 'total_realized_pl', 'total_unrealized_pl',
-                      'total_unrealized_pl_pct', 'total_cash', 'total_invested')
+                      'total_unrealized_pl_pct', 'total_cash', 'total_invested', 'total_tax_withheld_ils')
     def serialize_decimal(self, value: Optional[Decimal], _info):
         return float(value) if value is not None else 0.0
 

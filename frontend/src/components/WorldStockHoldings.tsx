@@ -43,6 +43,7 @@ export default function WorldStockHoldings({
     total_unrealized_pl_pct: number;
     total_cost: number;
     total_invested: number;
+    total_tax_withheld_ils: number;
   } | null>(null);
   const { confirm, ConfirmDialogElement } = useConfirmDialog();
 
@@ -274,7 +275,7 @@ export default function WorldStockHoldings({
 
       {/* Summary Cards */}
       {Array.isArray(holdings) && holdings.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
           <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-xl">
             <div className="flex items-center">
               <Building2 className="h-8 w-8 opacity-80" />
@@ -379,6 +380,21 @@ export default function WorldStockHoldings({
               </div>
             </div>
           </div>
+
+          {(summaryData?.total_tax_withheld_ils ?? 0) > 0 && (
+            <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-6 rounded-xl">
+              <div className="flex items-center">
+                <Banknote className="h-8 w-8 opacity-80" />
+                <div className="ml-3">
+                  <p className="text-sm opacity-80">Tax Withheld</p>
+                  <p className="text-2xl font-bold">
+                    ₪{(summaryData?.total_tax_withheld_ils || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs opacity-70 mt-0.5">מס עתידי (ILS)</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

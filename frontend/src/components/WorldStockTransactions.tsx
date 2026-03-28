@@ -104,6 +104,8 @@ export default function WorldStockTransactions({
         return "text-brand-400 bg-brand-400/10 border-brand-400/20";
       case "CURRENCY_CONVERSION":
         return "text-cyan-400 bg-cyan-400/10 border-cyan-400/20";
+      case "CAPITAL_GAINS_TAX":
+        return "text-amber-400 bg-amber-400/10 border-amber-400/20";
       default:
         return "text-gray-400 bg-surface-dark border-white/10";
     }
@@ -119,6 +121,8 @@ export default function WorldStockTransactions({
         return "Dividend";
       case "CURRENCY_CONVERSION":
         return "FX Deposit";
+      case "CAPITAL_GAINS_TAX":
+        return "Tax";
       default:
         return type || "Unknown";
     }
@@ -687,6 +691,8 @@ export default function WorldStockTransactions({
                 const commission = parseNum(transaction.commission);
                 const basis = parseNum(transaction.basis);
                 const isFx = (transaction.transaction_type || "").toUpperCase() === "CURRENCY_CONVERSION";
+                const isTax = (transaction.transaction_type || "").toUpperCase() === "CAPITAL_GAINS_TAX";
+                const isILS = isFx || isTax;
 
                 const formatILS = (amount: number) =>
                   new Intl.NumberFormat("he-IL", {
@@ -726,18 +732,20 @@ export default function WorldStockTransactions({
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
-                      {isFx ? formatCurrency(Math.abs(quantity)) : formatNumber(Math.abs(quantity))}
+                      {isTax ? formatILS(Math.abs(quantity)) : isFx ? formatCurrency(Math.abs(quantity)) : formatNumber(Math.abs(quantity))}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
-                      {isFx ? (
+                      {isILS && !isTax ? (
                         <span title="Exchange rate ILS/USD">{formatILS(tradePrice)}</span>
+                      ) : isTax ? (
+                        <span className="text-gray-500">—</span>
                       ) : (
                         formatCurrency(tradePrice)
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
-                      {isFx ? (
-                        <span title="ILS amount converted">{formatILS(proceeds)}</span>
+                      {isILS ? (
+                        <span title={isTax ? "Tax amount (ILS)" : "ILS amount converted"}>{formatILS(proceeds)}</span>
                       ) : (
                         formatCurrency(proceeds)
                       )}

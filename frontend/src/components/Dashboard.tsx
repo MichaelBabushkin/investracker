@@ -44,6 +44,7 @@ interface PortfolioData {
   totalRealizedPL: number;
   totalDividends: number;
   totalCommissions: number;
+  taxWithheldILS: number;
 }
 
 interface Holding {
@@ -154,7 +155,10 @@ export default function Dashboard() {
             <MetricCard
               label="Realized P/L"
               value={`${portfolioData.totalRealizedPL >= 0 ? "+" : ""}$${portfolioData.totalRealizedPL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-              subValue={`Dividends: $${(portfolioData.totalDividends || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              subValue={portfolioData.taxWithheldILS > 0 
+                ? `Div: $${(portfolioData.totalDividends || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Tax: ₪${portfolioData.taxWithheldILS.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : `Dividends: $${(portfolioData.totalDividends || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              }
               trend={{ value: portfolioData.totalRealizedPL }}
               icon={<BarChart3 size={18} />}
             />
@@ -257,12 +261,20 @@ export default function Dashboard() {
                       ${(portfolioData.totalDividends || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center justify-between py-2 border-b border-white/5">
                     <span className="text-sm text-gray-400">Total Commissions</span>
                     <span className="text-sm font-medium text-loss financial-value">
                       -${(portfolioData.totalCommissions || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
+                  {(portfolioData.taxWithheldILS || 0) > 0 && (
+                    <div className="flex items-center justify-between py-2 border-b border-white/5">
+                      <span className="text-sm text-gray-400">Tax Withheld (מס עתידי)</span>
+                      <span className="text-sm font-medium text-amber-400 financial-value">
+                        ₪{portfolioData.taxWithheldILS.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
                 </>
               ) : (
                 <p className="text-gray-500 text-sm text-center py-8">No portfolio data yet. Upload a broker report to get started.</p>

@@ -501,6 +501,14 @@ class IsraeliStockService:
                                 if any(bt in type_val for bt in buy_types):
                                     is_currency_conversion = True
                         
+                        # Check for capital gains tax (security 9992985 = מס עתידי)
+                        # These are ILS tax withholdings on realized world stock gains
+                        is_capital_gains_tax = False
+                        if security_no == '9992985':
+                            tax_keywords = ['מס עתידי', 'ידיתע סמ', 'מס', 'סמ']
+                            if any(kw in name for kw in tax_keywords) or any(kw in str(original_name if 'original_name' in dir() else name) for kw in tax_keywords):
+                                is_capital_gains_tax = True
+                        
                         # Clean the name by removing Hebrew transaction type prefixes
                         original_name = name
                         for prefix in hebrew_prefixes:
@@ -510,11 +518,11 @@ class IsraeliStockService:
                         
                         # Skip if security_no is 0 or empty, or name is too short
                         if not security_no or security_no == '0' or len(name) < 2:
-                            if not is_currency_conversion:
+                            if not is_currency_conversion and not is_capital_gains_tax:
                                 continue
                         
-                        # Check if it's a world stock or currency conversion
-                        is_world = self.broker_parser._is_world_stock(name, security_no) or is_currency_conversion
+                        # Check if it's a world stock, currency conversion, or capital gains tax
+                        is_world = self.broker_parser._is_world_stock(name, security_no) or is_currency_conversion or is_capital_gains_tax
                         
                         if is_world:
                             all_rows.append({
@@ -525,6 +533,7 @@ class IsraeliStockService:
                                 'pdf_name': pdf_name,
                                 'holding_date': holding_date,
                                 'is_currency_conversion': is_currency_conversion,
+                                'is_capital_gains_tax': is_capital_gains_tax,
                             })
                     except Exception as e:
                         continue
@@ -536,6 +545,47 @@ class IsraeliStockService:
                 
                 for row_data in all_rows:
                     try:
+                        # Handle capital gains tax (מס עתידי) specially
+                        if row_data.get('is_capital_gains_tax'):
+                            transaction = self.broker_parser.parse_transaction_row(
+                                row_data['row'], row_data['security_no'], 
+                                row_data['security_no'], row_data['name'], 
+                                row_data['pdf_name'], row_data['holding_date'],
+                                col_map=col_map
+                            )
+                            if transaction:
+                                # Determine if this is a withdrawal (tax paid) or deposit (tax refunded)
+                                type_val = str(row_data['row'].iloc[idx_type]).strip() if len(row_data['row']) > idx_type else ''
+                                withdrawal_types = ['משיכה', 'הכישמ', 'withdrawal']
+                                is_withdrawal = any(wt in type_val for wt in withdrawal_types)
+                                
+                                transaction['transaction_type'] = 'CAPITAL_GAINS_TAX'
+                                transaction['is_world_stock'] = True
+                                transaction['symbol'] = 'TAX'
+                                transaction['ticker'] = 'TAX'
+                                transaction['name'] = 'Capital Gains Tax (מס עתידי)'
+                                transaction['stock_name'] = 'Capital Gains Tax (מס עתידי)'
+                                transaction['currency'] = 'ILS'
+                                
+                                # The quantity field from the parser contains the ILS amount
+                                tax_amount = abs(float(transaction.get('quantity', 0) or 0))
+                                
+                                # Positive quantity = tax paid (withdrawal)
+                                # Negative quantity = tax refunded (deposit/reversal)
+                                if is_withdrawal:
+                                    transaction['quantity'] = tax_amount
+                                else:
+                                    transaction['quantity'] = -tax_amount
+                                
+                                transaction['amount'] = tax_amount
+                                transaction['total_value'] = tax_amount
+                                transaction['price'] = None
+                                
+                                direction = 'paid' if is_withdrawal else 'refunded'
+                                print(f"DEBUG: Capital gains tax - ₪{tax_amount:.2f} {direction}")
+                                all_world_transactions.append(transaction)
+                            continue
+                        
                         # Handle currency conversion specially
                         if row_data.get('is_currency_conversion'):
                             transaction = self.broker_parser.parse_transaction_row(

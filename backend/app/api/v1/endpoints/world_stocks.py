@@ -418,6 +418,15 @@ async def get_world_stock_summary(
             """)
             total_net_dividends = conn.execute(net_div_query, params).fetchone()[0] or Decimal('0')
             
+            # Capital gains tax withheld (מס עתידי) in ILS
+            # quantity > 0 = tax paid, quantity < 0 = tax refunded; net = sum of all
+            tax_withheld_query = text("""
+                SELECT COALESCE(SUM(quantity), 0)
+                FROM "world_stock_transactions"
+                WHERE user_id = :user_id AND transaction_type = 'CAPITAL_GAINS_TAX'
+            """)
+            total_tax_withheld_ils = conn.execute(tax_withheld_query, params).fetchone()[0] or Decimal('0')
+            
             # Calculate unrealized P/L
             total_unrealized_pl = total_value - total_cost
             total_unrealized_pl_pct = Decimal('0')
@@ -451,6 +460,7 @@ async def get_world_stock_summary(
                 total_unrealized_pl_pct=total_unrealized_pl_pct,
                 total_cash=total_cash if total_cash > 0 else Decimal('0'),
                 total_invested=total_invested,
+                total_tax_withheld_ils=total_tax_withheld_ils,
                 holdings_count=holdings_count,
                 transactions_count=transactions_count,
                 dividends_count=dividends_count
@@ -584,6 +594,14 @@ async def get_portfolio_dashboard(
             else:
                 total_cash = sell_inflow + total_net_dividends
             
+            # Capital gains tax withheld (מס עתידי) in ILS
+            tax_withheld_query = text("""
+                SELECT COALESCE(SUM(quantity), 0)
+                FROM "world_stock_transactions"
+                WHERE user_id = :user_id AND transaction_type = 'CAPITAL_GAINS_TAX'
+            """)
+            total_tax_withheld_ils = float(conn.execute(tax_withheld_query, params).fetchone()[0] or 0)
+            
             total_gain_loss = float(total_value - total_cost) + total_realized_pl
             total_invested = float(total_cost)
             total_val = float(total_value)
@@ -610,6 +628,7 @@ async def get_portfolio_dashboard(
                     "totalRealizedPL": total_realized_pl,
                     "totalDividends": total_net_dividends,
                     "totalCommissions": total_commissions,
+                    "taxWithheldILS": round(total_tax_withheld_ils, 2),
                 },
                 "holdings": holdings,
                 "recentTransactions": recent_transactions[:5],
@@ -1250,6 +1269,35 @@ def _process_approved_transaction(conn, t, user_id: str, now):
             "tax": t.tax,
             "net_amount": net_amount,
             "currency": t.currency or "USD",
+            "source_pdf": t.pdf_filename,
+            "created_at": now,
+            "updated_at": now
+        })
+    
+    elif t.transaction_type == 'CAPITAL_GAINS_TAX':
+        # Capital gains tax (מס עתידי) — just store in transactions, no holdings impact
+        # quantity > 0 = tax paid (withdrawal), quantity < 0 = tax refunded (deposit)
+        conn.execute(text("""
+            INSERT INTO "world_stock_transactions" 
+            (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
+             transaction_type, quantity, price, total_value, commission, currency, 
+             source_pdf, created_at, updated_at)
+            VALUES (:user_id, :ticker, :symbol, :company_name, :transaction_date, :transaction_time,
+                    :transaction_type, :quantity, :price, :total_value, :commission, :currency, 
+                    :source_pdf, :created_at, :updated_at)
+        """), {
+            "user_id": user_id,
+            "ticker": "TAX",
+            "symbol": "TAX",
+            "company_name": "Capital Gains Tax (מס עתידי)",
+            "transaction_date": t.transaction_date,
+            "transaction_time": t.transaction_time,
+            "transaction_type": "CAPITAL_GAINS_TAX",
+            "quantity": t.quantity,  # positive = tax paid, negative = refunded
+            "price": None,
+            "total_value": t.amount,  # absolute ILS amount
+            "commission": None,
+            "currency": "ILS",
             "source_pdf": t.pdf_filename,
             "created_at": now,
             "updated_at": now
