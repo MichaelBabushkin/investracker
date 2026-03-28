@@ -501,12 +501,14 @@ class IsraeliStockService:
                                 if any(bt in type_val for bt in buy_types):
                                     is_currency_conversion = True
                         
-                        # Check for capital gains tax (security 9992985 = מס עתידי)
-                        # These are ILS tax withholdings on realized world stock gains
+                        # Check for capital gains tax paid (security 9992983 = מס ששולם / מס לשלם)
+                        # These are ACTUAL tax payments on realized world stock gains.
+                        # Note: security 9992985 (מס עתידי) is provisional/estimated tax that
+                        # nets to zero — we intentionally skip it.
                         is_capital_gains_tax = False
-                        if security_no == '9992985':
-                            tax_keywords = ['מס עתידי', 'ידיתע סמ', 'מס', 'סמ']
-                            if any(kw in name for kw in tax_keywords) or any(kw in str(original_name if 'original_name' in dir() else name) for kw in tax_keywords):
+                        if security_no == '9992983':
+                            tax_keywords = ['מס ששולם', 'םלושש סמ', 'מס לשלם', 'םלשל סמ', 'מס', 'סמ']
+                            if any(kw in name for kw in tax_keywords):
                                 is_capital_gains_tax = True
                         
                         # Clean the name by removing Hebrew transaction type prefixes
@@ -545,7 +547,7 @@ class IsraeliStockService:
                 
                 for row_data in all_rows:
                     try:
-                        # Handle capital gains tax (מס עתידי) specially
+                        # Handle capital gains tax (מס ששולם / מס לשלם) specially
                         if row_data.get('is_capital_gains_tax'):
                             transaction = self.broker_parser.parse_transaction_row(
                                 row_data['row'], row_data['security_no'], 
@@ -554,35 +556,42 @@ class IsraeliStockService:
                                 col_map=col_map
                             )
                             if transaction:
-                                # Determine if this is a withdrawal (tax paid) or deposit (tax refunded)
-                                type_val = str(row_data['row'].iloc[idx_type]).strip() if len(row_data['row']) > idx_type else ''
-                                withdrawal_types = ['משיכה', 'הכישמ', 'withdrawal']
-                                is_withdrawal = any(wt in type_val for wt in withdrawal_types)
+                                # Determine the sub-type from the Hebrew name:
+                                # מס לשלם = tax liability (money leaves account, debit)
+                                # מס ששולם = tax actually paid to tax authority (confirmation)
+                                # To avoid double-counting, we only track מס ששולם
+                                raw_name = row_data.get('original_name', '') or row_data.get('name', '')
+                                is_tax_paid = 'ששולם' in raw_name or 'םלושש' in raw_name
+                                is_tax_to_pay = 'לשלם' in raw_name or 'םלשל' in raw_name
+                                
+                                if not is_tax_paid and not is_tax_to_pay:
+                                    # Generic match on security 9992983 — include it
+                                    is_tax_paid = True
+                                
+                                if is_tax_to_pay and not is_tax_paid:
+                                    # Skip מס לשלם — it's the intermediate step;
+                                    # מס ששולם is the definitive payment record
+                                    print(f"DEBUG: Skipping מס לשלם (tax-to-pay) — will track מס ששולם instead")
+                                    continue
                                 
                                 transaction['transaction_type'] = 'CAPITAL_GAINS_TAX'
                                 transaction['is_world_stock'] = True
                                 transaction['symbol'] = 'TAX'
                                 transaction['ticker'] = 'TAX'
-                                transaction['name'] = 'Capital Gains Tax (מס עתידי)'
-                                transaction['stock_name'] = 'Capital Gains Tax (מס עתידי)'
+                                transaction['name'] = 'Capital Gains Tax (מס ששולם)'
+                                transaction['stock_name'] = 'Capital Gains Tax (מס ששולם)'
                                 transaction['currency'] = 'ILS'
                                 
                                 # The quantity field from the parser contains the ILS amount
                                 tax_amount = abs(float(transaction.get('quantity', 0) or 0))
                                 
-                                # Positive quantity = tax paid (withdrawal)
-                                # Negative quantity = tax refunded (deposit/reversal)
-                                if is_withdrawal:
-                                    transaction['quantity'] = tax_amount
-                                else:
-                                    transaction['quantity'] = -tax_amount
-                                
+                                # מס ששולם is always money paid (positive = tax paid)
+                                transaction['quantity'] = tax_amount
                                 transaction['amount'] = tax_amount
                                 transaction['total_value'] = tax_amount
                                 transaction['price'] = None
                                 
-                                direction = 'paid' if is_withdrawal else 'refunded'
-                                print(f"DEBUG: Capital gains tax - ₪{tax_amount:.2f} {direction}")
+                                print(f"DEBUG: Capital gains tax paid (מס ששולם) - ₪{tax_amount:.2f}")
                                 all_world_transactions.append(transaction)
                             continue
                         

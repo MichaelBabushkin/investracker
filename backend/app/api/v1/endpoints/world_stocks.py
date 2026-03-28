@@ -1275,8 +1275,8 @@ def _process_approved_transaction(conn, t, user_id: str, now):
         })
     
     elif t.transaction_type == 'CAPITAL_GAINS_TAX':
-        # Capital gains tax (מס עתידי) — just store in transactions, no holdings impact
-        # quantity > 0 = tax paid (withdrawal), quantity < 0 = tax refunded (deposit)
+        # Capital gains tax (מס ששולם) — just store in transactions, no holdings impact
+        # quantity = ILS amount of tax actually paid to tax authority
         conn.execute(text("""
             INSERT INTO "world_stock_transactions" 
             (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
@@ -1289,7 +1289,7 @@ def _process_approved_transaction(conn, t, user_id: str, now):
             "user_id": user_id,
             "ticker": "TAX",
             "symbol": "TAX",
-            "company_name": "Capital Gains Tax (מס עתידי)",
+            "company_name": "Capital Gains Tax (מס ששולם)",
             "transaction_date": t.transaction_date,
             "transaction_time": t.transaction_time,
             "transaction_type": "CAPITAL_GAINS_TAX",

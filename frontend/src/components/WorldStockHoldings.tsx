@@ -390,7 +390,7 @@ export default function WorldStockHoldings({
                   <p className="text-2xl font-bold">
                     ₪{(summaryData?.total_tax_withheld_ils || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
-                  <p className="text-xs opacity-70 mt-0.5">מס עתידי (ILS)</p>
+                  <p className="text-xs opacity-70 mt-0.5">מס ששולם (ILS)</p>
                 </div>
               </div>
             </div>
