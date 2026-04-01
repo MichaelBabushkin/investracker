@@ -266,7 +266,7 @@ const MobileTopBar: React.FC<{ onMenuOpen: () => void }> = ({ onMenuOpen }) => (
       <Menu size={22} />
     </button>
     <Image
-      src="/images/investracker_logo-dark.svg"
+      src="/images/investracker_logo.svg"
       alt="Investracker"
       width={120}
       height={30}
