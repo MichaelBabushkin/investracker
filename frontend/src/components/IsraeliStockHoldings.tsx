@@ -7,8 +7,6 @@ import {
   Banknote,
   ArrowUp,
   ArrowDown,
-  Calendar,
-  Clock,
   AlertTriangle,
   Table2,
   PieChart as PieChartLucide,
@@ -130,8 +128,12 @@ export default function IsraeliStockHoldings({
     return sum + (commission ? Number(commission) : 0);
   }, 0);
 
+  const totalFxConversion = transactions
+    .filter((t) => (t.transaction_type || "").toUpperCase() === "FX_CONVERSION")
+    .reduce((sum, t) => sum + (t.total_value || 0), 0);
+
   const netCashFlow = totalDeposits - totalWithdrawals;
-  const availableCash = totalDeposits - totalWithdrawals - totalBought + totalSold - totalCommission;
+  const availableCash = totalDeposits - totalWithdrawals - totalBought + totalSold - totalCommission - totalFxConversion;
   const totalCost = Array.isArray(holdings)
     ? holdings.reduce((sum, holding) => sum + (holding.purchase_cost || 0), 0)
     : 0;
@@ -230,48 +232,6 @@ export default function IsraeliStockHoldings({
     );
   }
 
-  if (!holdings || holdings.length === 0) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-100">
-            Israeli Stock Holdings
-          </h2>
-        </div>
-        <div className="bg-surface-dark border border-white/10 rounded-xl p-12 text-center">
-          <Building2 className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-100 mb-2">
-            No Holdings Found
-          </h3>
-          <p className="text-gray-400 mb-4">
-            Upload an Israeli investment PDF to see your stock holdings here.
-          </p>
-          <p className="text-sm text-gray-400">
-            We support TA-125 and SME-60 stocks from Israeli brokers.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-100">
-            Israeli Stock Holdings
-          </h2>
-          <button onClick={fetchHoldings} className="btn-primary text-sm">
-            Retry
-          </button>
-        </div>
-        <div className="bg-loss/10 border border-loss/20 rounded-xl p-4">
-          <p className="text-loss">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -280,148 +240,117 @@ export default function IsraeliStockHoldings({
           Israeli Stock Holdings
         </h2>
         <div className="flex items-center space-x-3">
-          {/* View Mode Toggle */}
-          <div className="flex items-center bg-surface-dark rounded-xl p-1">
-            <button
-              onClick={() => setViewMode("table")}
-              className={`flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                viewMode === "table"
-                  ? "bg-surface-dark-secondary text-gray-100"
-                  : "text-gray-400 hover:text-gray-100"
-              }`}
-            >
-              <Table2 className="h-4 w-4 mr-1" />
-              Table
-            </button>
-            <button
-              onClick={() => setViewMode("chart")}
-              className={`flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                viewMode === "chart"
-                  ? "bg-surface-dark-secondary text-gray-100"
-                  : "text-gray-400 hover:text-gray-100"
-              }`}
-            >
-              <PieChartLucide className="h-4 w-4 mr-1" />
-              Chart
-            </button>
-          </div>
-
-          <button onClick={fetchHoldings} className="btn-secondary text-sm">
+          {holdings.length > 0 && (
+            <div className="flex items-center bg-surface-dark rounded-xl p-1">
+              <button
+                onClick={() => setViewMode("table")}
+                className={`flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === "table"
+                    ? "bg-surface-dark-secondary text-gray-100"
+                    : "text-gray-400 hover:text-gray-100"
+                }`}
+              >
+                <Table2 className="h-4 w-4 mr-1" />
+                Table
+              </button>
+              <button
+                onClick={() => setViewMode("chart")}
+                className={`flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === "chart"
+                    ? "bg-surface-dark-secondary text-gray-100"
+                    : "text-gray-400 hover:text-gray-100"
+                }`}
+              >
+                <PieChartLucide className="h-4 w-4 mr-1" />
+                Chart
+              </button>
+            </div>
+          )}
+          <button
+            onClick={fetchHoldings}
+            className="px-4 py-2 bg-surface-dark text-gray-300 rounded-xl hover:bg-white/10 transition-colors text-sm font-medium"
+          >
             Refresh
           </button>
         </div>
       </div>
 
-      {/* Summary */}
-      {Array.isArray(holdings) && holdings.length > 0 && (
+      {/* Holdings Summary — only when positions exist */}
+      {holdings.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="metric-card">
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-xl">
             <div className="flex items-center">
               <Building2 className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Total Holdings</p>
-                <p className="text-2xl font-bold">
-                  {Array.isArray(holdings) ? holdings.length : 0}
-                </p>
+                <p className="text-2xl font-bold">{holdings.length}</p>
               </div>
             </div>
           </div>
 
-          <div className="metric-card bg-gradient-to-r from-blue-500 to-blue-600">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl">
             <div className="flex items-center">
               <Banknote className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Current Value</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(totalValue)}
-                </p>
+                <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
               </div>
             </div>
           </div>
 
-          <div className="metric-card bg-gradient-to-r from-gray-500 to-gray-600">
+          <div className="bg-gradient-to-r from-gray-500 to-gray-600 text-white p-6 rounded-xl">
             <div className="flex items-center">
               <Banknote className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Total Cost</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(totalCost)}
-                </p>
+                <p className="text-2xl font-bold">{formatCurrency(totalCost)}</p>
               </div>
             </div>
           </div>
 
-          <div
-            className={`metric-card bg-gradient-to-r ${
-              totalReturn >= 0
-                ? "from-green-500 to-green-600"
-                : "from-red-500 to-red-600"
-            }`}
-          >
+          <div className={`bg-gradient-to-r ${totalReturn >= 0 ? "from-green-500 to-green-600" : "from-red-500 to-red-600"} text-white p-6 rounded-xl`}>
             <div className="flex items-center">
-              {totalReturn >= 0 ? (
-                <ArrowUp className="h-8 w-8 opacity-80" />
-              ) : (
-                <ArrowDown className="h-8 w-8 opacity-80" />
-              )}
+              {totalReturn >= 0 ? <ArrowUp className="h-8 w-8 opacity-80" /> : <ArrowDown className="h-8 w-8 opacity-80" />}
               <div className="ml-3">
                 <p className="text-sm opacity-80">Total Return</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(totalReturn)}
-                </p>
+                <p className="text-2xl font-bold">{formatCurrency(totalReturn)}</p>
               </div>
             </div>
           </div>
 
-          <div
-            className={`metric-card bg-gradient-to-r ${
-              totalReturnPercentage >= 0
-                ? "from-green-500 to-green-600"
-                : "from-red-500 to-red-600"
-            }`}
-          >
+          <div className={`bg-gradient-to-r ${totalReturnPercentage >= 0 ? "from-green-500 to-green-600" : "from-red-500 to-red-600"} text-white p-6 rounded-xl`}>
             <div className="flex items-center">
               <TrendingUp className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Return %</p>
-                <p className="text-2xl font-bold">
-                  {formatPercentage(totalReturnPercentage)}
-                </p>
+                <p className="text-2xl font-bold">{formatPercentage(totalReturnPercentage)}</p>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Cash Flow Metrics */}
-      {Array.isArray(holdings) && holdings.length > 0 && (
+      {/* Cash Flow Metrics — always shown when there are any transactions */}
+      {(totalDeposits > 0 || availableCash !== 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="metric-card bg-gradient-to-r from-indigo-500 to-indigo-600">
+          <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-6 rounded-xl">
             <div className="flex items-center">
               <Banknote className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Net Cash Flow</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(netCashFlow)}
-                </p>
-                <p className="text-xs opacity-75 mt-1">
-                  Total invested capital
-                </p>
+                <p className="text-2xl font-bold">{formatCurrency(netCashFlow)}</p>
+                <p className="text-xs opacity-75 mt-1">Total invested capital</p>
               </div>
             </div>
           </div>
 
-          <div className="metric-card bg-gradient-to-r from-teal-500 to-teal-600">
+          <div className="bg-gradient-to-r from-teal-500 to-teal-600 text-white p-6 rounded-xl">
             <div className="flex items-center">
               <Banknote className="h-8 w-8 opacity-80" />
               <div className="ml-3">
                 <p className="text-sm opacity-80">Available Cash</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(availableCash)}
-                </p>
-                <p className="text-xs opacity-75 mt-1">
-                  Ready to invest
-                </p>
+                <p className="text-2xl font-bold">{formatCurrency(availableCash)}</p>
+                <p className="text-xs opacity-75 mt-1">Ready to invest</p>
               </div>
             </div>
           </div>

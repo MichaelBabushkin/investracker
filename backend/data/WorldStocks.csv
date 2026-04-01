@@ -1,0 +1,51 @@
+ticker,exchange,company_name,sector,industry,country,currency
+AAPL,US,Apple Inc.,Technology,Consumer Electronics,US,USD
+MSFT,US,Microsoft Corporation,Technology,Software,US,USD
+GOOGL,US,Alphabet Inc.,Technology,Internet Content & Information,US,USD
+AMZN,US,Amazon.com Inc.,Consumer Cyclical,Internet Retail,US,USD
+NVDA,US,NVIDIA Corporation,Technology,Semiconductors,US,USD
+META,US,Meta Platforms Inc.,Technology,Internet Content & Information,US,USD
+TSLA,US,Tesla Inc.,Consumer Cyclical,Auto Manufacturers,US,USD
+BRK.B,US,Berkshire Hathaway Inc.,Financial Services,Financial Conglomerates,US,USD
+V,US,Visa Inc.,Financial Services,Credit Services,US,USD
+JNJ,US,Johnson & Johnson,Healthcare,Drug Manufacturers,US,USD
+WMT,US,Walmart Inc.,Consumer Defensive,Discount Stores,US,USD
+JPM,US,JPMorgan Chase & Co.,Financial Services,Banks - Diversified,US,USD
+PG,US,Procter & Gamble Co.,Consumer Defensive,Household & Personal Products,US,USD
+MA,US,Mastercard Inc.,Financial Services,Credit Services,US,USD
+HD,US,The Home Depot Inc.,Consumer Cyclical,Home Improvement Retail,US,USD
+CVX,US,Chevron Corporation,Energy,Oil & Gas Integrated,US,USD
+ABBV,US,AbbVie Inc.,Healthcare,Drug Manufacturers,US,USD
+KO,US,The Coca-Cola Company,Consumer Defensive,Beverages - Non-Alcoholic,US,USD
+PEP,US,PepsiCo Inc.,Consumer Defensive,Beverages - Non-Alcoholic,US,USD
+COST,US,Costco Wholesale Corporation,Consumer Defensive,Discount Stores,US,USD
+MRK,US,Merck & Co. Inc.,Healthcare,Drug Manufacturers,US,USD
+AVGO,US,Broadcom Inc.,Technology,Semiconductors,US,USD
+TMO,US,Thermo Fisher Scientific Inc.,Healthcare,Diagnostics & Research,US,USD
+LLY,US,Eli Lilly and Company,Healthcare,Drug Manufacturers,US,USD
+DIS,US,The Walt Disney Company,Communication Services,Entertainment,US,USD
+NKE,US,Nike Inc.,Consumer Cyclical,Footwear & Accessories,US,USD
+CSCO,US,Cisco Systems Inc.,Technology,Communication Equipment,US,USD
+ADBE,US,Adobe Inc.,Technology,Software,US,USD
+INTC,US,Intel Corporation,Technology,Semiconductors,US,USD
+ABT,US,Abbott Laboratories,Healthcare,Medical Devices,US,USD
+NFLX,US,Netflix Inc.,Communication Services,Entertainment,US,USD
+ORCL,US,Oracle Corporation,Technology,Software,US,USD
+CRM,US,Salesforce Inc.,Technology,Software,US,USD
+AMD,US,Advanced Micro Devices Inc.,Technology,Semiconductors,US,USD
+PFE,US,Pfizer Inc.,Healthcare,Drug Manufacturers,US,USD
+QCOM,US,QUALCOMM Inc.,Technology,Semiconductors,US,USD
+BA,US,The Boeing Company,Industrials,Aerospace & Defense,US,USD
+IBM,US,International Business Machines,Technology,Information Technology Services,US,USD
+T,US,AT&T Inc.,Communication Services,Telecom Services,US,USD
+GE,US,General Electric Company,Industrials,Specialty Industrial Machinery,US,USD
+F,US,Ford Motor Company,Consumer Cyclical,Auto Manufacturers,US,USD
+CAT,US,Caterpillar Inc.,Industrials,Farm & Heavy Construction Machinery,US,USD
+INFY,US,Infosys Limited,Technology,Information Technology Services,IN,USD
+HDB,US,HDFC Bank Limited,Financial Services,Banks - Regional,IN,USD
+NIO,US,NIO Inc.,Consumer Cyclical,Auto Manufacturers,CN,USD
+BABA,US,Alibaba Group Holding Limited,Consumer Cyclical,Internet Retail,CN,USD
+TSM,US,Taiwan Semiconductor Manufacturing,Technology,Semiconductors,TW,USD
+SONY,US,Sony Group Corporation,Consumer Cyclical,Consumer Electronics,JP,USD
+TM,US,Toyota Motor Corporation,Consumer Cyclical,Auto Manufacturers,JP,USD
+SAP,US,SAP SE,Technology,Software,DE,USD

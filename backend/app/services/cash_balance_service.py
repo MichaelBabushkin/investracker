@@ -71,6 +71,7 @@ class CashBalanceService:
         total_sales = Decimal('0')      # Money received from selling
         total_commissions = Decimal('0')
         total_taxes = Decimal('0')
+        total_fx_conversions = Decimal('0')  # ILS converted to USD
         
         transaction_list = []
         running_balance = Decimal('0')
@@ -118,6 +119,12 @@ class CashBalanceService:
                 total_commissions += abs(commission)
                 total_taxes += abs(tax)
                 cash_impact = sale_proceeds
+                running_balance += cash_impact
+
+            elif trans_type == 'FX_CONVERSION':
+                # ILS converted to USD — ILS leaves the account
+                total_fx_conversions += abs(total_value)
+                cash_impact = -abs(total_value)
                 running_balance += cash_impact
             
             transaction_list.append({
@@ -187,8 +194,8 @@ class CashBalanceService:
                 'source_pdf': None
             })
         
-        # Calculate available cash
-        available_cash = total_deposits - total_withdrawals - total_purchases + total_sales + total_dividends - dividend_taxes
+        # Calculate available cash (FX conversions reduce ILS balance)
+        available_cash = total_deposits - total_withdrawals - total_purchases + total_sales + total_dividends - dividend_taxes - total_fx_conversions
         
         cursor.close()
         
