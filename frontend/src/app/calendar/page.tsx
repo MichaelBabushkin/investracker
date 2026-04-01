@@ -310,7 +310,7 @@ export default function CalendarPage() {
           {/* Legend */}
           <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-4 mb-6">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Legend</p>
-            <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
               {[
                 { color: "#ef4444", label: "US — Market Closed" },
                 { color: "#f97316", label: "US — Early Close" },
