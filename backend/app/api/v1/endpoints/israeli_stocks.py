@@ -991,6 +991,95 @@ async def import_stocks_from_csv(
         raise HTTPException(status_code=500, detail=f"Error importing stocks: {str(e)}")
 
 
+@router.post("/import-etfs-from-csv")
+async def import_etfs_from_csv(
+    current_user: User = Depends(get_admin_user)
+):
+    """
+    Import Israeli ETFs from Israelietfs.csv file.
+    The file has 2 junk header rows before the real column headers.
+    Admin only endpoint.
+    """
+    import io
+
+    backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+    csv_path = os.path.join(backend_root, "data", "Israelietfs.csv")
+
+    if not os.path.exists(csv_path):
+        raise HTTPException(status_code=404, detail=f"CSV file not found at {csv_path}")
+
+    try:
+        imported = 0
+        skipped = 0
+        errors = []
+
+        with open(csv_path, 'r', encoding='utf-8-sig') as f:
+            lines = f.readlines()
+
+        # Skip first 2 rows (title + date), row index 2 is the real header
+        reader = csv.DictReader(io.StringIO(''.join(lines[2:])))
+
+        with engine.connect() as conn:
+            for row in reader:
+                try:
+                    security_no = row.get('Security No', '').strip().lstrip('0')
+                    # Column names have trailing spaces in this file
+                    symbol = (row.get('Symbol ', '') or row.get('Symbol', '')).strip()
+                    name = row.get('Full Name', '').strip()
+
+                    if not security_no or not name:
+                        skipped += 1
+                        continue
+
+                    # Deduplicate by security_no
+                    existing = conn.execute(
+                        text('SELECT id FROM "israeli_stocks" WHERE security_no = :security_no'),
+                        {"security_no": security_no}
+                    ).fetchone()
+
+                    if existing:
+                        skipped += 1
+                        continue
+
+                    yfinance_ticker = f"{symbol}.TA" if symbol else f"{security_no}.TA"
+
+                    conn.execute(
+                        text('''
+                            INSERT INTO "israeli_stocks"
+                            (name, symbol, security_no, index_name, yfinance_ticker, is_active, created_at, updated_at)
+                            VALUES (:name, :symbol, :security_no, :index_name, :yfinance_ticker, :is_active, NOW(), NOW())
+                        '''),
+                        {
+                            "name": name,
+                            "symbol": symbol if symbol else None,
+                            "security_no": security_no,
+                            "index_name": "ETF",
+                            "yfinance_ticker": yfinance_ticker,
+                            "is_active": True,
+                        }
+                    )
+                    imported += 1
+
+                except Exception as e:
+                    errors.append(f"Error importing {row.get('Full Name', '?')}: {str(e)}")
+
+            conn.commit()
+
+        with engine.connect() as conn:
+            total_count = conn.execute(text('SELECT COUNT(*) FROM "israeli_stocks"')).scalar()
+
+        return {
+            "message": f"Successfully imported {imported} ETFs from CSV",
+            "imported": imported,
+            "skipped": skipped,
+            "total_in_db": total_count,
+            "errors": errors if errors else None
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error importing ETFs: {str(e)}")
+
+
 # ===== PENDING TRANSACTIONS ENDPOINTS =====
 
 @router.get("/pending-transactions")

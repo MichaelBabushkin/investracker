@@ -545,6 +545,11 @@ export const israeliStocksAPI = {
     return response.data;
   },
 
+  importETFsFromCSV: async () => {
+    const response = await api.post("/israeli-stocks/import-etfs-from-csv");
+    return response.data;
+  },
+
   // Reports Management
   getReports: async () => {
     const response = await api.get("/israeli-stocks/reports");

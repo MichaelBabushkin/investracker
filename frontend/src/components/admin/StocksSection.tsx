@@ -18,12 +18,36 @@ const StocksSection: React.FC = () => {
   >("israeli");
   const [logoCrawlerTab, setLogoCrawlerTab] = useState<"israeli" | "world">("israeli");
   const [isImporting, setIsImporting] = useState(false);
+  const [isImportingETFs, setIsImportingETFs] = useState(false);
   const [batchSize, setBatchSize] = useState(10);
   const [worldBatchSize, setWorldBatchSize] = useState(5);
   const [isCrawling, setIsCrawling] = useState(false);
   const [singleTicker, setSingleTicker] = useState("");
 
   const { confirm, ConfirmDialogElement } = useConfirmDialog();
+
+  const handleImportETFs = async () => {
+    const ok = await confirm({ title: "Import Israeli ETFs?", message: "This will import all 459 ETFs from Israelietfs.csv. Existing entries will be skipped.", confirmLabel: "Import", variant: "info" });
+    if (!ok) return;
+
+    setIsImportingETFs(true);
+    const loadingToast = toast.loading("Importing Israeli ETFs...");
+
+    try {
+      const result = await israeliStocksAPI.importETFsFromCSV();
+      toast.success(
+        `Successfully imported ${result.imported} ETFs! (${result.skipped} already existed)`,
+        { id: loadingToast }
+      );
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.detail || "Failed to import ETFs",
+        { id: loadingToast }
+      );
+    } finally {
+      setIsImportingETFs(false);
+    }
+  };
 
   const handleImportStocks = async () => {
     const ok = await confirm({ title: "Import Israeli stocks?", message: "This will import all stocks from the CSV file. Existing stocks will be skipped.", confirmLabel: "Import", variant: "info" });
@@ -131,6 +155,51 @@ const StocksSection: React.FC = () => {
                     <>
                       <Download className="w-5 h-5" />
                       Import Stocks from CSV
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Import Israeli ETFs */}
+            <div className="bg-info/10 border border-info/20 rounded-xl p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-100">
+                    Import Israeli ETFs from CSV
+                  </h3>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Import all ETFs from the Israelietfs.csv file (~459 funds)
+                  </p>
+                </div>
+                <Download className="w-5 h-5 text-info" />
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-surface-dark-secondary rounded-xl p-4 border border-white/10">
+                  <h4 className="font-medium text-gray-100 mb-2">What this does:</h4>
+                  <ul className="text-sm text-gray-400 space-y-1 list-disc list-inside">
+                    <li>Imports ETFs with security numbers and symbols</li>
+                    <li>Tagged with index_name = &quot;ETF&quot; for filtering</li>
+                    <li>Skips ETFs that already exist in the database</li>
+                    <li>Safe to run multiple times</li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={handleImportETFs}
+                  disabled={isImportingETFs}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-info text-white rounded-xl hover:bg-blue-600 transition-colors font-medium disabled:bg-gray-600 disabled:cursor-not-allowed"
+                >
+                  {isImportingETFs ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5" />
+                      Import ETFs from CSV
                     </>
                   )}
                 </button>
