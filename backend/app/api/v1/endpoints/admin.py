@@ -479,11 +479,53 @@ async def seed_calendar_events(
                 "years": "2025-2026"
             }
         
+        elif market == "IL":
+            import json
+            from datetime import date
+
+            json_path = os.path.join(os.path.dirname(__file__), "../../../../data/israeli_holidays.json")
+            json_path = os.path.abspath(json_path)
+
+            if not os.path.exists(json_path):
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Israeli holidays JSON not found at {json_path}"
+                )
+
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            for year_str, entries in data.get("years", {}).items():
+                for entry in entries:
+                    event_date = date.fromisoformat(entry["date"])
+                    event = CalendarEvent(
+                        market="IL",
+                        event_type=entry["event_type"],
+                        event_name=entry["event_name"],
+                        event_date=event_date,
+                        description=entry.get("description")
+                    )
+                    db.add(event)
+                    events_created += 1
+
+            db.commit()
+
+            years = sorted(data.get("years", {}).keys())
+            years_str = f"{years[0]}-{years[-1]}" if len(years) > 1 else years[0] if years else "unknown"
+
+            return {
+                "success": True,
+                "message": f"Successfully seeded {events_created} events for IL market ({years_str})",
+                "events_created": events_created,
+                "market": market,
+                "years": years_str
+            }
+
         else:
             return {
                 "success": False,
-                "message": f"Market '{market}' is not yet supported. Currently supported: US",
-                "supported_markets": ["US"]
+                "message": f"Market '{market}' is not yet supported. Currently supported: US, IL",
+                "supported_markets": ["US", "IL"]
             }
     
     except Exception as e:
