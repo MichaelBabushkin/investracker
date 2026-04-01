@@ -1,0 +1,516 @@
+{
+  "source": "https://www.tase.co.il/he/content/knowledge_center/trading_vacation_schedule",
+  "market": "IL",
+  "years": {
+    "2026": [
+      {
+        "date": "2026-03-03",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Purim",
+        "event_name_he": "פורים",
+        "description": "Market closed for Purim. No trading, no clearing."
+      },
+      {
+        "date": "2026-04-01",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover Eve",
+        "event_name_he": "ערב פסח",
+        "description": "Market closed for Passover Eve. Clearing takes place."
+      },
+      {
+        "date": "2026-04-02",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover",
+        "event_name_he": "פסח",
+        "description": "Market closed for Passover. No trading, no clearing."
+      },
+      {
+        "date": "2026-04-03",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Passover - Chol HaMoed (Friday format)",
+        "event_name_he": "חול המועד פסח - מתכונת יום ו'",
+        "description": "Shortened trading and clearing session in Friday format."
+      },
+      {
+        "date": "2026-04-05",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover - Chol HaMoed",
+        "event_name_he": "חול המועד פסח",
+        "description": "No trading on this day of Chol HaMoed Passover."
+      },
+      {
+        "date": "2026-04-06",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Passover - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד פסח - יום מקוצר",
+        "description": "Shortened trading and clearing session in Chol HaMoed format."
+      },
+      {
+        "date": "2026-04-07",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover 7th Day Eve",
+        "event_name_he": "ערב שביעי של פסח",
+        "description": "Market closed for eve of Passover 7th day. Clearing takes place."
+      },
+      {
+        "date": "2026-04-08",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover 7th Day",
+        "event_name_he": "שביעי של פסח",
+        "description": "Market closed for Passover 7th day. No trading, no clearing."
+      },
+      {
+        "date": "2026-04-21",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Memorial Day",
+        "event_name_he": "יום הזיכרון",
+        "description": "Market closed for Israel Memorial Day. Clearing takes place."
+      },
+      {
+        "date": "2026-04-22",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Independence Day",
+        "event_name_he": "יום העצמאות",
+        "description": "Market closed for Israeli Independence Day. No trading, no clearing."
+      },
+      {
+        "date": "2026-05-21",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Shavuot Eve",
+        "event_name_he": "ערב חג שבועות",
+        "description": "Market closed for Shavuot Eve. Clearing takes place."
+      },
+      {
+        "date": "2026-05-22",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Shavuot",
+        "event_name_he": "שבועות",
+        "description": "Market closed for Shavuot. No trading, no clearing."
+      },
+      {
+        "date": "2026-07-23",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Tisha B'Av",
+        "event_name_he": "תשעה באב",
+        "description": "Market closed for Tisha B'Av. No trading, no clearing."
+      },
+      {
+        "date": "2026-09-11",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Rosh Hashana Eve",
+        "event_name_he": "ערב ראש השנה",
+        "description": "Market closed for Rosh Hashana Eve. Clearing takes place."
+      },
+      {
+        "date": "2026-09-13",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Rosh Hashana (2nd day)",
+        "event_name_he": "ב' ראש השנה",
+        "description": "Market closed for Rosh Hashana 2nd day. No trading, no clearing."
+      },
+      {
+        "date": "2026-09-18",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Friday before Yom Kippur Eve (rule: no trading on Friday preceding Sunday holiday)",
+        "event_name_he": "יום שישי לפני ערב יום כיפור",
+        "description": "No trading — TASE rule: when Sunday is a holiday eve, the preceding Friday is also closed. Clearing takes place."
+      },
+      {
+        "date": "2026-09-20",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Yom Kippur Eve",
+        "event_name_he": "ערב יום כיפור",
+        "description": "Market closed for Yom Kippur Eve. No trading, no clearing."
+      },
+      {
+        "date": "2026-09-21",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Yom Kippur",
+        "event_name_he": "יום כיפור",
+        "description": "Market closed for Yom Kippur. No trading, no clearing."
+      },
+      {
+        "date": "2026-09-25",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Sukkot Eve",
+        "event_name_he": "ערב סוכות",
+        "description": "Market closed for Sukkot Eve. Clearing takes place."
+      },
+      {
+        "date": "2026-09-27",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Sukkot - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד סוכות - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Sukkot (27/9–1/10)."
+      },
+      {
+        "date": "2026-09-28",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Sukkot - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד סוכות - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Sukkot."
+      },
+      {
+        "date": "2026-09-29",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Sukkot - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד סוכות - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Sukkot."
+      },
+      {
+        "date": "2026-09-30",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Sukkot - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד סוכות - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Sukkot."
+      },
+      {
+        "date": "2026-10-01",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Sukkot - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד סוכות - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Sukkot."
+      },
+      {
+        "date": "2026-10-02",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Simchat Torah Eve",
+        "event_name_he": "ערב שמחה תורה",
+        "description": "Market closed for Simchat Torah Eve. Clearing takes place."
+      }
+    ],
+    "2027": [
+      {
+        "date": "2027-03-23",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Purim",
+        "event_name_he": "פורים",
+        "description": "Market closed for Purim. No trading, no clearing."
+      },
+      {
+        "date": "2027-04-21",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover Eve",
+        "event_name_he": "ערב פסח",
+        "description": "Market closed for Passover Eve. Clearing takes place."
+      },
+      {
+        "date": "2027-04-22",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover",
+        "event_name_he": "פסח",
+        "description": "Market closed for Passover. No trading, no clearing."
+      },
+      {
+        "date": "2027-04-23",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Passover - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד פסח - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Passover (23/4–26/4)."
+      },
+      {
+        "date": "2027-04-26",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Passover - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד פסח - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Passover."
+      },
+      {
+        "date": "2027-04-27",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover 7th Day Eve",
+        "event_name_he": "ערב שביעי של פסח",
+        "description": "Market closed for eve of Passover 7th day. Clearing takes place."
+      },
+      {
+        "date": "2027-04-28",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover 7th Day",
+        "event_name_he": "שביעי של פסח",
+        "description": "Market closed for Passover 7th day. No trading, no clearing."
+      },
+      {
+        "date": "2027-05-11",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Memorial Day",
+        "event_name_he": "יום הזיכרון",
+        "description": "Market closed for Israel Memorial Day. Clearing takes place."
+      },
+      {
+        "date": "2027-05-12",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Independence Day",
+        "event_name_he": "יום העצמאות",
+        "description": "Market closed for Israeli Independence Day. No trading, no clearing."
+      },
+      {
+        "date": "2027-06-10",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Shavuot Eve",
+        "event_name_he": "ערב חג שבועות",
+        "description": "Market closed for Shavuot Eve. Clearing takes place."
+      },
+      {
+        "date": "2027-06-11",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Shavuot",
+        "event_name_he": "שבועות",
+        "description": "Market closed for Shavuot. No trading, no clearing."
+      },
+      {
+        "date": "2027-08-12",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Tisha B'Av",
+        "event_name_he": "תשעה באב",
+        "description": "Market closed for Tisha B'Av. No trading, no clearing."
+      },
+      {
+        "date": "2027-10-01",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Rosh Hashana Eve",
+        "event_name_he": "ערב ראש השנה",
+        "description": "Market closed for Rosh Hashana Eve. Clearing takes place."
+      },
+      {
+        "date": "2027-10-03",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Rosh Hashana (2nd day)",
+        "event_name_he": "ב' ראש השנה",
+        "description": "Market closed for Rosh Hashana 2nd day. No trading, no clearing."
+      },
+      {
+        "date": "2027-10-08",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Friday before Yom Kippur Eve (rule: no trading on Friday preceding Sunday holiday)",
+        "event_name_he": "יום שישי לפני ערב יום כיפור",
+        "description": "No trading — TASE rule: when Sunday is a holiday eve, the preceding Friday is also closed. Clearing takes place."
+      },
+      {
+        "date": "2027-10-10",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Yom Kippur Eve",
+        "event_name_he": "ערב יום כיפור",
+        "description": "Market closed for Yom Kippur Eve. No trading, no clearing."
+      },
+      {
+        "date": "2027-10-11",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Yom Kippur",
+        "event_name_he": "יום כיפור",
+        "description": "Market closed for Yom Kippur. No trading, no clearing."
+      },
+      {
+        "date": "2027-10-15",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Sukkot Eve",
+        "event_name_he": "ערב סוכות",
+        "description": "Market closed for Sukkot Eve. Clearing takes place."
+      },
+      {
+        "date": "2027-10-18",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Sukkot - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד סוכות - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Sukkot (18/10–21/10)."
+      },
+      {
+        "date": "2027-10-19",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Sukkot - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד סוכות - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Sukkot."
+      },
+      {
+        "date": "2027-10-20",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Sukkot - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד סוכות - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Sukkot."
+      },
+      {
+        "date": "2027-10-21",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Sukkot - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד סוכות - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Sukkot."
+      },
+      {
+        "date": "2027-10-22",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Simchat Torah Eve",
+        "event_name_he": "ערב שמחת תורה",
+        "description": "Market closed for Simchat Torah Eve. Clearing takes place."
+      }
+    ],
+    "2028": [
+      {
+        "date": "2028-03-10",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Friday before Purim (rule: no trading on Friday preceding Sunday holiday)",
+        "event_name_he": "יום שישי לפני פורים",
+        "description": "No trading — TASE rule: when Sunday is a holiday, the preceding Friday is also closed. Clearing takes place."
+      },
+      {
+        "date": "2028-03-12",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Purim",
+        "event_name_he": "פורים",
+        "description": "Market closed for Purim. No trading, no clearing."
+      },
+      {
+        "date": "2028-04-10",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover Eve",
+        "event_name_he": "ערב פסח",
+        "description": "Market closed for Passover Eve. Clearing takes place."
+      },
+      {
+        "date": "2028-04-11",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover",
+        "event_name_he": "פסח",
+        "description": "Market closed for Passover. No trading, no clearing."
+      },
+      {
+        "date": "2028-04-12",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Passover - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד פסח - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Passover (12/4–14/4)."
+      },
+      {
+        "date": "2028-04-13",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Passover - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד פסח - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Passover."
+      },
+      {
+        "date": "2028-04-14",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Passover - Chol HaMoed (Friday format)",
+        "event_name_he": "חול המועד פסח - מתכונת יום ו'",
+        "description": "Shortened trading and clearing session in Friday format."
+      },
+      {
+        "date": "2028-04-16",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover 7th Day Eve",
+        "event_name_he": "ערב שביעי של פסח",
+        "description": "Market closed for eve of Passover 7th day. Clearing takes place."
+      },
+      {
+        "date": "2028-04-17",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Passover 7th Day",
+        "event_name_he": "שביעי של פסח",
+        "description": "Market closed for Passover 7th day. No trading, no clearing."
+      },
+      {
+        "date": "2028-05-01",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Memorial Day",
+        "event_name_he": "יום הזיכרון",
+        "description": "Market closed for Israel Memorial Day. Clearing takes place."
+      },
+      {
+        "date": "2028-05-02",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Independence Day",
+        "event_name_he": "יום העצמאות",
+        "description": "Market closed for Israeli Independence Day. No trading, no clearing."
+      },
+      {
+        "date": "2028-05-30",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Shavuot Eve",
+        "event_name_he": "ערב חג שבועות",
+        "description": "Market closed for Shavuot Eve. Clearing takes place."
+      },
+      {
+        "date": "2028-05-31",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Shavuot",
+        "event_name_he": "שבועות",
+        "description": "Market closed for Shavuot. No trading, no clearing."
+      },
+      {
+        "date": "2028-08-01",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Tisha B'Av",
+        "event_name_he": "תשעה באב",
+        "description": "Market closed for Tisha B'Av. No trading, no clearing."
+      },
+      {
+        "date": "2028-09-20",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Rosh Hashana Eve",
+        "event_name_he": "ערב ראש השנה",
+        "description": "Market closed for Rosh Hashana Eve. Clearing takes place."
+      },
+      {
+        "date": "2028-09-21",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Rosh Hashana (1st day)",
+        "event_name_he": "א' ראש השנה",
+        "description": "Market closed for Rosh Hashana 1st day. No trading, no clearing."
+      },
+      {
+        "date": "2028-09-22",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Rosh Hashana (2nd day)",
+        "event_name_he": "ב' ראש השנה",
+        "description": "Market closed for Rosh Hashana 2nd day. No trading, no clearing."
+      },
+      {
+        "date": "2028-09-29",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Yom Kippur Eve",
+        "event_name_he": "ערב יום כיפור",
+        "description": "Market closed for Yom Kippur Eve. No trading, no clearing."
+      },
+      {
+        "date": "2028-10-04",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Sukkot Eve",
+        "event_name_he": "ערב סוכות",
+        "description": "Market closed for Sukkot Eve. Clearing takes place."
+      },
+      {
+        "date": "2028-10-05",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Sukkot",
+        "event_name_he": "סוכות",
+        "description": "Market closed for Sukkot 1st day. No trading, no clearing."
+      },
+      {
+        "date": "2028-10-09",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Sukkot - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד סוכות - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Sukkot (9/10–10/10)."
+      },
+      {
+        "date": "2028-10-10",
+        "event_type": "EARLY_CLOSE",
+        "event_name": "Sukkot - Chol HaMoed (shortened)",
+        "event_name_he": "חול המועד סוכות - יום מקוצר",
+        "description": "Shortened trading and clearing session during Chol HaMoed Sukkot."
+      },
+      {
+        "date": "2028-10-11",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Simchat Torah Eve",
+        "event_name_he": "ערב שמחת תורה",
+        "description": "Market closed for Simchat Torah Eve. Clearing takes place."
+      },
+      {
+        "date": "2028-10-12",
+        "event_type": "MARKET_CLOSED",
+        "event_name": "Simchat Torah",
+        "event_name_he": "שמחת תורה",
+        "description": "Market closed for Simchat Torah. No trading, no clearing."
+      }
+    ]
+  }
+}
