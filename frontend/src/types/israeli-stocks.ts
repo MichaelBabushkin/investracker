@@ -35,7 +35,7 @@ export interface IsraeliStockTransaction {
   security_no: string;
   symbol: string;
   company_name: string;
-  transaction_type: "BUY" | "SELL" | "DIVIDEND" | "DEPOSIT" | "WITHDRAWAL";
+  transaction_type: "BUY" | "SELL" | "DIVIDEND" | "DEPOSIT" | "WITHDRAWAL" | "FX_CONVERSION";
   transaction_date?: string;
   transaction_time?: string;
   quantity: number;
