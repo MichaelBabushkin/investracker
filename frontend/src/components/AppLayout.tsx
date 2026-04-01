@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useRouter, usePathname } from "next/navigation";
-import { RootState } from "@/store";
+import { RootState, AppDispatch } from "@/store";
+import { logout } from "@/store/slices/authSlice";
 import Sidebar from "./Sidebar";
 import EventBanner from "./EventBanner";
 import {
@@ -19,6 +20,7 @@ import {
   Landmark,
   PieChart,
   X,
+  LogOut,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -151,6 +153,7 @@ const MobileBottomBar: React.FC = () => {
 /* ── Mobile Drawer — only items NOT in the bottom bar ── */
 const MobileDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const { user } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -163,6 +166,12 @@ const MobileDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ open, 
 
   const navigate = (href: string) => {
     router.push(href);
+    onClose();
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+    router.push("/");
     onClose();
   };
 
@@ -218,6 +227,30 @@ const MobileDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ open, 
             );
           })}
         </nav>
+
+        {/* User info + logout */}
+        {user && (
+          <div className="border-t border-white/5 p-3">
+            <div className="flex items-center px-2 py-2 mb-1">
+              <div className="w-9 h-9 rounded-full bg-brand-400/20 flex items-center justify-center text-brand-400 font-semibold text-sm flex-shrink-0">
+                {user.first_name?.[0] || user.email[0].toUpperCase()}
+              </div>
+              <div className="ml-3 min-w-0">
+                <p className="text-sm font-medium text-gray-200 truncate">
+                  {user.first_name || user.email.split("@")[0]}
+                </p>
+                <p className="text-xs text-gray-500 capitalize">{user.role?.toLowerCase()}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center px-3 py-2 rounded-lg text-gray-500 hover:bg-loss/10 hover:text-loss transition-all duration-150 group text-sm"
+            >
+              <LogOut size={18} className="group-hover:text-loss" />
+              <span className="ml-3">Logout</span>
+            </button>
+          </div>
+        )}
       </aside>
     </div>
   );

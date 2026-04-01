@@ -123,28 +123,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOp
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className={`h-16 flex items-center border-b border-white/5 ${isCollapsed ? "justify-center px-2" : "justify-between px-4"}`}>
+      <div className="h-16 flex items-center justify-between px-3 border-b border-white/5">
         {isCollapsed ? (
-          <Image src="/images/small_logo.svg" alt="Investracker" width={32} height={32} className="w-8 h-8" />
+          <div className="flex items-center justify-center w-full">
+            <Image src="/images/small_logo.svg" alt="Investracker" width={32} height={32} className="w-8 h-8" />
+          </div>
         ) : (
-          <>
-            <Image src="/images/investracker_logo.svg" alt="Investracker" width={140} height={36} className="max-w-[140px] h-auto" />
-            <button
-              onClick={() => setIsCollapsed(true)}
-              className="p-1.5 rounded-lg hover:bg-white/5 transition-colors text-gray-400"
-            >
-              <ChevronLeft size={18} />
-            </button>
-          </>
+          <Image src="/images/investracker_logo.svg" alt="Investracker" width={140} height={36} className="max-w-[140px] h-auto" />
         )}
-        {isCollapsed && (
-          <button
-            onClick={() => setIsCollapsed(false)}
-            className="absolute left-[72px] top-4 -translate-x-1/2 hidden lg:flex p-1 rounded-full bg-surface-dark-secondary border border-white/10 hover:bg-white/10 transition-colors text-gray-400 shadow-lg"
-          >
-            <ChevronRight size={14} />
-          </button>
-        )}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="flex-shrink-0 p-1.5 rounded-lg hover:bg-white/5 transition-colors text-gray-400"
+          title={isCollapsed ? "Expand" : "Collapse"}
+        >
+          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
       </div>
 
       {/* Navigation */}
