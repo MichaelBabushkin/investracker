@@ -1041,13 +1041,29 @@ async def import_etfs_from_csv(
                         skipped += 1
                         continue
 
-                    yfinance_ticker = f"{symbol}.TA" if symbol else f"{security_no}.TA"
+                    # yfinance uses hyphens, not dots (e.g. MTF-F100.TA not MTF.F100.TA)
+                    yf_symbol = symbol.replace('.', '-') if symbol else security_no
+                    yfinance_ticker = f"{yf_symbol}.TA"
+
+                    # ETF metadata
+                    underlying_asset = row.get('Underlying Asset', '').strip() or None
+                    classification = row.get('Classification', '').strip() or None
+                    fund_trustee = row.get('Fund Trustee', '').strip() or None
+                    isin = row.get('ISIN ', '').strip() or row.get('ISIN', '').strip() or None
+                    market_cap_raw = row.get('Market Cap (K ILS)', '').strip()
+                    market_cap_k_ils = float(market_cap_raw) if market_cap_raw else None
+                    mgmt_fee_raw = row.get('Management Fee (%)', '').strip()
+                    management_fee = float(mgmt_fee_raw) if mgmt_fee_raw else None
 
                     conn.execute(
                         text('''
                             INSERT INTO "israeli_stocks"
-                            (name, symbol, security_no, index_name, yfinance_ticker, is_active, created_at, updated_at)
-                            VALUES (:name, :symbol, :security_no, :index_name, :yfinance_ticker, :is_active, NOW(), NOW())
+                            (name, symbol, security_no, index_name, yfinance_ticker, is_active,
+                             isin, underlying_asset, classification, fund_trustee,
+                             management_fee, market_cap_k_ils, created_at, updated_at)
+                            VALUES (:name, :symbol, :security_no, :index_name, :yfinance_ticker, :is_active,
+                                    :isin, :underlying_asset, :classification, :fund_trustee,
+                                    :management_fee, :market_cap_k_ils, NOW(), NOW())
                         '''),
                         {
                             "name": name,
@@ -1056,6 +1072,12 @@ async def import_etfs_from_csv(
                             "index_name": "ETF",
                             "yfinance_ticker": yfinance_ticker,
                             "is_active": True,
+                            "isin": isin,
+                            "underlying_asset": underlying_asset,
+                            "classification": classification,
+                            "fund_trustee": fund_trustee,
+                            "management_fee": management_fee,
+                            "market_cap_k_ils": market_cap_k_ils,
                         }
                     )
                     imported += 1

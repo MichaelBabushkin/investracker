@@ -19,17 +19,25 @@ class IsraeliStock(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     security_no = Column(String(20), unique=True, nullable=False, index=True)
-    symbol = Column(String(10), nullable=False, index=True)
-    yfinance_ticker = Column(String(20), nullable=False, index=True)  # Symbol with .TA suffix for yfinance
-    name = Column(String(100), nullable=False)
+    symbol = Column(String(20), nullable=False, index=True)
+    yfinance_ticker = Column(String(30), nullable=False, index=True)  # Symbol with .TA suffix for yfinance
+    name = Column(String(200), nullable=False)
     # URL source for the logo (e.g., TradingView S3), stored for traceability
     logo_url = Column(String(255), nullable=True)
     logo_svg = Column(Text, nullable=True)  # SVG logo content stored as JSON/text
-    index_name = Column(String(20), nullable=False, default="TA-125")  # TA-125 or SME-60
+    index_name = Column(String(20), nullable=False, default="TA-125")  # TA-125, SME-60, ETF, etc.
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
+    # ETF metadata (populated from Israelietfs.csv)
+    isin = Column(String(20), nullable=True)
+    underlying_asset = Column(String(100), nullable=True)    # e.g. TA-RealEstate
+    classification = Column(String(200), nullable=True)      # e.g. Israeli Shares - Stocks by Sector
+    fund_trustee = Column(String(200), nullable=True)        # e.g. ALMGOR - BRIGHTMAN TRUSTS LTD
+    management_fee = Column(DECIMAL(6, 3), nullable=True)    # e.g. 0.400
+    market_cap_k_ils = Column(DECIMAL(20, 2), nullable=True) # Market cap in thousands of ILS
+
     # Price data (updated by price service)
     current_price = Column(DECIMAL(15, 4), nullable=True)
     previous_close = Column(DECIMAL(15, 4), nullable=True)
