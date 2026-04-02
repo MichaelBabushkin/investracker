@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -105,48 +105,64 @@ export default function CalendarPage() {
     setCalendarKey(prev => prev + 1);
   }, [updateSelectedDateEvents]);
 
+  const getEventDotColor = useCallback((market: string, eventType: string): string => {
+    if (market === "IL") {
+      switch (eventType) {
+        case "MARKET_CLOSED": return "#3b82f6";   // blue-500
+        case "EARLY_CLOSE":   return "#8b5cf6";   // violet-500
+        default:              return "#6366f1";   // indigo-500
+      }
+    }
+    if (market === "US") {
+      switch (eventType) {
+        case "MARKET_CLOSED": return "#ef4444";   // red-500
+        case "EARLY_CLOSE":   return "#f97316";   // orange-500
+        default:              return "#ef4444";
+      }
+    }
+    // Future event types (any market)
+    switch (eventType) {
+      case "EARNINGS":      return "#4ade80";   // green-400
+      case "FOMC":          return "#f59e0b";   // amber-500
+      case "ECONOMIC_DATA": return "#14b8a6";   // teal-500
+      default:              return "#6b7280";   // gray-500
+    }
+  }, []);
+
   const getTileContent = useCallback(({ date, view }: { date: Date; view: string }) => {
     if (view !== "month") return null;
 
-    // Format date as YYYY-MM-DD in local timezone
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const dateString = `${year}-${month}-${day}`;
-    
-    
-    const eventsOnDate = filteredEvents.filter(
-      (event) => event.event_date === dateString
-    );
 
+    const eventsOnDate = filteredEvents.filter((e) => e.event_date === dateString);
     if (eventsOnDate.length === 0) return null;
 
-    // Get the most important event type color
-    const colors = eventsOnDate.map((event) => {
-      switch (event.event_type) {
-        case "MARKET_CLOSED":
-          return "bg-loss";
-        case "EARLY_CLOSE":
-          return "bg-orange-500";
-        case "EARNINGS":
-          return "bg-brand-400";
-        case "ECONOMIC_DATA":
-          return "bg-purple-500";
-        case "FOMC":
-          return "bg-indigo-500";
-        case "HOLIDAY":
-          return "bg-gain";
-        default:
-          return "bg-gray-500";
+    // Deduplicate by color so we show at most one dot per distinct color
+    const seen = new Set<string>();
+    const dots: string[] = [];
+    for (const event of eventsOnDate) {
+      const color = getEventDotColor(event.market, event.event_type);
+      if (!seen.has(color)) {
+        seen.add(color);
+        dots.push(color);
       }
-    });
+    }
 
     return (
-      <div className="flex justify-center mt-1">
-        <div className={`w-1.5 h-1.5 rounded-full ${colors[0]}`} />
+      <div className="flex justify-center gap-0.5 mt-1">
+        {dots.map((color, i) => (
+          <div
+            key={i}
+            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: color }}
+          />
+        ))}
       </div>
     );
-  }, [filteredEvents, calendarKey]);
+  }, [filteredEvents, calendarKey, getEventDotColor]);
 
   const tileClassName = useCallback(({ date, view }: { date: Date; view: string }) => {
     if (view !== "month") return null;
@@ -164,23 +180,13 @@ export default function CalendarPage() {
     return hasEvents ? "has-events" : null;
   }, [filteredEvents]);
 
-  const getEventTypeColor = (eventType: string) => {
-    switch (eventType) {
-      case "MARKET_CLOSED":
-        return "bg-loss/10 text-loss border-loss/30";
-      case "EARLY_CLOSE":
-        return "bg-orange-500/10 text-orange-400 border-orange-500/30";
-      case "EARNINGS":
-        return "bg-brand-400/10 text-brand-400 border-brand-400/30";
-      case "ECONOMIC_DATA":
-        return "bg-purple-500/10 text-purple-400 border-purple-500/30";
-      case "FOMC":
-        return "bg-indigo-500/10 text-indigo-400 border-indigo-500/30";
-      case "HOLIDAY":
-        return "bg-gain/10 text-gain border-gain/30";
-      default:
-        return "bg-white/10 text-gray-200 border-white/10";
-    }
+  const getEventBadgeStyle = (market: string, eventType: string): React.CSSProperties => {
+    const color = getEventDotColor(market, eventType);
+    return {
+      backgroundColor: `${color}18`,
+      color: color,
+      borderColor: `${color}50`,
+    };
   };
 
   const formatEventType = (eventType: string) => {
@@ -301,6 +307,27 @@ export default function CalendarPage() {
             </div>
           </div>
 
+          {/* Legend */}
+          <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-4 mb-6">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Legend</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
+              {[
+                { color: "#ef4444", label: "US — Market Closed" },
+                { color: "#f97316", label: "US — Early Close" },
+                { color: "#3b82f6", label: "IL — Market Closed" },
+                { color: "#8b5cf6", label: "IL — Early Close" },
+                { color: "#4ade80", label: "Earnings (coming soon)" },
+                { color: "#f59e0b", label: "FOMC / Fed Meeting (coming soon)" },
+                { color: "#14b8a6", label: "Economic Data (coming soon)" },
+              ].map(({ color, label }) => (
+                <div key={label} className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                  <span className="text-xs text-gray-400">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Calendar or List View */}
           {loading ? (
             <div className="text-center py-12">
@@ -333,49 +360,25 @@ export default function CalendarPage() {
                   <p className="text-sm text-gray-500">No events on this date</p>
                 ) : (
                   <div className="space-y-3">
-                    {selectedDateEvents.map((event) => (
-                      <div
-                        key={event.id}
-                        className={`p-3 rounded-lg border-l-4 ${
-                          isPastEvent(event.event_date) ? "opacity-60" : ""
-                        }`}
-                        style={{
-                          borderLeftColor:
-                            event.event_type === "MARKET_CLOSED"
-                              ? "#ef4444"
-                              : event.event_type === "EARLY_CLOSE"
-                              ? "#f97316"
-                              : event.event_type === "EARNINGS"
-                              ? "#3b82f6"
-                              : event.event_type === "ECONOMIC_DATA"
-                              ? "#a855f7"
-                              : event.event_type === "FOMC"
-                              ? "#6366f1"
-                              : "#10b981",
-                          backgroundColor:
-                            event.event_type === "MARKET_CLOSED"
-                              ? "rgba(239, 68, 68, 0.08)"
-                              : event.event_type === "EARLY_CLOSE"
-                              ? "rgba(249, 115, 22, 0.08)"
-                              : event.event_type === "EARNINGS"
-                              ? "rgba(59, 130, 246, 0.08)"
-                              : event.event_type === "ECONOMIC_DATA"
-                              ? "rgba(168, 85, 247, 0.08)"
-                              : event.event_type === "FOMC"
-                              ? "rgba(99, 102, 241, 0.08)"
-                              : "rgba(16, 185, 129, 0.08)",
-                        }}
-                      >
-                        <div className="flex items-start justify-between gap-2">
+                    {selectedDateEvents.map((event) => {
+                      const dotColor = getEventDotColor(event.market, event.event_type);
+                      return (
+                        <div
+                          key={event.id}
+                          className={`p-3 rounded-lg border-l-4 ${isPastEvent(event.event_date) ? "opacity-60" : ""}`}
+                          style={{
+                            borderLeftColor: dotColor,
+                            backgroundColor: `${dotColor}14`,
+                          }}
+                        >
                           <div className="flex-1 min-w-0">
                             <h4 className="font-medium text-sm text-gray-100 mb-1">
                               {event.event_name}
                             </h4>
                             <div className="flex flex-wrap gap-1.5 mb-2">
                               <span
-                                className={`px-2 py-0.5 rounded text-xs font-medium ${getEventTypeColor(
-                                  event.event_type
-                                )}`}
+                                className="px-2 py-0.5 rounded text-xs font-medium border"
+                                style={getEventBadgeStyle(event.market, event.event_type)}
                               >
                                 {formatEventType(event.event_type)}
                               </span>
@@ -393,8 +396,8 @@ export default function CalendarPage() {
                             )}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -406,64 +409,53 @@ export default function CalendarPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className={`bg-surface-dark-secondary rounded-xl border-l-4 p-5 transition-all hover:bg-white/5 ${
-                    isPastEvent(event.event_date) ? "opacity-60" : ""
-                  }`}
-                  style={{
-                    borderLeftColor:
-                      event.event_type === "MARKET_CLOSED"
-                        ? "#ef4444"
-                        : event.event_type === "EARLY_CLOSE"
-                        ? "#f97316"
-                        : event.event_type === "EARNINGS"
-                        ? "#3b82f6"
-                        : event.event_type === "ECONOMIC_DATA"
-                        ? "#a855f7"
-                        : event.event_type === "FOMC"
-                        ? "#6366f1"
-                        : "#10b981",
-                  }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-100">
-                          {event.event_name}
-                        </h3>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium border ${getEventTypeColor(
-                            event.event_type
-                          )}`}
-                        >
-                          {formatEventType(event.event_type)}
-                        </span>
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-gray-200 border border-white/10">
-                          {event.market}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-400 mb-2">
-                        {formatDate(event.event_date)}
-                        {event.early_close_time && (
-                          <span className="ml-2">
-                            • Early close at {event.early_close_time}
+              {filteredEvents.map((event) => {
+                const dotColor = getEventDotColor(event.market, event.event_type);
+                return (
+                  <div
+                    key={event.id}
+                    className={`bg-surface-dark-secondary rounded-xl border-l-4 p-5 transition-all hover:bg-white/5 ${
+                      isPastEvent(event.event_date) ? "opacity-60" : ""
+                    }`}
+                    style={{ borderLeftColor: dotColor }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-100">
+                            {event.event_name}
+                          </h3>
+                          <span
+                            className="px-3 py-1 rounded-full text-xs font-medium border"
+                            style={getEventBadgeStyle(event.market, event.event_type)}
+                          >
+                            {formatEventType(event.event_type)}
                           </span>
+                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-gray-200 border border-white/10">
+                            {event.market}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-400 mb-2">
+                          {formatDate(event.event_date)}
+                          {event.early_close_time && (
+                            <span className="ml-2">
+                              • Early close at {event.early_close_time}
+                            </span>
+                          )}
+                        </p>
+                        {event.description && (
+                          <p className="text-sm text-gray-300">{event.description}</p>
                         )}
-                      </p>
-                      {event.description && (
-                        <p className="text-sm text-gray-300">{event.description}</p>
+                      </div>
+                      {isPastEvent(event.event_date) && (
+                        <span className="text-xs text-gray-500 bg-white/10 px-2 py-1 rounded">
+                          Past
+                        </span>
                       )}
                     </div>
-                    {isPastEvent(event.event_date) && (
-                      <span className="text-xs text-gray-500 bg-white/10 px-2 py-1 rounded">
-                        Past
-                      </span>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
