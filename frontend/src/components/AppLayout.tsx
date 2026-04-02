@@ -278,7 +278,7 @@ const MobileTopBar: React.FC<{ onMenuOpen: () => void }> = ({ onMenuOpen }) => (
 
 /* ── Main Layout ── */
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isAuthenticated, isInitialized } = useSelector(
     (state: RootState) => state.auth

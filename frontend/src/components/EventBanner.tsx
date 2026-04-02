@@ -159,9 +159,9 @@ const EventBanner: React.FC = () => {
           <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
             <Calendar className="w-6 h-6 flex-shrink-0" />
             <div className="flex flex-col justify-center min-w-0 flex-1">
-              {/* Top row: Event name with marquee */}
-              <div className="overflow-hidden whitespace-nowrap mb-0.5">
-                <div className="inline-block animate-marquee hover:animation-paused">
+              {/* Top row: Event name ticker — scrolls right to left */}
+              <div className="overflow-hidden whitespace-nowrap mb-0.5 relative">
+                <div className="block w-full animate-marquee" style={{ willChange: "transform" }}>
                   <span className="font-semibold text-sm sm:text-base">
                     {currentEvent.event_name}
                     {currentEvent.description && (
