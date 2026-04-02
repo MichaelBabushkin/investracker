@@ -485,7 +485,7 @@ class IsraeliStockService:
                         if pd.isna(security_no_raw) or pd.isna(name_raw):
                             continue
                         
-                        security_no = str(security_no_raw).replace('.0', '').strip()
+                        security_no = str(security_no_raw).replace('.0', '').strip().lstrip('0')
                         name = str(name_raw).strip()
                         
                         # Check for currency conversion (security 99028, description = דולר ארה"ב / US Dollar)
@@ -1190,7 +1190,17 @@ class IsraeliStockService:
             validation_warnings = []
             validation_errors = []
             validator = TransactionValidator()
-            
+
+            # Build security_no → name lookup so ETFs/stocks with blank names get resolved
+            cursor.execute('SELECT security_no, name FROM "israeli_stocks" WHERE name IS NOT NULL AND name != \'\'')
+            _stock_names = {row[0]: row[1] for row in cursor.fetchall()}
+
+            def _resolve_name(item: Dict) -> str:
+                name = item.get('name', '') or ''
+                if not name.strip():
+                    name = _stock_names.get(item.get('security_no', ''), '') or item.get('security_no', '')
+                return name
+
             print(f"DEBUG: Saving to pending - Holdings: {len(holdings)}, Transactions: {len(transactions)}, Dividends: {len(dividends)}")
             
             # Convert holdings to pending transactions (type: BUY)
@@ -1241,7 +1251,7 @@ class IsraeliStockService:
                     transaction_date.isoformat() if transaction_date else None,
                     None,  # transaction_time - holdings don't have time
                     holding['security_no'],
-                    holding['name'],
+                    _resolve_name(holding),
                     'BUY',  # Holdings are treated as BUY transactions
                     holding.get('quantity'),
                     holding.get('last_price'),
@@ -1291,7 +1301,7 @@ class IsraeliStockService:
                     transaction_date.isoformat() if transaction_date else None,
                     transaction.get('transaction_time'),  # Include transaction time
                     transaction['security_no'],
-                    transaction['name'],
+                    _resolve_name(transaction),
                     transaction.get('transaction_type', 'BUY'),
                     transaction.get('quantity'),
                     transaction.get('price'),
@@ -1346,7 +1356,7 @@ class IsraeliStockService:
                     payment_date.isoformat() if payment_date else None,
                     dividend.get('transaction_time'),  # Include transaction time if available
                     dividend['security_no'],
-                    dividend['name'],
+                    _resolve_name(dividend),
                     'DIVIDEND',
                     None,  # No quantity for dividends
                     None,  # No price for dividends
