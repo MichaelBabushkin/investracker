@@ -507,14 +507,21 @@ def run_migrations(
     Useful for Railway deployments where migrations don't auto-run
     """
     try:
-        # Get the backend directory (where alembic.ini is located)
-        # Go up from app/api/v1/endpoints to the backend root
-        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        
-        # Log the directory for debugging
+        # Walk up from this file until we find alembic.ini — works regardless of deployment layout
+        search_dir = os.path.abspath(__file__)
+        backend_dir = None
+        for _ in range(10):
+            search_dir = os.path.dirname(search_dir)
+            if os.path.exists(os.path.join(search_dir, "alembic.ini")):
+                backend_dir = search_dir
+                break
+
+        if not backend_dir:
+            raise RuntimeError("Could not locate alembic.ini — searched up from " + os.path.abspath(__file__))
+
         print(f"Backend directory: {backend_dir}")
         print(f"Files in backend dir: {os.listdir(backend_dir)}")
-        
+
         # Run alembic upgrade head from the backend directory
         result = subprocess.run(
             ["alembic", "upgrade", "head"],
