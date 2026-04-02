@@ -485,7 +485,7 @@ class IsraeliStockService:
                         if pd.isna(security_no_raw) or pd.isna(name_raw):
                             continue
                         
-                        security_no = str(security_no_raw).replace('.0', '').strip()
+                        security_no = str(security_no_raw).replace('.0', '').strip().lstrip('0')
                         name = str(name_raw).strip()
                         
                         # Check for currency conversion (security 99028, description = דולר ארה"ב / US Dollar)
