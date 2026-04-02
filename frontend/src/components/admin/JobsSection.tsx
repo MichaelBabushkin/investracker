@@ -8,6 +8,7 @@ import {
   Trash2,
   RefreshCw,
   Calendar,
+  Database,
 } from "lucide-react";
 
 const JobsSection: React.FC = () => {
@@ -39,13 +40,14 @@ const JobsSection: React.FC = () => {
   const handleRunMigrations = async () => {
     setRunningMigrations(true);
     setMigrationMessage("");
-    
+
     try {
       const data = await adminAPI.runMigrations();
+      const output = [data.stdout, data.stderr].filter(Boolean).join("\n").trim();
       if (data.success) {
-        setMigrationMessage(`✓ Migrations completed successfully`);
+        setMigrationMessage(`✓ ${data.message}\n${output}`);
       } else {
-        setMigrationMessage(`✗ Error: ${data.message || "Failed to run migrations"}\n${data.stderr || ""}`);
+        setMigrationMessage(`✗ ${data.message || "Migrations failed"}\n${output}`);
       }
     } catch (error) {
       setMigrationMessage(`✗ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -254,8 +256,8 @@ const JobsSection: React.FC = () => {
               <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-5 hover:border-white/20 transition-colors">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-brand-400/10 rounded-lg">
-                      <RefreshCw className="w-5 h-5 text-brand-400" />
+                    <div className="p-2 bg-amber-500/10 rounded-lg">
+                      <Database className="w-5 h-5 text-amber-400" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-100">
@@ -284,9 +286,9 @@ const JobsSection: React.FC = () => {
                 <button
                   onClick={handleRunMigrations}
                   disabled={runningMigrations}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-brand-400 text-surface-dark rounded-xl hover:bg-brand-500 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-amber-500 text-surface-dark rounded-xl hover:bg-amber-400 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
                 >
-                  <Play className="w-4 h-4" />
+                  {runningMigrations ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                   {runningMigrations ? "Running..." : "Run Migrations"}
                 </button>
               </div>

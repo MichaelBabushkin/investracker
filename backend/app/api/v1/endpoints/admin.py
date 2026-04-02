@@ -363,44 +363,6 @@ def reset_user_stock_data(
         )
 
 
-@router.post("/run-migrations")
-async def run_migrations(current_admin: User = Depends(get_admin_user)):
-    """
-    Run database migrations (alembic upgrade head)
-    Admin only endpoint - use this to apply pending database migrations
-    """
-    try:
-        # Get the backend directory (parent of app directory)
-        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-        
-        # Run alembic upgrade head
-        result = subprocess.run(
-            ["alembic", "upgrade", "head"],
-            cwd=backend_dir,
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-        
-        return {
-            "success": result.returncode == 0,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "return_code": result.returncode,
-            "message": "Migration completed successfully" if result.returncode == 0 else "Migration failed"
-        }
-    except subprocess.TimeoutExpired:
-        raise HTTPException(
-            status_code=status.HTTP_408_REQUEST_TIMEOUT,
-            detail="Migration timed out after 60 seconds"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error running migrations: {str(e)}"
-        )
-
-
 @router.post("/seed-calendar-events")
 async def seed_calendar_events(
     market: str = Query("US", description="Market to seed (US, IL, etc.)"),
