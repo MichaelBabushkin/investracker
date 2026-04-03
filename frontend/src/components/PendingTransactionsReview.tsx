@@ -28,11 +28,13 @@ interface PendingTransaction {
 interface PendingTransactionsReviewProps {
   batchId?: string;
   onApprovalComplete?: (completedBatchId?: string) => void;
+  onCountChange?: (count: number) => void;
 }
 
 export default function PendingTransactionsReview({
   batchId,
   onApprovalComplete,
+  onCountChange,
 }: PendingTransactionsReviewProps) {
   const [transactions, setTransactions] = useState<PendingTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,9 +52,11 @@ export default function PendingTransactionsReview({
         batchId,
         undefined
       );
-      setTransactions((data.transactions || []).filter(
+      const filtered = (data.transactions || []).filter(
         (t: PendingTransaction) => t.status === "pending" || t.status === "modified"
-      ));
+      );
+      setTransactions(filtered);
+      if (onCountChange) onCountChange(filtered.length);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to load transactions");
     } finally {
