@@ -6,7 +6,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { calendarAPI, userSettingsAPI } from "@/services/api";
-import { X, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 
 interface CalendarEvent {
   id: number;
@@ -77,17 +77,17 @@ const EventBanner: React.FC = () => {
   };
 
   const handleClose = () => {
-    // Mark current event as viewed
     if (events[currentIndex]) {
       markEventAsViewed(events[currentIndex].id);
     }
 
-    // If there are more events, show the next one
-    if (currentIndex < events.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      // No more events, hide banner
+    const newEvents = events.filter((_, i) => i !== currentIndex);
+    if (newEvents.length === 0) {
       setVisible(false);
+    } else {
+      setEvents(newEvents);
+      // Stay at same index unless we were at the last item
+      setCurrentIndex(Math.min(currentIndex, newEvents.length - 1));
     }
   };
 
@@ -216,9 +216,9 @@ const EventBanner: React.FC = () => {
             <button
               onClick={handleClose}
               className="p-1 hover:bg-white/20 rounded ml-1 sm:ml-2"
-              aria-label="Close banner"
+              aria-label="Acknowledge event"
             >
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Check className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>

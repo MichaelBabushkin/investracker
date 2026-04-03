@@ -410,6 +410,7 @@ export default function PortfolioOverview() {
                   </div>
                   <PendingTransactionsReview
                     onApprovalComplete={handleApprovalComplete}
+                    onCountChange={setIsraeliPendingCount}
                   />
                 </div>
               )}
@@ -428,6 +429,7 @@ export default function PortfolioOverview() {
                       await checkPendingTransactions();
                       setActiveView("summary");
                     }}
+                    onCountChange={setWorldPendingCount}
                   />
                 </div>
               )}

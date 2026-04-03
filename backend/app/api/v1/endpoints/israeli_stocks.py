@@ -1124,7 +1124,7 @@ async def get_pending_transactions(
     if status:
         query = query.filter(PendingIsraeliTransaction.status == status)
     
-    transactions = query.order_by(PendingIsraeliTransaction.created_at.desc()).all()
+    transactions = query.order_by(PendingIsraeliTransaction.transaction_date.asc()).all()
     
     return {
         "transactions": [

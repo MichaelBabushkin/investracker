@@ -495,10 +495,10 @@ class IsraeliStockService:
                             # Check if description contains "dollar" in Hebrew (forward or reversed)
                             dollar_keywords = ['דולר', 'רלוד', 'dollar']
                             if any(kw in name.lower() for kw in dollar_keywords):
-                                # Verify it's a BUY type (קניה), not a commission (משלעמל)
+                                # Accept both BUY (ILS→USD) and SELL (USD→ILS) types
                                 type_val = str(row.iloc[idx_type]).strip() if len(row) > idx_type else ''
-                                buy_types = ['הינק', 'קניה', 'קנייה']
-                                if any(bt in type_val for bt in buy_types):
+                                conversion_types = ['הינק', 'קניה', 'קנייה', 'הריכמ', 'מכירה']
+                                if any(ct in type_val for ct in conversion_types):
                                     is_currency_conversion = True
                         
                         # Check for capital gains tax paid (security 9992983 = מס ששולם / מס לשלם)
@@ -604,34 +604,36 @@ class IsraeliStockService:
                                 col_map=col_map
                             )
                             if transaction:
-                                # Override to CURRENCY_CONVERSION type
+                                # Determine direction from original transaction type
+                                raw_type = transaction.get('transaction_type', '')
+                                sell_types = ['SELL', 'מכירה', 'הריכמ']
+                                is_sell = raw_type in sell_types or any(s in str(row_data.get('original_name', '')) for s in ['הריכמ', 'מכירה'])
+
+                                direction = 'USD → ILS' if is_sell else 'ILS → USD'
+
                                 transaction['transaction_type'] = 'CURRENCY_CONVERSION'
                                 transaction['is_world_stock'] = True
                                 transaction['symbol'] = 'USD'
                                 transaction['ticker'] = 'USD'
-                                transaction['name'] = 'US Dollar (ILS → USD)'
-                                transaction['stock_name'] = 'US Dollar (ILS → USD)'
+                                transaction['name'] = f'US Dollar ({direction})'
+                                transaction['stock_name'] = f'US Dollar ({direction})'
                                 transaction['currency'] = 'ILS'
-                                
-                                # For currency conversion:
-                                # quantity = USD amount purchased
-                                # price = exchange rate (already converted from agorot to ILS by parse_transaction_row)
-                                # total_value = ILS amount spent (the סכום לחיוב/זיכוי column)
+
+                                # quantity = USD amount, price = exchange rate, total_value = ILS amount
                                 exchange_rate = transaction.get('price', 0)
                                 usd_amount = transaction.get('quantity', 0)
                                 ils_total = transaction.get('total_value', 0)
-                                
-                                # If total wasn't parsed correctly, calculate from qty * rate
+
                                 if not ils_total and usd_amount and exchange_rate:
                                     ils_total = abs(usd_amount * exchange_rate)
-                                
+
                                 transaction['exchange_rate'] = exchange_rate
                                 transaction['amount'] = abs(ils_total) if ils_total else None
                                 transaction['total_value'] = abs(ils_total) if ils_total else None
                                 transaction['quantity'] = abs(usd_amount) if usd_amount else None
                                 transaction['price'] = exchange_rate
-                                
-                                print(f"DEBUG: Currency conversion - ${transaction['quantity']:.2f} at ₪{exchange_rate:.4f}/USD = ₪{transaction['amount']:.2f}")
+
+                                print(f"DEBUG: Currency conversion ({direction}) - ${transaction['quantity']:.2f} at ₪{exchange_rate:.4f}/USD = ₪{transaction['amount']:.2f}")
                                 all_world_transactions.append(transaction)
                             continue
                         

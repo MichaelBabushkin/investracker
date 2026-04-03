@@ -1379,7 +1379,7 @@ async def get_pending_world_transactions(
     if status:
         query = query.filter(PendingWorldTransaction.status == status)
     
-    transactions = query.order_by(PendingWorldTransaction.created_at.desc()).all()
+    transactions = query.order_by(PendingWorldTransaction.transaction_date.asc()).all()
     
     return {
         "transactions": [

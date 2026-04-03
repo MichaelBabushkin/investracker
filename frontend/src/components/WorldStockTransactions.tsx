@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { worldStocksAPI } from "@/services/api";
 import { WorldStockTransaction } from "@/types/world-stocks";
+import TopTradesPanel from "./TopTradesPanel";
 import {
   ResponsiveContainer,
   BarChart,
@@ -189,19 +190,8 @@ export default function WorldStockTransactions({
         ? (profitableTrades.length / closedTrades.length) * 100
         : 0;
 
-    // Top 5 best and worst trades by realized P/L
-    const tradesWithPL = closedTrades.filter((t) => {
-      const pl = parseNumeric(t.realized_pl);
-      return !isNaN(pl) && pl !== 0;
-    });
-
-    const bestTrades = [...tradesWithPL]
-      .sort((a, b) => parseNumeric(b.realized_pl) - parseNumeric(a.realized_pl))
-      .slice(0, 5);
-
-    const worstTrades = [...tradesWithPL]
-      .sort((a, b) => parseNumeric(a.realized_pl) - parseNumeric(b.realized_pl))
-      .slice(0, 5);
+    // closed trades passed to TopTradesPanel for best/worst computation
+    const closedTradesForPanel = closedTrades;
 
     // MTM P/L statistics
     const totalMTMPL = transactions.reduce((sum, t) => {
@@ -227,8 +217,7 @@ export default function WorldStockTransactions({
       totalVolume,
       avgTradeSize,
       winRate,
-      bestTrades,
-      worstTrades,
+      closedTradesForPanel,
       totalMTMPL,
       totalProceeds,
       totalBasis,
@@ -514,97 +503,12 @@ export default function WorldStockTransactions({
       </div>
 
       {/* Top 5 Best and Worst Trades */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Best Trades */}
-        <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
-          <h3 className="text-lg font-semibold text-gray-100 mb-4 flex items-center">
-            <TrendingUp className="h-6 w-6 text-gain mr-2" />
-            Top 5 Best Trades
-          </h3>
-          <div className="space-y-3">
-            {metrics.bestTrades.length > 0 ? (
-              metrics.bestTrades.map((trade, idx) => (
-                <div
-                  key={trade.id}
-                  className="flex items-center justify-between p-3 bg-gain/10 rounded-xl border border-gain/10"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center w-8 h-8 bg-green-600 text-white rounded-full text-sm font-bold">
-                      {idx + 1}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-100">
-                        {trade.symbol}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {formatDate(trade.transaction_date)} •{" "}
-                        {trade.transaction_time}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gain">
-                      {formatCurrency(trade.realized_pl)}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {Math.abs(trade.quantity || 0)} shares
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-400 text-center py-4">
-                No closed trades yet
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Worst Trades */}
-        <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
-          <h3 className="text-lg font-semibold text-gray-100 mb-4 flex items-center">
-            <TrendingDown className="h-6 w-6 text-loss mr-2" />
-            Top 5 Worst Trades
-          </h3>
-          <div className="space-y-3">
-            {metrics.worstTrades.length > 0 ? (
-              metrics.worstTrades.map((trade, idx) => (
-                <div
-                  key={trade.id}
-                  className="flex items-center justify-between p-3 bg-loss/10 rounded-xl border border-loss/10"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center w-8 h-8 bg-red-600 text-white rounded-full text-sm font-bold">
-                      {idx + 1}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-100">
-                        {trade.symbol}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {formatDate(trade.transaction_date)} •{" "}
-                        {trade.transaction_time}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-loss">
-                      {formatCurrency(trade.realized_pl)}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {Math.abs(trade.quantity || 0)} shares
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-400 text-center py-4">
-                No closed trades yet
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
+      <TopTradesPanel
+        trades={metrics.closedTradesForPanel}
+        formatCurrency={formatCurrency}
+        formatDate={formatDate}
+        unitLabel="shares"
+      />
 
       {/* Monthly Activity Chart */}
       {monthlyData.length > 0 && (
