@@ -43,6 +43,7 @@ export interface IsraeliStockTransaction {
   total_value?: number;
   commission?: number;
   tax?: number;
+  realized_pl?: number | null;
   currency: string;
   source_pdf: string;
   created_at: string;

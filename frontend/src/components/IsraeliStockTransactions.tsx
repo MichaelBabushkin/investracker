@@ -20,6 +20,7 @@ import {
 import { israeliStocksAPI } from "@/services/api";
 import { IsraeliStockTransaction } from "@/types/israeli-stocks";
 import StockLogo from "./StockLogo";
+import TopTradesPanel from "./TopTradesPanel";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import {
   ResponsiveContainer,
@@ -511,6 +512,14 @@ export default function IsraeliStockTransactions({
           </div>
         </div>
       )}
+
+      {/* Top 5 Best and Worst Trades */}
+      <TopTradesPanel
+        trades={transactions}
+        formatCurrency={formatCurrency}
+        formatDate={formatDate}
+        unitLabel="units"
+      />
 
       {/* Filter Controls */}
       <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-4">
