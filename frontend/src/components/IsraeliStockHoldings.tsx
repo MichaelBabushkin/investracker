@@ -464,11 +464,7 @@ export default function IsraeliStockHoldings({
                               : "N/A"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
-                            {formatCurrency(
-                              typeof holding.last_price === "number"
-                                ? holding.last_price / 100
-                                : holding.last_price
-                            )}
+                            {formatCurrency(holding.last_price)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
                             <button
