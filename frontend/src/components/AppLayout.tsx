@@ -21,6 +21,7 @@ import {
   PieChart,
   X,
   LogOut,
+  FileText,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -159,6 +160,7 @@ const MobileDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ open, 
 
   const drawerItems = [
     { name: "Calendar", href: "/calendar", icon: Calendar },
+    { name: "Reports", href: "/reports", icon: FileText },
     ...(user?.role?.toLowerCase() === "admin"
       ? [{ name: "Admin", href: "/admin", icon: Shield }]
       : []),
