@@ -63,8 +63,8 @@ export default function AnalyticsPage() {
   if (loading) {
     return (
       <ProtectedRoute>
-        <div className="min-h-screen bg-surface-dark p-8">
-          <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-surface-dark px-4 sm:px-6 lg:px-8 py-8">
+          <div>
             <h1 className="text-3xl font-heading font-bold text-gray-100 mb-8">Analytics</h1>
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-400/20 border-t-brand-400"></div>
@@ -77,8 +77,8 @@ export default function AnalyticsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-surface-dark p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-surface-dark px-4 sm:px-6 lg:px-8 py-8">
+        <div>
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
             <div>

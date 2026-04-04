@@ -212,8 +212,8 @@ export default function CalendarPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-surface-dark p-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-surface-dark px-4 sm:px-6 lg:px-8 py-8">
+        <div>
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-2">

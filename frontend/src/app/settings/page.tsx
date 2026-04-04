@@ -138,8 +138,8 @@ export default function SettingsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-surface-dark p-4 sm:p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto">
+      <div className="min-h-screen bg-surface-dark px-4 sm:px-6 lg:px-8 py-8">
+        <div>
           {/* Header */}
           <div className="mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-heading font-bold text-gray-100">
