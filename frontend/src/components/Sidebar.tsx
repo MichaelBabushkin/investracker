@@ -21,6 +21,7 @@ import {
   PieChart,
   Calendar,
   GraduationCap,
+  FileText,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -88,6 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOp
     { name: "Analytics", href: "/analytics", icon: BarChart3, requiredRole: "viewer" },
     { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "viewer" },
     { name: "Education", href: "/education", icon: GraduationCap, requiredRole: "viewer" },
+    { name: "Reports", href: "/reports", icon: FileText, requiredRole: "viewer" },
     { name: "Settings", href: "/settings", icon: Settings, requiredRole: "viewer" },
     { name: "Admin", href: "/admin", icon: Shield, requiredRole: "admin" },
   ];
