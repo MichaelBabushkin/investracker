@@ -829,3 +829,67 @@ def refresh_single_stock_price(
             "success": False,
             "error": "Price fetch failed or ticker not found"
         }
+
+
+@router.get("/exchange-rates")
+def list_exchange_rates(
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """List all stored exchange rates"""
+    rows = db.execute(text("""
+        SELECT id, from_currency, to_currency, rate, date, source, created_at
+        FROM exchange_rates
+        ORDER BY date DESC, from_currency, to_currency
+        LIMIT 100
+    """)).fetchall()
+    return [
+        {
+            "id": r[0],
+            "from_currency": r[1],
+            "to_currency": r[2],
+            "rate": float(r[3]),
+            "date": str(r[4]),
+            "source": r[5],
+            "created_at": str(r[6]),
+        }
+        for r in rows
+    ]
+
+
+@router.post("/exchange-rates/refresh")
+def refresh_exchange_rates(
+    current_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Force-refresh USD/ILS exchange rate from yfinance and store it"""
+    import yfinance as yf
+    from datetime import date
+
+    try:
+        ticker = yf.Ticker("ILS=X")
+        rate = float(ticker.fast_info.last_price)
+        if rate <= 0:
+            raise ValueError(f"Invalid rate returned: {rate}")
+
+        today = date.today()
+        db.execute(text("""
+            DELETE FROM exchange_rates
+            WHERE from_currency = 'USD' AND to_currency = 'ILS' AND date = :date
+        """), {"date": today})
+        db.execute(text("""
+            INSERT INTO exchange_rates (from_currency, to_currency, rate, date, source)
+            VALUES ('USD', 'ILS', :rate, :date, 'api')
+        """), {"rate": rate, "date": today})
+        db.commit()
+
+        return {
+            "success": True,
+            "from_currency": "USD",
+            "to_currency": "ILS",
+            "rate": rate,
+            "date": str(today),
+            "message": f"USD/ILS rate updated: 1 USD = {rate} ILS",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch exchange rate: {str(e)}")

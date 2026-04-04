@@ -798,6 +798,16 @@ export const adminAPI = {
     const response = await api.post("/admin/run-migrations");
     return response.data;
   },
+
+  getExchangeRates: async () => {
+    const response = await api.get("/admin/exchange-rates");
+    return response.data;
+  },
+
+  refreshExchangeRates: async () => {
+    const response = await api.post("/admin/exchange-rates/refresh");
+    return response.data;
+  },
 };
 
 export const calendarAPI = {

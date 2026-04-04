@@ -392,10 +392,12 @@ def get_or_refresh_usd_ils_rate(engine) -> Optional[float]:
             today = date.today()
             with engine.begin() as conn:
                 conn.execute(text("""
+                    DELETE FROM exchange_rates
+                    WHERE from_currency = 'USD' AND to_currency = 'ILS' AND date = :date
+                """), {"date": today})
+                conn.execute(text("""
                     INSERT INTO exchange_rates (from_currency, to_currency, rate, date, source)
                     VALUES ('USD', 'ILS', :rate, :date, 'api')
-                    ON CONFLICT ON CONSTRAINT idx_exchange_rate_unique
-                    DO UPDATE SET rate = EXCLUDED.rate
                 """), {"rate": rate, "date": today})
             logger.info(f"Refreshed USD/ILS rate from yfinance: {rate}")
             return rate
