@@ -480,7 +480,7 @@ export default function WorldPendingTransactionsReview({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-100">
                         {transaction.amount !== null
-                          ? transaction.transaction_type === "CURRENCY_CONVERSION"
+                          ? transaction.currency === "ILS"
                             ? `₪${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                             : `$${transaction.amount.toFixed(2)}`
                           : "-"}

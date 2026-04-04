@@ -7,6 +7,7 @@ import {
   CheckCircle,
   AlertTriangle,
   BarChart3,
+  ArrowLeftRight,
 } from "lucide-react";
 import { adminAPI } from "@/services/api";
 import toast from "react-hot-toast";
@@ -41,6 +42,18 @@ const StockPriceManagement: React.FC = () => {
   const [singleTicker, setSingleTicker] = useState("");
   const [singleMarket, setSingleMarket] = useState<"world" | "israeli">("world");
 
+  interface ExchangeRateRow {
+    id: number;
+    from_currency: string;
+    to_currency: string;
+    rate: number;
+    date: string;
+    source: string;
+  }
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRateRow[]>([]);
+  const [ratesLoading, setRatesLoading] = useState(false);
+  const [refreshingRates, setRefreshingRates] = useState(false);
+
   const fetchStats = async () => {
     try {
       const response = await adminAPI.getPriceStatsDetailed();
@@ -50,8 +63,35 @@ const StockPriceManagement: React.FC = () => {
     }
   };
 
+  const fetchExchangeRates = async () => {
+    setRatesLoading(true);
+    try {
+      const data = await adminAPI.getExchangeRates();
+      setExchangeRates(data);
+    } catch {
+      // ignore
+    } finally {
+      setRatesLoading(false);
+    }
+  };
+
+  const handleRefreshExchangeRates = async () => {
+    setRefreshingRates(true);
+    const loadingToast = toast.loading("Fetching exchange rate from Yahoo Finance...");
+    try {
+      const result = await adminAPI.refreshExchangeRates();
+      toast.success(result.message || "Exchange rate updated!", { id: loadingToast });
+      await fetchExchangeRates();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || "Failed to refresh exchange rate", { id: loadingToast });
+    } finally {
+      setRefreshingRates(false);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
+    fetchExchangeRates();
     // Auto-refresh stats every 30 seconds
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
@@ -402,6 +442,65 @@ const StockPriceManagement: React.FC = () => {
           Loading statistics...
         </div>
       )}
+
+      {/* Exchange Rates */}
+      <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <ArrowLeftRight className="w-5 h-5 text-info" />
+            <div>
+              <h3 className="text-lg font-semibold text-gray-100">Exchange Rates</h3>
+              <p className="text-sm text-gray-400 mt-0.5">USD ↔ ILS rates used for portfolio conversion</p>
+            </div>
+          </div>
+          <button
+            onClick={handleRefreshExchangeRates}
+            disabled={refreshingRates}
+            className="flex items-center gap-2 px-4 py-2 bg-info/10 border border-info/20 text-info text-sm rounded-xl hover:bg-info/20 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshingRates ? "animate-spin" : ""}`} />
+            Refresh from Yahoo Finance
+          </button>
+        </div>
+
+        {ratesLoading ? (
+          <div className="text-center py-6 text-gray-500">Loading...</div>
+        ) : exchangeRates.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500 text-sm mb-3">No exchange rates stored yet.</p>
+            <p className="text-gray-600 text-xs">Click &quot;Refresh from Yahoo Finance&quot; to fetch the current USD/ILS rate (ILS=X).</p>
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-white/10 text-gray-400 text-xs uppercase">
+                <th className="text-left py-2 pr-4">Pair</th>
+                <th className="text-right py-2 pr-4">Rate</th>
+                <th className="text-right py-2 pr-4">Date</th>
+                <th className="text-right py-2">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {exchangeRates.map((r) => (
+                <tr key={r.id} className="border-b border-white/5 hover:bg-white/5">
+                  <td className="py-2 pr-4 font-medium text-gray-200">
+                    {r.from_currency}/{r.to_currency}
+                  </td>
+                  <td className="py-2 pr-4 text-right font-mono text-gain">
+                    {r.rate.toFixed(4)}
+                  </td>
+                  <td className="py-2 pr-4 text-right text-gray-400">{r.date}</td>
+                  <td className="py-2 text-right">
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${r.source === "api" ? "bg-info/10 text-info" : "bg-white/10 text-gray-400"}`}>
+                      {r.source || "—"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 };

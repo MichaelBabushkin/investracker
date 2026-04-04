@@ -601,39 +601,56 @@ async def get_portfolio_dashboard(
                 WHERE user_id = :user_id AND transaction_type = 'CAPITAL_GAINS_TAX'
             """)
             total_tax_withheld_ils = float(conn.execute(tax_withheld_query, params).fetchone()[0] or 0)
-            
+
             total_gain_loss = float(total_value - total_cost) + total_realized_pl
             total_invested = float(total_cost)
             total_val = float(total_value)
-            total_portfolio = total_val + total_cash
-            
-            # Sector allocation
-            sector_data = []
-            if total_val > 0:
-                for sector_name, sector_val in sorted(sectors.items(), key=lambda x: -x[1]):
-                    pct = round(sector_val / total_val * 100, 1)
-                    if pct > 0:
-                        sector_data.append({"name": sector_name, "value": pct})
-            
-            return {
-                "portfolioData": {
-                    "totalValue": total_val,
-                    "totalCash": round(total_cash, 2),
-                    "totalPortfolioValue": round(total_portfolio, 2),
-                    "dayChange": 0,  # Would need previous close data
-                    "dayChangePercent": 0,
-                    "totalGainLoss": round(total_gain_loss, 2),
-                    "totalGainLossPercent": round((total_gain_loss / total_invested * 100) if total_invested > 0 else 0, 1),
-                    "totalInvested": total_invested,
-                    "totalRealizedPL": total_realized_pl,
-                    "totalDividends": total_net_dividends,
-                    "totalCommissions": total_commissions,
-                    "taxWithheldILS": round(total_tax_withheld_ils, 2),
-                },
-                "holdings": holdings,
-                "recentTransactions": recent_transactions[:5],
-                "sectorData": sector_data,
-            }
+
+        # Get USD/ILS exchange rate (may refresh from yfinance if stale)
+        from app.services.stock_price_service import get_or_refresh_usd_ils_rate
+        import logging as _logging
+        _logger = _logging.getLogger(__name__)
+        usd_ils_rate = None
+        try:
+            usd_ils_rate = get_or_refresh_usd_ils_rate(engine)
+        except Exception as rate_err:
+            _logger.warning(f"Exchange rate unavailable for dashboard: {rate_err}")
+
+        tax_withheld_usd = 0.0
+        if usd_ils_rate and usd_ils_rate > 0 and total_tax_withheld_ils > 0:
+            tax_withheld_usd = total_tax_withheld_ils / usd_ils_rate
+
+        total_portfolio = total_val + total_cash - tax_withheld_usd
+
+        # Sector allocation
+        sector_data = []
+        if total_val > 0:
+            for sector_name, sector_val in sorted(sectors.items(), key=lambda x: -x[1]):
+                pct = round(sector_val / total_val * 100, 1)
+                if pct > 0:
+                    sector_data.append({"name": sector_name, "value": pct})
+
+        return {
+            "portfolioData": {
+                "totalValue": total_val,
+                "totalCash": round(total_cash, 2),
+                "totalPortfolioValue": round(total_portfolio, 2),
+                "dayChange": 0,  # Would need previous close data
+                "dayChangePercent": 0,
+                "totalGainLoss": round(total_gain_loss, 2),
+                "totalGainLossPercent": round((total_gain_loss / total_invested * 100) if total_invested > 0 else 0, 1),
+                "totalInvested": total_invested,
+                "totalRealizedPL": total_realized_pl,
+                "totalDividends": total_net_dividends,
+                "totalCommissions": total_commissions,
+                "taxWithheldILS": round(total_tax_withheld_ils, 2),
+                "taxWithheldUSD": round(tax_withheld_usd, 2),
+                "usdIlsRate": round(usd_ils_rate, 4) if usd_ils_rate else None,
+            },
+            "holdings": holdings,
+            "recentTransactions": recent_transactions[:5],
+            "sectorData": sector_data,
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading dashboard: {str(e)}")
