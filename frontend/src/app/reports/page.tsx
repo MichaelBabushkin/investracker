@@ -111,8 +111,8 @@ export default function ReportsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-surface-dark p-4 sm:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto">
+      <div className="min-h-screen bg-surface-dark px-4 sm:px-6 lg:px-8 py-8">
+        <div>
           {loading ? (
             <>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-100 mb-6 sm:mb-8">
