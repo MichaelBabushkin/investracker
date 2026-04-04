@@ -45,6 +45,8 @@ interface PortfolioData {
   totalDividends: number;
   totalCommissions: number;
   taxWithheldILS: number;
+  taxWithheldUSD?: number;
+  usdIlsRate?: number | null;
 }
 
 interface Holding {
@@ -142,7 +144,7 @@ export default function Dashboard() {
             <MetricCard
               label="Total Portfolio"
               value={`$${portfolioData.totalPortfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-              subValue={`Holdings: $${portfolioData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Cash: $${portfolioData.totalCash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              subValue={`Holdings: $${portfolioData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Cash: $${portfolioData.totalCash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${(portfolioData.taxWithheldUSD || 0) > 0 ? ` · Tax: -$${(portfolioData.taxWithheldUSD || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ""}`}
               icon={<DollarSign size={18} />}
             />
             <MetricCard
@@ -155,8 +157,8 @@ export default function Dashboard() {
             <MetricCard
               label="Realized P/L"
               value={`${portfolioData.totalRealizedPL >= 0 ? "+" : ""}$${portfolioData.totalRealizedPL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-              subValue={portfolioData.taxWithheldILS > 0 
-                ? `Div: $${(portfolioData.totalDividends || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Tax: ₪${portfolioData.taxWithheldILS.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              subValue={portfolioData.taxWithheldILS > 0
+                ? `Div: $${(portfolioData.totalDividends || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Tax: -₪${portfolioData.taxWithheldILS.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 : `Dividends: $${(portfolioData.totalDividends || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               }
               icon={<BarChart3 size={18} />}
@@ -266,14 +268,28 @@ export default function Dashboard() {
                       -${(portfolioData.totalCommissions || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
-                  {(portfolioData.taxWithheldILS || 0) > 0 && (
-                    <div className="flex items-center justify-between py-2 border-b border-white/5">
-                      <span className="text-sm text-gray-400">Capital Gains Tax Paid</span>
-                      <span className="text-sm font-medium text-amber-400 financial-value">
-                        ₪{portfolioData.taxWithheldILS.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className="flex items-center justify-between py-2 border-b border-white/5">
+                    <span className="text-sm text-gray-400">Capital Gains Tax Paid</span>
+                    <span className={`text-sm font-medium financial-value ${(portfolioData.taxWithheldILS || 0) > 0 ? "text-amber-400" : "text-gray-500"}`}>
+                      {(portfolioData.taxWithheldILS || 0) > 0
+                        ? `-₪${portfolioData.taxWithheldILS.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${portfolioData.usdIlsRate ? ` (-$${(portfolioData.taxWithheldUSD || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : ""}`
+                        : "₪0.00"}
+                    </span>
+                  </div>
+                  {/* Net totals divider */}
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between py-2 bg-white/5 rounded-lg px-3">
+                      <span className="text-sm font-semibold text-gray-200">Net Portfolio (USD)</span>
+                      <span className="text-sm font-bold text-gray-100 financial-value">
+                        ${portfolioData.totalPortfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
-                  )}
+                    {portfolioData.usdIlsRate && (
+                      <p className="text-xs text-gray-500 mt-2 px-1">
+                        * ILS values converted at ₪{portfolioData.usdIlsRate} / $1 (live rate via Yahoo Finance)
+                      </p>
+                    )}
+                  </div>
                 </>
               ) : (
                 <p className="text-gray-500 text-sm text-center py-8">No portfolio data yet. Upload a broker report to get started.</p>

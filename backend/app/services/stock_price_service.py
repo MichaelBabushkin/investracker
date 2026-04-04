@@ -360,3 +360,46 @@ def recalculate_holdings_values(db: Session, market: str = 'world') -> int:
     """Recalculate all holdings values"""
     service = StockPriceService(db)
     return service.update_holdings_values(market=market)
+
+
+def get_or_refresh_usd_ils_rate(engine) -> Optional[float]:
+    """
+    Get USD/ILS exchange rate from exchange_rates table.
+    Rate meaning: 1 USD = X ILS (e.g. 3.1330).
+    If the stored rate is older than 7 days, fetches a fresh one from yfinance (ILS=X ticker)
+    and upserts it into the exchange_rates table.
+    Returns the rate as a float, or None if unavailable.
+    """
+    from datetime import date, timedelta
+
+    cutoff = date.today() - timedelta(days=7)
+
+    with engine.connect() as conn:
+        row = conn.execute(text("""
+            SELECT rate FROM exchange_rates
+            WHERE from_currency = 'USD' AND to_currency = 'ILS'
+            AND date >= :cutoff
+            ORDER BY date DESC LIMIT 1
+        """), {"cutoff": cutoff}).fetchone()
+        if row:
+            return float(row[0])
+
+    # Rate is stale or missing — fetch from yfinance
+    try:
+        ticker = yf.Ticker("ILS=X")
+        rate = float(ticker.fast_info.last_price)
+        if rate > 0:
+            today = date.today()
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    INSERT INTO exchange_rates (from_currency, to_currency, rate, date, source)
+                    VALUES ('USD', 'ILS', :rate, :date, 'api')
+                    ON CONFLICT ON CONSTRAINT idx_exchange_rate_unique
+                    DO UPDATE SET rate = EXCLUDED.rate
+                """), {"rate": rate, "date": today})
+            logger.info(f"Refreshed USD/ILS rate from yfinance: {rate}")
+            return rate
+    except Exception as e:
+        logger.warning(f"Could not fetch USD/ILS rate from yfinance (ILS=X): {e}")
+
+    return None

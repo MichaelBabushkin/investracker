@@ -506,7 +506,7 @@ class IsraeliStockService:
                         # Note: security 9992985 (מס עתידי) is provisional/estimated tax that
                         # nets to zero — we intentionally skip it.
                         is_capital_gains_tax = False
-                        if security_no == '9992983':
+                        if security_no in ('9992983', '9993983'):
                             tax_keywords = ['מס ששולם', 'םלושש סמ', 'מס לשלם', 'םלשל סמ', 'מס', 'סמ']
                             if any(kw in name for kw in tax_keywords):
                                 is_capital_gains_tax = True
