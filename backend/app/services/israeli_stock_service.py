@@ -507,7 +507,10 @@ class IsraeliStockService:
                         # nets to zero — we intentionally skip it.
                         is_capital_gains_tax = False
                         if security_no in ('9992983', '9993983'):
-                            tax_keywords = ['מס ששולם', 'םלושש סמ', 'מס לשלם', 'םלשל סמ', 'מס', 'סמ']
+                            # Only match rows explicitly named מס ששולם or מס לשלם (and their reversed PDF forms).
+                            # Broad keywords like 'מס' / 'סמ' are intentionally excluded because
+                            # security 9993983 is also used for unrelated products like מגן מס.
+                            tax_keywords = ['מס ששולם', 'םלושש סמ', 'מס לשלם', 'םלשל סמ']
                             if any(kw in name for kw in tax_keywords):
                                 is_capital_gains_tax = True
                         
@@ -563,11 +566,7 @@ class IsraeliStockService:
                                 raw_name = row_data.get('original_name', '') or row_data.get('name', '')
                                 is_tax_paid = 'ששולם' in raw_name or 'םלושש' in raw_name
                                 is_tax_to_pay = 'לשלם' in raw_name or 'םלשל' in raw_name
-                                
-                                if not is_tax_paid and not is_tax_to_pay:
-                                    # Generic match on security 9992983 — include it
-                                    is_tax_paid = True
-                                
+
                                 if is_tax_to_pay and not is_tax_paid:
                                     # Skip מס לשלם — it's the intermediate step;
                                     # מס ששולם is the definitive payment record
