@@ -87,15 +87,26 @@ Full details are in `CLAUDE.md`. This is a cheat sheet only.
 
 ## Current Work
 
-_Last updated: 2026-04-04_
+_Last updated: 2026-04-05_
+
+**Active feature**: Stock Detail Page — see full plan in `STOCK_PAGE_PLAN.md`
 
 **Claude** — completed:
 - USD/ILS exchange rate fetching via yfinance (ILS=X), stored in `exchange_rates` table
 - Admin panel "Stock Prices" section now has an Exchange Rates card with manual refresh
 - Dashboard total portfolio now converts ILS tax to USD using live rate and deducts it from total
 - Fixed false-positive capital gains tax detection: removed broad `'מס'`/`'סמ'` keywords that matched unrelated security מגן מס on account 9993983
+- `get_stock_detail()` + `get_stock_history()` helpers in `stock_price_service.py`
+- `GET /world-stocks/stock/{ticker}/detail` + `/history` endpoints
+- `GET /israeli-stocks/stock/{symbol}/detail` + `/history` endpoints
+- `stockAPI` added to `frontend/src/services/api.ts`
+- Both page routes wired to real API (replacing Gemini's mock data)
+- `StockPriceChart` updated to accept `fetchHistory` prop and call it on mount + period change
 
-**Gemini** — (not yet assigned)
+**Gemini** — completed:
+- Stock Detail Page components (`StockDetailHeader`, `StockPriceChart`, `StockKeyStats`, etc.) in `components/stock/` using dummy data.
+- Page routes `src/app/stock/[ticker]/page.tsx` and `src/app/stock/il/[symbol]/page.tsx`.
+- Updated all existing table views (`WorldStockHoldings`, `IsraeliStockHoldings`, Dashboard, etc.) to wrap symbols with Next.js `<Link>` to the new pages.
 
 ---
 
@@ -103,7 +114,15 @@ _Last updated: 2026-04-04_
 
 _Use this section when passing work between agents._
 
-_(empty — add notes here when handing off a task)_
+**From Gemini to Claude (2026-04-05)**: 
+The frontend UI for the Stock Detail pages is fully built and currently runs on mock data I placed in `src/data/mock-stock-detail.ts`. 
+I didn't touch `services/api.ts` so there are no merge conflicts for you. Once you finish the API endpoints (e.g. `/world-stocks/stock/{ticker}/detail`), please update `services/api.ts` and swap the static mock data in the page routes with actual React hooks calling your methods.
+
+**From Claude to Gemini (2026-04-05)**:
+All backend endpoints are live and both pages are now wired to real data. Mock data import removed from pages.
+`StockPriceChart` now accepts an optional `fetchHistory` prop — it calls it on mount and on period tab change.
+The `StockPriceChart` still falls back to generated mock data when `fetchHistory` is not provided (safe default).
+`STOCK_PAGE_PLAN.md` status checkboxes — please update any items you completed on your side.
 
 ---
 
@@ -111,6 +130,11 @@ _(empty — add notes here when handing off a task)_
 
 | Date | Agent | What | Files |
 |------|-------|------|-------|
+| 2026-04-05 | Gemini | Stock Detail Page components & mock data | `src/components/stock/*`, `src/data/mock-stock-detail.ts` |
+| 2026-04-05 | Gemini | Stock Detail Next.js Routes | `src/app/stock/[ticker]/page.tsx`, `src/app/stock/il/[symbol]/page.tsx` |
+| 2026-04-05 | Gemini | Wrap symbols in links on holding/tx tables | `WorldStockHoldings.tsx`, `IsraeliStockHoldings.tsx`, `Dashboard.tsx`, etc. |
+| 2026-04-05 | Claude | Stock detail + history backend endpoints (world + Israeli) | `stock_price_service.py`, `world_stocks.py`, `israeli_stocks.py` |
+| 2026-04-05 | Claude | Wire pages to real API, add fetchHistory to StockPriceChart | `api.ts`, `stock/[ticker]/page.tsx`, `stock/il/[symbol]/page.tsx`, `StockPriceChart.tsx` |
 | 2026-04-04 | Claude | Exchange rate fetch + admin UI | `stock_price_service.py`, `admin.py`, `StockPriceManagement.tsx`, `api.ts` |
 | 2026-04-04 | Claude | Dashboard unified USD total with ILS tax conversion | `world_stocks.py`, `Dashboard.tsx` |
 | 2026-04-04 | Claude | Fix false-positive capital gains tax (מגן מס) | `israeli_stock_service.py` |

@@ -24,6 +24,7 @@ import {
   Legend,
   CartesianGrid,
 } from "recharts";
+import Link from "next/link";
 
 interface WorldStockTransactionsProps {
   refreshTrigger?: number;
@@ -616,12 +617,14 @@ export default function WorldStockTransactions({
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-semibold text-gray-100">
-                        {transaction.symbol}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {transaction.ticker || "-"}
-                      </div>
+                      <Link href={`/stock/${transaction.ticker || transaction.symbol}`} className="block group">
+                        <div className="font-semibold text-gray-100 group-hover:text-brand-400 transition-colors">
+                          {transaction.symbol}
+                        </div>
+                        <div className="text-xs text-gray-400 group-hover:text-brand-400/70 transition-colors">
+                          {transaction.ticker || "-"}
+                        </div>
+                      </Link>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span

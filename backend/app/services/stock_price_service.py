@@ -405,3 +405,126 @@ def get_or_refresh_usd_ils_rate(engine) -> Optional[float]:
         logger.warning(f"Could not fetch USD/ILS rate from yfinance (ILS=X): {e}")
 
     return None
+
+
+def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
+    """
+    Fetch rich metadata and current price stats for a single stock from yfinance.
+    Returns a structured dict matching the StockDetail API response schema.
+    For Israeli stocks pass is_israeli=True — ticker should already be the yfinance ticker (e.g. "TEVA.TA").
+    """
+    try:
+        t = yf.Ticker(ticker)
+        info = t.info or {}
+        fast = t.fast_info
+
+        current_price = None
+        try:
+            current_price = float(fast.last_price) if fast.last_price else None
+        except Exception:
+            current_price = float(info.get("currentPrice") or info.get("regularMarketPrice") or 0) or None
+
+        previous_close = float(info.get("previousClose") or info.get("regularMarketPreviousClose") or 0) or None
+        change = round(current_price - previous_close, 4) if current_price and previous_close else None
+        change_pct = round((change / previous_close) * 100, 2) if change and previous_close else None
+
+        market_cap = info.get("marketCap")
+        pe_ratio = info.get("trailingPE")
+        eps = info.get("trailingEps")
+        dividend_yield = info.get("dividendYield")
+        beta = info.get("beta")
+        week_52_high = info.get("fiftyTwoWeekHigh")
+        week_52_low = info.get("fiftyTwoWeekLow")
+        avg_volume = info.get("averageVolume")
+
+        # Officers — try to extract CEO
+        ceo = None
+        officers = info.get("companyOfficers") or []
+        for officer in officers:
+            title = (officer.get("title") or "").lower()
+            if "chief executive" in title or "ceo" in title:
+                ceo = officer.get("name")
+                break
+
+        return {
+            "ticker": ticker,
+            "company_name": info.get("longName") or info.get("shortName") or ticker,
+            "exchange": info.get("exchange") or ("TASE" if is_israeli else "NASDAQ"),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+            "currency": info.get("currency") or ("ILS" if is_israeli else "USD"),
+            "price": {
+                "current": current_price,
+                "change": change,
+                "change_pct": change_pct,
+                "previous_close": previous_close,
+            },
+            "stats": {
+                "market_cap": float(market_cap) if market_cap else None,
+                "pe_ratio": float(pe_ratio) if pe_ratio else None,
+                "eps": float(eps) if eps else None,
+                "dividend_yield": float(dividend_yield) if dividend_yield else None,
+                "beta": float(beta) if beta else None,
+                "week_52_high": float(week_52_high) if week_52_high else None,
+                "week_52_low": float(week_52_low) if week_52_low else None,
+                "avg_volume": int(avg_volume) if avg_volume else None,
+            },
+            "about": {
+                "description": info.get("longBusinessSummary"),
+                "employees": info.get("fullTimeEmployees"),
+                "website": info.get("website"),
+                "ceo": ceo,
+                "founded": None,  # yfinance doesn't reliably expose this
+            },
+        }
+    except Exception as e:
+        logger.warning(f"get_stock_detail({ticker}) failed: {e}")
+        return {
+            "ticker": ticker,
+            "company_name": ticker,
+            "exchange": None,
+            "sector": None,
+            "industry": None,
+            "currency": "ILS" if is_israeli else "USD",
+            "price": {"current": None, "change": None, "change_pct": None, "previous_close": None},
+            "stats": {},
+            "about": {"description": None, "employees": None, "website": None, "ceo": None, "founded": None},
+        }
+
+
+# Period → (yfinance period, yfinance interval)
+_HISTORY_PARAMS = {
+    "1D":  ("1d",  "5m"),
+    "1W":  ("5d",  "15m"),
+    "1M":  ("1mo", "1d"),
+    "3M":  ("3mo", "1d"),
+    "1Y":  ("1y",  "1d"),
+    "ALL": ("5y",  "1wk"),
+}
+
+
+def get_stock_history(ticker: str, period: str = "1M") -> dict:
+    """
+    Fetch OHLCV history for a ticker from yfinance.
+    period: one of 1D, 1W, 1M, 3M, 1Y, ALL
+    Returns { ticker, period, data: [{date, open, high, low, close, volume}] }
+    """
+    yf_period, yf_interval = _HISTORY_PARAMS.get(period.upper(), ("1mo", "1d"))
+    try:
+        t = yf.Ticker(ticker)
+        hist = t.history(period=yf_period, interval=yf_interval)
+        data = []
+        for ts, row in hist.iterrows():
+            data.append({
+                "date": ts.strftime("%Y-%m-%d") if yf_interval != "5m" and yf_interval != "15m"
+                        else ts.strftime("%Y-%m-%dT%H:%M:%S"),
+                "open":   round(float(row["Open"]),   4),
+                "high":   round(float(row["High"]),   4),
+                "low":    round(float(row["Low"]),    4),
+                "close":  round(float(row["Close"]),  4),
+                "volume": int(row["Volume"]) if not pd.isna(row["Volume"]) else 0,
+            })
+        return {"ticker": ticker, "period": period, "data": data}
+    except Exception as e:
+        logger.warning(f"get_stock_history({ticker}, {period}) failed: {e}")
+        return {"ticker": ticker, "period": period, "data": []}

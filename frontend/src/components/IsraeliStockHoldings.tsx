@@ -23,6 +23,7 @@ import { israeliStocksAPI } from "@/services/api";
 import { IsraeliStockHolding } from "@/types/israeli-stocks";
 import StockLogo from "./StockLogo";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
+import Link from "next/link";
 
 interface IsraeliStockHoldingsProps {
   refreshTrigger?: number;
@@ -412,22 +413,22 @@ export default function IsraeliStockHoldings({
                       return (
                         <tr key={holding.id} className="hover:bg-white/5">
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
+                            <Link href={`/stock/il/${holding.symbol}`} className="flex items-center group">
                               <StockLogo
                                 symbol={holding.symbol}
                                 logoSvg={holding.logo_svg}
                                 size="sm"
-                                className="flex-shrink-0 mr-3"
+                                className="flex-shrink-0 mr-3 group-hover:opacity-80 transition-opacity"
                               />
                               <div>
-                                <div className="text-sm font-medium text-gray-100">
+                                <div className="text-sm font-medium text-gray-100 group-hover:text-brand-400 transition-colors">
                                   {holding.symbol}
                                 </div>
-                                <div className="text-sm text-gray-400 max-w-xs truncate">
+                                <div className="text-sm text-gray-400 max-w-xs truncate group-hover:text-brand-400/70 transition-colors">
                                   {holding.company_name}
                                 </div>
                               </div>
-                            </div>
+                            </Link>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                             {formatNumber(holding.quantity)}

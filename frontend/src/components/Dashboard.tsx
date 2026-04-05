@@ -381,8 +381,10 @@ export default function Dashboard() {
                         .map((h) => (
                           <tr key={h.symbol} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                             <td className="px-5 py-3.5">
-                              <div className="text-sm font-medium text-gray-200">{h.symbol}</div>
-                              <div className="text-xs text-gray-500 truncate max-w-[120px]">{h.name}</div>
+                              <Link href={`/stock/${h.symbol}`} className="block group">
+                                <div className="text-sm font-medium text-gray-200 group-hover:text-brand-400 transition-colors">{h.symbol}</div>
+                                <div className="text-xs text-gray-500 truncate max-w-[120px] group-hover:text-brand-400/70 transition-colors">{h.name}</div>
+                              </Link>
                             </td>
                             <td className="px-5 py-3.5 text-right text-sm text-gray-300 financial-value">{h.shares.toLocaleString()}</td>
                             <td className="px-5 py-3.5 text-right text-sm text-gray-300 financial-value">

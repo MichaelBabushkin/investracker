@@ -810,6 +810,27 @@ export const adminAPI = {
   },
 };
 
+export const stockAPI = {
+  // World stocks
+  getWorldDetail: async (ticker: string) => {
+    const response = await api.get(`/world-stocks/stock/${ticker}/detail`);
+    return response.data;
+  },
+  getWorldHistory: async (ticker: string, period: string = "1M") => {
+    const response = await api.get(`/world-stocks/stock/${ticker}/history?period=${period}`);
+    return response.data;
+  },
+  // Israeli stocks
+  getIsraeliDetail: async (symbol: string) => {
+    const response = await api.get(`/israeli-stocks/stock/${symbol}/detail`);
+    return response.data;
+  },
+  getIsraeliHistory: async (symbol: string, period: string = "1M") => {
+    const response = await api.get(`/israeli-stocks/stock/${symbol}/history?period=${period}`);
+    return response.data;
+  },
+};
+
 export const calendarAPI = {
   getEvents: async (params?: { start_date?: string; end_date?: string; market?: string; event_type?: string }) => {
     const response = await api.get("/calendar/events", { params });
