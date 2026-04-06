@@ -810,6 +810,48 @@ export const adminAPI = {
   },
 };
 
+export const stockAPI = {
+  // World stocks
+  getWorldDetail: async (ticker: string) => {
+    const response = await api.get(`/world-stocks/stock/${ticker}/detail`);
+    return response.data;
+  },
+  getWorldHistory: async (ticker: string, period: string = "1M") => {
+    const response = await api.get(`/world-stocks/stock/${ticker}/history?period=${period}`);
+    return response.data;
+  },
+  // Israeli stocks
+  getIsraeliDetail: async (symbol: string) => {
+    const response = await api.get(`/israeli-stocks/stock/${symbol}/detail`);
+    return response.data;
+  },
+  getIsraeliHistory: async (symbol: string, period: string = "1M") => {
+    const response = await api.get(`/israeli-stocks/stock/${symbol}/history?period=${period}`);
+    return response.data;
+  },
+};
+
+export const marketDataAPI = {
+  getCategories: async () => {
+    const response = await api.get("/market-data/categories");
+    return response.data as { id: string; name: string }[];
+  },
+  getIndices: async (category: string = "us") => {
+    const response = await api.get(`/market-data/indices?category=${category}`);
+    return response.data as {
+      category: string;
+      name: string;
+      items: {
+        symbol: string;
+        name: string;
+        price: number | null;
+        change: number | null;
+        change_pct: number | null;
+      }[];
+    };
+  },
+};
+
 export const calendarAPI = {
   getEvents: async (params?: { start_date?: string; end_date?: string; market?: string; event_type?: string }) => {
     const response = await api.get("/calendar/events", { params });

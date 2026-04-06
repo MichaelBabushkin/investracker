@@ -7,6 +7,7 @@ import { RootState, AppDispatch } from "@/store";
 import { logout } from "@/store/slices/authSlice";
 import Sidebar from "./Sidebar";
 import EventBanner from "./EventBanner";
+import MarketTickerBar from "./MarketTickerBar";
 import {
   Home,
   Briefcase,
@@ -312,9 +313,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             isSidebarCollapsed ? "pl-[72px]" : "pl-64"
           }`}
         >
+          <MarketTickerBar />
           <EventBanner />
         </div>
         <div className="lg:hidden">
+          <MarketTickerBar />
           <EventBanner />
         </div>
         <main

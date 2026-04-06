@@ -405,3 +405,249 @@ def get_or_refresh_usd_ils_rate(engine) -> Optional[float]:
         logger.warning(f"Could not fetch USD/ILS rate from yfinance (ILS=X): {e}")
 
     return None
+
+
+def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
+    """
+    Fetch rich metadata and current price stats for a single stock from yfinance.
+    Returns a structured dict matching the StockDetail API response schema.
+    For Israeli stocks pass is_israeli=True — ticker should already be the yfinance ticker (e.g. "TEVA.TA").
+    """
+    try:
+        t = yf.Ticker(ticker)
+        info = t.info or {}
+        fast = t.fast_info
+
+        current_price = None
+        try:
+            current_price = float(fast.last_price) if fast.last_price else None
+        except Exception:
+            current_price = float(info.get("currentPrice") or info.get("regularMarketPrice") or 0) or None
+
+        previous_close = float(info.get("previousClose") or info.get("regularMarketPreviousClose") or 0) or None
+        change = round(current_price - previous_close, 4) if current_price and previous_close else None
+        change_pct = round((change / previous_close) * 100, 2) if change and previous_close else None
+
+        market_cap = info.get("marketCap")
+        pe_ratio = info.get("trailingPE")
+        eps = info.get("trailingEps")
+        beta = info.get("beta")
+        week_52_high = info.get("fiftyTwoWeekHigh")
+        week_52_low = info.get("fiftyTwoWeekLow")
+        avg_volume = info.get("averageVolume")
+
+        # dividendYield: yfinance returns decimal (0.0668) but sometimes already pct (6.68)
+        # Normalise to percentage always
+        raw_yield = info.get("dividendYield")
+        dividend_yield_pct = None
+        if raw_yield is not None:
+            raw_yield = float(raw_yield)
+            dividend_yield_pct = round(raw_yield * 100 if raw_yield < 1 else raw_yield, 2)
+
+        # Market state & extended hours
+        market_state = (info.get("marketState") or "CLOSED").upper()  # OPEN/CLOSED/PRE/POST
+        post_market_price = float(info.get("postMarketPrice")) if info.get("postMarketPrice") else None
+        post_market_change_pct = float(info.get("postMarketChangePercent")) if info.get("postMarketChangePercent") else None
+        pre_market_price = float(info.get("preMarketPrice")) if info.get("preMarketPrice") else None
+
+        # Day range & moving averages
+        day_high = float(info.get("dayHigh") or info.get("regularMarketDayHigh") or 0) or None
+        day_low = float(info.get("dayLow") or info.get("regularMarketDayLow") or 0) or None
+        fifty_day_avg = float(info.get("fiftyDayAverage")) if info.get("fiftyDayAverage") else None
+        two_hundred_day_avg = float(info.get("twoHundredDayAverage")) if info.get("twoHundredDayAverage") else None
+
+        # Dividend details
+        dividend_rate = float(info.get("dividendRate")) if info.get("dividendRate") else None
+        five_yr_avg_yield = float(info.get("fiveYearAvgDividendYield")) if info.get("fiveYearAvgDividendYield") else None
+        last_dividend_value = float(info.get("lastDividendValue")) if info.get("lastDividendValue") else None
+        ex_dividend_ts = info.get("exDividendDate") or info.get("lastDividendDate")
+        ex_dividend_date = None
+        if ex_dividend_ts:
+            try:
+                from datetime import timezone
+                ex_dividend_date = datetime.fromtimestamp(int(ex_dividend_ts), tz=timezone.utc).strftime("%Y-%m-%d")
+            except Exception:
+                pass
+
+        # Earnings
+        earnings_ts = info.get("earningsTimestamp")
+        earnings_date = None
+        if earnings_ts:
+            try:
+                from datetime import timezone
+                earnings_date = datetime.fromtimestamp(int(earnings_ts), tz=timezone.utc).strftime("%Y-%m-%d")
+            except Exception:
+                pass
+
+        # Analyst consensus
+        recommendation = info.get("recommendationKey")  # "buy"/"hold"/"sell"/"strong_buy" etc.
+        recommendation_mean = float(info.get("recommendationMean")) if info.get("recommendationMean") else None
+        analyst_count = int(info.get("numberOfAnalystOpinions")) if info.get("numberOfAnalystOpinions") else None
+        target_mean = float(info.get("targetMeanPrice")) if info.get("targetMeanPrice") else None
+        target_high = float(info.get("targetHighPrice")) if info.get("targetHighPrice") else None
+        target_low = float(info.get("targetLowPrice")) if info.get("targetLowPrice") else None
+
+        # Recommendation trend (last 4 months)
+        recommendations_trend = []
+        try:
+            rec_df = t.recommendations
+            if rec_df is not None and not rec_df.empty:
+                for _, row in rec_df.tail(4).iterrows():
+                    period_val = row.name if hasattr(row, 'name') else None
+                    period_str = str(period_val) if period_val is not None else None
+                    recommendations_trend.append({
+                        "period": period_str,
+                        "strong_buy": int(row.get("strongBuy", 0)),
+                        "buy": int(row.get("buy", 0)),
+                        "hold": int(row.get("hold", 0)),
+                        "sell": int(row.get("sell", 0)),
+                        "strong_sell": int(row.get("strongSell", 0)),
+                    })
+        except Exception:
+            pass
+
+        # Upgrades & Downgrades (last 10)
+        upgrades_downgrades = []
+        try:
+            ud_df = t.upgrades_downgrades
+            if ud_df is not None and not ud_df.empty:
+                ud_df = ud_df.sort_index(ascending=False).head(10).reset_index()
+                for _, row in ud_df.iterrows():
+                    grade_date = row.get("GradeDate") or row.get("Date")
+                    date_str = str(grade_date)[:10] if grade_date is not None else None
+                    upgrades_downgrades.append({
+                        "date": date_str,
+                        "firm": row.get("Firm"),
+                        "to_grade": row.get("ToGrade"),
+                        "from_grade": row.get("FromGrade"),
+                        "action": row.get("Action"),
+                    })
+        except Exception:
+            pass
+
+        # Forward metrics
+        forward_pe = float(info.get("forwardPE")) if info.get("forwardPE") else None
+        forward_eps = float(info.get("forwardEps")) if info.get("forwardEps") else None
+
+        # Officers — try to extract CEO
+        ceo = None
+        officers = info.get("companyOfficers") or []
+        for officer in officers:
+            title = (officer.get("title") or "").lower()
+            if "chief executive" in title or "ceo" in title:
+                ceo = officer.get("name")
+                break
+
+        return {
+            "ticker": ticker,
+            "company_name": info.get("longName") or info.get("shortName") or ticker,
+            "exchange": info.get("fullExchangeName") or info.get("exchange") or ("TASE" if is_israeli else "NASDAQ"),
+            "sector": info.get("sector"),
+            "industry": info.get("industry"),
+            "currency": info.get("currency") or ("ILS" if is_israeli else "USD"),
+            "market_state": market_state,
+            "price": {
+                "current": current_price,
+                "change": change,
+                "change_pct": change_pct,
+                "previous_close": previous_close,
+                "day_high": day_high,
+                "day_low": day_low,
+                "post_market_price": post_market_price,
+                "post_market_change_pct": round(post_market_change_pct, 2) if post_market_change_pct else None,
+                "pre_market_price": pre_market_price,
+            },
+            "stats": {
+                "market_cap": float(market_cap) if market_cap else None,
+                "pe_ratio": float(pe_ratio) if pe_ratio else None,
+                "forward_pe": forward_pe,
+                "eps": float(eps) if eps else None,
+                "forward_eps": forward_eps,
+                "dividend_yield": dividend_yield_pct,
+                "dividend_rate": dividend_rate,
+                "ex_dividend_date": ex_dividend_date,
+                "last_dividend_value": last_dividend_value,
+                "five_yr_avg_yield": five_yr_avg_yield,
+                "beta": float(beta) if beta else None,
+                "week_52_high": float(week_52_high) if week_52_high else None,
+                "week_52_low": float(week_52_low) if week_52_low else None,
+                "avg_volume": int(avg_volume) if avg_volume else None,
+                "fifty_day_avg": fifty_day_avg,
+                "two_hundred_day_avg": two_hundred_day_avg,
+                "earnings_date": earnings_date,
+            },
+            "analyst": {
+                "recommendation": recommendation,
+                "recommendation_mean": recommendation_mean,
+                "analyst_count": analyst_count,
+                "target_mean": target_mean,
+                "target_high": target_high,
+                "target_low": target_low,
+                "recommendations_trend": recommendations_trend,
+                "upgrades_downgrades": upgrades_downgrades,
+            },
+            "about": {
+                "description": info.get("longBusinessSummary"),
+                "employees": info.get("fullTimeEmployees"),
+                "website": info.get("website"),
+                "ceo": ceo,
+                "founded": None,
+            },
+        }
+    except Exception as e:
+        logger.warning(f"get_stock_detail({ticker}) failed: {e}")
+        return {
+            "ticker": ticker,
+            "company_name": ticker,
+            "exchange": None,
+            "sector": None,
+            "industry": None,
+            "currency": "ILS" if is_israeli else "USD",
+            "market_state": "CLOSED",
+            "price": {"current": None, "change": None, "change_pct": None, "previous_close": None,
+                      "day_high": None, "day_low": None, "post_market_price": None,
+                      "post_market_change_pct": None, "pre_market_price": None},
+            "stats": {},
+            "analyst": {"recommendation": None, "recommendation_mean": None, "analyst_count": None,
+                        "target_mean": None, "target_high": None, "target_low": None,
+                        "recommendations_trend": [], "upgrades_downgrades": []},
+            "about": {"description": None, "employees": None, "website": None, "ceo": None, "founded": None},
+        }
+
+
+# Period → (yfinance period, yfinance interval)
+_HISTORY_PARAMS = {
+    "1D":  ("1d",  "5m"),
+    "1W":  ("5d",  "15m"),
+    "1M":  ("1mo", "1d"),
+    "3M":  ("3mo", "1d"),
+    "1Y":  ("1y",  "1d"),
+    "ALL": ("5y",  "1wk"),
+}
+
+
+def get_stock_history(ticker: str, period: str = "1M") -> dict:
+    """
+    Fetch OHLCV history for a ticker from yfinance.
+    period: one of 1D, 1W, 1M, 3M, 1Y, ALL
+    Returns { ticker, period, data: [{date, open, high, low, close, volume}] }
+    """
+    yf_period, yf_interval = _HISTORY_PARAMS.get(period.upper(), ("1mo", "1d"))
+    try:
+        t = yf.Ticker(ticker)
+        hist = t.history(period=yf_period, interval=yf_interval)
+        data = []
+        for ts, row in hist.iterrows():
+            data.append({
+                "date": ts.strftime("%Y-%m-%d") if yf_interval != "5m" and yf_interval != "15m"
+                        else ts.strftime("%Y-%m-%dT%H:%M:%S"),
+                "open":   round(float(row["Open"]),   4),
+                "high":   round(float(row["High"]),   4),
+                "low":    round(float(row["Low"]),    4),
+                "close":  round(float(row["Close"]),  4),
+                "volume": int(row["Volume"]) if not pd.isna(row["Volume"]) else 0,
+            })
+        return {"ticker": ticker, "period": period, "data": data}
+    except Exception as e:
+        logger.warning(f"get_stock_history({ticker}, {period}) failed: {e}")
+        return {"ticker": ticker, "period": period, "data": []}

@@ -22,6 +22,7 @@ import {
 import { worldStocksAPI } from "@/services/api";
 import { WorldStockHolding } from "@/types/world-stocks";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
+import Link from "next/link";
 
 interface WorldStockHoldingsProps {
   refreshTrigger?: number;
@@ -466,9 +467,9 @@ export default function WorldStockHoldings({
                   return (
                     <tr key={holding.id} className="hover:bg-white/5">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-semibold text-gray-100">
+                        <Link href={`/stock/${holding.symbol}`} className="font-semibold text-gray-100 hover:text-brand-400 transition-colors">
                           {holding.symbol}
-                        </div>
+                        </Link>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
                         {formatNumber(holding.quantity)}

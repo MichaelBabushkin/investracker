@@ -32,6 +32,7 @@ import {
   Legend,
   CartesianGrid,
 } from "recharts";
+import Link from "next/link";
 
 interface IsraeliStockTransactionsProps {
   refreshTrigger?: number;
@@ -697,22 +698,22 @@ export default function IsraeliStockTransactions({
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center space-x-2">
+                            <Link href={`/stock/il/${transaction.symbol}`} className="flex items-center space-x-2 group">
                               <StockLogo
                                 symbol={transaction.symbol}
                                 logoSvg={transaction.logo_svg}
                                 size="sm"
-                                className="flex-shrink-0"
+                                className="flex-shrink-0 group-hover:opacity-80 transition-opacity"
                               />
                               <div className="min-w-0">
-                                <div className="text-sm font-medium text-gray-100 truncate">
+                                <div className="text-sm font-medium text-gray-100 truncate group-hover:text-brand-400 transition-colors">
                                   {transaction.symbol}
                                 </div>
-                                <div className="text-xs text-gray-400 truncate">
+                                <div className="text-xs text-gray-400 truncate group-hover:text-brand-400/70 transition-colors">
                                   {transaction.company_name}
                                 </div>
                               </div>
-                            </div>
+                            </Link>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span

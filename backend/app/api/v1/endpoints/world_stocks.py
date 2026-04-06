@@ -1910,3 +1910,141 @@ async def refresh_holdings_returns(
             status_code=500,
             detail=f"Error refreshing returns: {str(e)}"
         )
+
+
+# ── Stock Detail Page Endpoints ───────────────────────────────────────────────
+
+@router.get("/stock/{ticker}/detail")
+async def get_world_stock_detail(
+    ticker: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get rich detail for a world stock: market data (yfinance) + user portfolio context.
+    Used by the Stock Detail Page at /stock/[ticker].
+    """
+    from app.services.stock_price_service import get_stock_detail
+    from app.core.database import engine
+    from decimal import Decimal
+
+    ticker = ticker.upper()
+
+    # Market data from yfinance
+    market_data = get_stock_detail(ticker, is_israeli=False)
+
+    # Portfolio context from DB
+    portfolio = {"held": False, "quantity": 0, "purchase_cost": 0,
+                 "avg_cost_per_share": None, "current_value": 0,
+                 "unrealized_pl": 0, "unrealized_pl_pct": 0}
+    transactions = []
+    dividends = []
+    logo_url = None
+    logo_svg = None
+
+    try:
+        with engine.connect() as conn:
+            params = {"user_id": current_user.id, "ticker": ticker}
+
+            # Holding
+            holding_row = conn.execute(text("""
+                SELECT h.quantity, h.purchase_cost, h.current_value, h.last_price,
+                       ws.logo_url, ws.logo_svg
+                FROM world_stock_holdings h
+                LEFT JOIN world_stocks ws ON h.ticker = ws.ticker
+                WHERE h.user_id = :user_id AND h.ticker = :ticker AND h.quantity > 0
+                LIMIT 1
+            """), params).fetchone()
+
+            if holding_row:
+                qty = float(holding_row[0] or 0)
+                cost = float(holding_row[1] or 0)
+                current_price = market_data["price"]["current"] or float(holding_row[3] or 0)
+                current_value = qty * current_price if current_price else float(holding_row[2] or 0)
+                unreal_pl = current_value - cost
+                unreal_pl_pct = round((unreal_pl / cost * 100), 2) if cost > 0 else 0
+                portfolio = {
+                    "held": True,
+                    "quantity": qty,
+                    "purchase_cost": cost,
+                    "avg_cost_per_share": round(cost / qty, 4) if qty > 0 else None,
+                    "current_value": round(current_value, 2),
+                    "unrealized_pl": round(unreal_pl, 2),
+                    "unrealized_pl_pct": unreal_pl_pct,
+                }
+                logo_url = holding_row[4]
+                logo_svg = holding_row[5]
+
+            # Catalog logo fallback
+            if not logo_url:
+                logo_row = conn.execute(text("""
+                    SELECT logo_url, logo_svg FROM world_stocks WHERE ticker = :ticker LIMIT 1
+                """), {"ticker": ticker}).fetchone()
+                if logo_row:
+                    logo_url = logo_row[0]
+                    logo_svg = logo_row[1]
+
+            # Transactions
+            txn_rows = conn.execute(text("""
+                SELECT id, transaction_date, transaction_type, quantity, price, total_value, realized_pl, commission
+                FROM world_stock_transactions
+                WHERE user_id = :user_id AND ticker = :ticker
+                ORDER BY transaction_date DESC NULLS LAST, created_at DESC
+            """), params).fetchall()
+            transactions = [
+                {
+                    "id": r[0],
+                    "date": str(r[1]) if r[1] else None,
+                    "type": (r[2] or "").upper(),
+                    "quantity": float(r[3] or 0),
+                    "price": float(r[4] or 0),
+                    "total": float(r[5] or 0),
+                    "realized_pl": float(r[6]) if r[6] is not None else None,
+                    "commission": float(r[7] or 0),
+                }
+                for r in txn_rows
+            ]
+
+            # Dividends (world_dividends has: id, payment_date, net_amount, amount, tax)
+            div_rows = conn.execute(text("""
+                SELECT id, payment_date, net_amount, amount, tax
+                FROM world_dividends
+                WHERE user_id = :user_id AND ticker = :ticker
+                ORDER BY payment_date DESC NULLS LAST
+            """), params).fetchall()
+            dividends = [
+                {
+                    "id": r[0],
+                    "payment_date": str(r[1]) if r[1] else None,
+                    "ex_dividend_date": None,
+                    "net_amount": float(r[2] or 0),
+                    "gross_amount": float(r[3] or 0),
+                    "per_share": None,
+                }
+                for r in div_rows
+            ]
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB error: {str(e)}")
+
+    return {
+        **market_data,
+        "logo_url": logo_url,
+        "logo_svg": logo_svg,
+        "portfolio": portfolio,
+        "transactions": transactions,
+        "dividends": dividends,
+    }
+
+
+@router.get("/stock/{ticker}/history")
+async def get_world_stock_history(
+    ticker: str,
+    period: str = "1M",
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get OHLCV price history for chart rendering.
+    period: 1D | 1W | 1M | 3M | 1Y | ALL
+    """
+    from app.services.stock_price_service import get_stock_history
+    return get_stock_history(ticker.upper(), period)
