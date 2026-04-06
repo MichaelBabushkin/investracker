@@ -10,6 +10,7 @@ import StockKeyStats from '@/components/stock/StockKeyStats';
 import StockAbout from '@/components/stock/StockAbout';
 import StockTransactionHistory from '@/components/stock/StockTransactionHistory';
 import StockDividends from '@/components/stock/StockDividends';
+import StockAnalystConsensus from '@/components/stock/StockAnalystConsensus';
 import { stockAPI } from '@/services/api';
 import { StockDetail } from '@/types/stock-detail';
 
@@ -39,7 +40,7 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="min-h-screen bg-surface-dark px-4 sm:px-6 lg:px-8 py-8 flex items-center justify-center">
         <Loader2 className="animate-spin text-brand-400" size={32} />
       </div>
     );
@@ -47,7 +48,7 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
 
   if (error || !data) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="min-h-screen bg-surface-dark px-4 sm:px-6 lg:px-8 py-8 flex flex-col items-center justify-center gap-4">
         <p className="text-loss text-sm">{error || 'Stock not found'}</p>
         <button onClick={() => router.back()} className="text-brand-400 text-sm hover:underline">← Go back</button>
       </div>
@@ -55,7 +56,7 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
   }
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="min-h-screen bg-surface-dark px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <button
         onClick={() => router.back()}
         className="text-gray-400 hover:text-white transition-colors text-sm font-medium inline-flex items-center gap-1"
@@ -78,7 +79,10 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StockKeyStats stats={data.stats} currency={data.currency} />
+        <div className="space-y-6">
+          <StockKeyStats stats={data.stats} price={data.price} currency={data.currency} />
+          <StockAnalystConsensus analyst={data.analyst} currency={data.currency} currentPrice={data.price.current} />
+        </div>
         <StockAbout about={data.about} />
         <div className="space-y-6">
           <StockTransactionHistory transactions={data.transactions} currency={data.currency} />

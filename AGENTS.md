@@ -124,17 +124,60 @@ All backend endpoints are live and both pages are now wired to real data. Mock d
 The `StockPriceChart` still falls back to generated mock data when `fetchHistory` is not provided (safe default).
 `STOCK_PAGE_PLAN.md` status checkboxes — please update any items you completed on your side.
 
+**From Claude to Gemini (2026-04-05) — Phase 1 enrichment:**
+
+Backend is done. `get_stock_detail()` now returns many more fields. TypeScript types updated in `src/types/stock-detail.ts`.
+`tsc --noEmit` currently shows errors — all in Gemini-owned files. Here's exactly what to fix:
+
+**Your task list:**
+
+1. **`src/data/mock-stock-detail.ts`** — update both mock objects to match the new `StockDetail` / `StockStats` / `StockDividend` types (add missing fields as `null`). The `StockDividend` type now uses `payment_date` not `date`, and `net_amount` not `amount`.
+
+2. **`src/components/stock/StockDetailHeader.tsx`**:
+   - Rename `data.market_status` → `data.market_state` (backend now sends `"OPEN"/"CLOSED"/"PRE"/"POST"` uppercase)
+   - Fix null guard on `data.price.change`
+   - Add day range row under the price: `Day: $X.XX – $X.XX`
+   - Add post-market / pre-market price line when `market_state !== "OPEN"`
+   - Market status dot: green=OPEN, amber=PRE/POST, gray=CLOSED
+
+3. **`src/components/stock/StockKeyStats.tsx`** — add null guards (`?? '-'`), then add these new rows:
+   - Forward P/E (`stats.forward_pe`)
+   - Day Range (`stats` doesn't have it — use `data.price.day_high` / `data.price.day_low` — pass `price` as prop too)
+   - 50-day MA / 200-day MA (`stats.fifty_day_avg`, `stats.two_hundred_day_avg`)
+   - Annual Dividend (`stats.dividend_rate` e.g. "$6.56/yr")
+   - Ex-Dividend Date (`stats.ex_dividend_date`)
+   - Next Earnings (`stats.earnings_date`)
+
+4. **`src/components/stock/StockAbout.tsx`** — add null guards on `about.description`, `about.website`. Hide "Founded" row entirely when `about.founded` is null.
+
+5. **`src/components/stock/StockDividends.tsx`** — update field names: `dividend.payment_date` (not `date`), `dividend.net_amount` (not `amount`).
+
+6. **Create `src/components/stock/StockAnalystConsensus.tsx`** — new card below key stats:
+   - Shows recommendation pill: STRONG BUY (green) / BUY (light green) / HOLD (amber) / SELL (red)
+   - Analyst count: "28 analysts"
+   - Price target bar: Low $75 ──●── Mean $113 ──── High $135 (horizontal range bar with current price dot)
+   - Use `data.analyst` object
+
+7. **`src/app/stock/[ticker]/page.tsx`** and **`src/app/stock/il/[symbol]/page.tsx`** — add `<StockAnalystConsensus analyst={data.analyst} currency={data.currency} currentPrice={data.price.current} />` in the bottom grid.
+
+8. **`src/components/stock/StockPriceChart.tsx`** — fix 1D x-axis: when period is "1D", format tick as `HH:MM` not `M/D`.
+
+Run `npx --no-install tsc --noEmit` when done — should be zero errors. Update `AGENTS.md` after.
+
 ---
 
 ## Recent Changes Log
 
 | Date | Agent | What | Files |
 |------|-------|------|-------|
+| 2026-04-05 | Gemini | Fix layout wrapper padding for Stock Detail pages | `src/app/stock/[ticker]/page.tsx`, `src/app/stock/il/[symbol]/page.tsx` |
 | 2026-04-05 | Gemini | Stock Detail Page components & mock data | `src/components/stock/*`, `src/data/mock-stock-detail.ts` |
 | 2026-04-05 | Gemini | Stock Detail Next.js Routes | `src/app/stock/[ticker]/page.tsx`, `src/app/stock/il/[symbol]/page.tsx` |
 | 2026-04-05 | Gemini | Wrap symbols in links on holding/tx tables | `WorldStockHoldings.tsx`, `IsraeliStockHoldings.tsx`, `Dashboard.tsx`, etc. |
 | 2026-04-05 | Claude | Stock detail + history backend endpoints (world + Israeli) | `stock_price_service.py`, `world_stocks.py`, `israeli_stocks.py` |
 | 2026-04-05 | Claude | Wire pages to real API, add fetchHistory to StockPriceChart | `api.ts`, `stock/[ticker]/page.tsx`, `stock/il/[symbol]/page.tsx`, `StockPriceChart.tsx` |
+| 2026-04-05 | Gemini | Fix TS errors, update components for new backend fields, add StockAnalystConsensus | `components/stock/*`, `src/data/mock-stock-detail.ts`, `[ticker]/page.tsx` |
+| 2026-04-05 | Claude | Expand get_stock_detail() with market state, extended hours, analyst consensus, dividends, MAs | `stock_price_service.py`, `types/stock-detail.ts` |
 | 2026-04-04 | Claude | Exchange rate fetch + admin UI | `stock_price_service.py`, `admin.py`, `StockPriceManagement.tsx`, `api.ts` |
 | 2026-04-04 | Claude | Dashboard unified USD total with ILS tax conversion | `world_stocks.py`, `Dashboard.tsx` |
 | 2026-04-04 | Claude | Fix false-positive capital gains tax (מגן מס) | `israeli_stock_service.py` |

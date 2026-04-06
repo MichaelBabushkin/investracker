@@ -29,9 +29,9 @@ export default function StockDividends({ dividends, currency }: StockDividendsPr
             <tbody>
               {dividends.map((div) => (
                 <tr key={div.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3 tabular-nums">{formatDate(div.date)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-gain font-medium">+{formatCurrency(div.amount, currency as MarketCurrency)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-gray-400">{formatCurrency(div.per_share, currency as MarketCurrency)}</td>
+                  <td className="px-4 py-3 tabular-nums">{formatDate(div.payment_date || undefined)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-gain font-medium">+{formatCurrency(div.net_amount, currency as MarketCurrency)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-gray-400">{div.per_share ? formatCurrency(div.per_share, currency as MarketCurrency) : '-'}</td>
                 </tr>
               ))}
             </tbody>

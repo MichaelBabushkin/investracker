@@ -5,10 +5,11 @@ import { formatCurrency, MarketCurrency } from '@/utils/formatters';
 
 interface StockKeyStatsProps {
   stats: StockStats;
+  price: { day_high: number | null; day_low: number | null };
   currency: string;
 }
 
-export default function StockKeyStats({ stats, currency }: StockKeyStatsProps) {
+export default function StockKeyStats({ stats, price, currency }: StockKeyStatsProps) {
   const formatNumber = (num: number) => {
     if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
     if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
@@ -17,14 +18,21 @@ export default function StockKeyStats({ stats, currency }: StockKeyStatsProps) {
   };
 
   const statItems = [
-    { label: 'Market Cap', value: formatNumber(stats.market_cap) },
+    { label: 'Market Cap', value: stats.market_cap ? formatNumber(stats.market_cap) : '-' },
     { label: 'P/E Ratio', value: stats.pe_ratio?.toFixed(2) ?? '-' },
+    { label: 'Forward P/E', value: stats.forward_pe?.toFixed(2) ?? '-' },
     { label: 'EPS', value: stats.eps?.toFixed(2) ?? '-' },
-    { label: 'Div Yield', value: stats.dividend_yield ? (stats.dividend_yield * 100).toFixed(2) + '%' : '-' },
+    { label: 'Div Yield', value: stats.dividend_yield ? stats.dividend_yield.toFixed(2) + '%' : '-' },
+    { label: 'Annual Dividend', value: stats.dividend_rate ? formatCurrency(stats.dividend_rate, currency as MarketCurrency) + '/yr' : '-' },
+    { label: 'Ex-Dividend Date', value: stats.ex_dividend_date ?? '-' },
     { label: 'Beta', value: stats.beta?.toFixed(2) ?? '-' },
-    { label: '52W High', value: formatCurrency(stats.week_52_high, currency as MarketCurrency) },
-    { label: '52W Low', value: formatCurrency(stats.week_52_low, currency as MarketCurrency) },
-    { label: 'Avg Volume', value: formatNumber(stats.avg_volume) },
+    { label: 'Day Range', value: (price.day_low !== null && price.day_high !== null) ? `${formatCurrency(price.day_low, currency as MarketCurrency)} - ${formatCurrency(price.day_high, currency as MarketCurrency)}` : '-' },
+    { label: '52W High', value: stats.week_52_high !== null ? formatCurrency(stats.week_52_high, currency as MarketCurrency) : '-' },
+    { label: '52W Low', value: stats.week_52_low !== null ? formatCurrency(stats.week_52_low, currency as MarketCurrency) : '-' },
+    { label: '50-Day MA', value: stats.fifty_day_avg !== null ? formatCurrency(stats.fifty_day_avg, currency as MarketCurrency) : '-' },
+    { label: '200-Day MA', value: stats.two_hundred_day_avg !== null ? formatCurrency(stats.two_hundred_day_avg, currency as MarketCurrency) : '-' },
+    { label: 'Avg Volume', value: stats.avg_volume !== null ? formatNumber(stats.avg_volume) : '-' },
+    { label: 'Next Earnings', value: stats.earnings_date ?? '-' }
   ];
 
   return (

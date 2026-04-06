@@ -118,6 +118,9 @@ export default function StockPriceChart({ ticker, market, currency, fetchHistory
                 axisLine={false}
                 tickFormatter={(val) => {
                   const d = new Date(val);
+                  if (period === '1D') {
+                    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+                  }
                   return `${d.getMonth() + 1}/${d.getDate()}`;
                 }}
               />

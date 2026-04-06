@@ -431,11 +431,65 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
         market_cap = info.get("marketCap")
         pe_ratio = info.get("trailingPE")
         eps = info.get("trailingEps")
-        dividend_yield = info.get("dividendYield")
         beta = info.get("beta")
         week_52_high = info.get("fiftyTwoWeekHigh")
         week_52_low = info.get("fiftyTwoWeekLow")
         avg_volume = info.get("averageVolume")
+
+        # dividendYield: yfinance returns decimal (0.0668) but sometimes already pct (6.68)
+        # Normalise to percentage always
+        raw_yield = info.get("dividendYield")
+        dividend_yield_pct = None
+        if raw_yield is not None:
+            raw_yield = float(raw_yield)
+            dividend_yield_pct = round(raw_yield * 100 if raw_yield < 1 else raw_yield, 2)
+
+        # Market state & extended hours
+        market_state = (info.get("marketState") or "CLOSED").upper()  # OPEN/CLOSED/PRE/POST
+        post_market_price = float(info.get("postMarketPrice")) if info.get("postMarketPrice") else None
+        post_market_change_pct = float(info.get("postMarketChangePercent")) if info.get("postMarketChangePercent") else None
+        pre_market_price = float(info.get("preMarketPrice")) if info.get("preMarketPrice") else None
+
+        # Day range & moving averages
+        day_high = float(info.get("dayHigh") or info.get("regularMarketDayHigh") or 0) or None
+        day_low = float(info.get("dayLow") or info.get("regularMarketDayLow") or 0) or None
+        fifty_day_avg = float(info.get("fiftyDayAverage")) if info.get("fiftyDayAverage") else None
+        two_hundred_day_avg = float(info.get("twoHundredDayAverage")) if info.get("twoHundredDayAverage") else None
+
+        # Dividend details
+        dividend_rate = float(info.get("dividendRate")) if info.get("dividendRate") else None
+        five_yr_avg_yield = float(info.get("fiveYearAvgDividendYield")) if info.get("fiveYearAvgDividendYield") else None
+        last_dividend_value = float(info.get("lastDividendValue")) if info.get("lastDividendValue") else None
+        ex_dividend_ts = info.get("exDividendDate") or info.get("lastDividendDate")
+        ex_dividend_date = None
+        if ex_dividend_ts:
+            try:
+                from datetime import timezone
+                ex_dividend_date = datetime.fromtimestamp(int(ex_dividend_ts), tz=timezone.utc).strftime("%Y-%m-%d")
+            except Exception:
+                pass
+
+        # Earnings
+        earnings_ts = info.get("earningsTimestamp")
+        earnings_date = None
+        if earnings_ts:
+            try:
+                from datetime import timezone
+                earnings_date = datetime.fromtimestamp(int(earnings_ts), tz=timezone.utc).strftime("%Y-%m-%d")
+            except Exception:
+                pass
+
+        # Analyst consensus
+        recommendation = info.get("recommendationKey")  # "buy"/"hold"/"sell"/"strong_buy" etc.
+        recommendation_mean = float(info.get("recommendationMean")) if info.get("recommendationMean") else None
+        analyst_count = int(info.get("numberOfAnalystOpinions")) if info.get("numberOfAnalystOpinions") else None
+        target_mean = float(info.get("targetMeanPrice")) if info.get("targetMeanPrice") else None
+        target_high = float(info.get("targetHighPrice")) if info.get("targetHighPrice") else None
+        target_low = float(info.get("targetLowPrice")) if info.get("targetLowPrice") else None
+
+        # Forward metrics
+        forward_pe = float(info.get("forwardPE")) if info.get("forwardPE") else None
+        forward_eps = float(info.get("forwardEps")) if info.get("forwardEps") else None
 
         # Officers — try to extract CEO
         ceo = None
@@ -449,32 +503,55 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
         return {
             "ticker": ticker,
             "company_name": info.get("longName") or info.get("shortName") or ticker,
-            "exchange": info.get("exchange") or ("TASE" if is_israeli else "NASDAQ"),
+            "exchange": info.get("fullExchangeName") or info.get("exchange") or ("TASE" if is_israeli else "NASDAQ"),
             "sector": info.get("sector"),
             "industry": info.get("industry"),
             "currency": info.get("currency") or ("ILS" if is_israeli else "USD"),
+            "market_state": market_state,
             "price": {
                 "current": current_price,
                 "change": change,
                 "change_pct": change_pct,
                 "previous_close": previous_close,
+                "day_high": day_high,
+                "day_low": day_low,
+                "post_market_price": post_market_price,
+                "post_market_change_pct": round(post_market_change_pct, 2) if post_market_change_pct else None,
+                "pre_market_price": pre_market_price,
             },
             "stats": {
                 "market_cap": float(market_cap) if market_cap else None,
                 "pe_ratio": float(pe_ratio) if pe_ratio else None,
+                "forward_pe": forward_pe,
                 "eps": float(eps) if eps else None,
-                "dividend_yield": float(dividend_yield) if dividend_yield else None,
+                "forward_eps": forward_eps,
+                "dividend_yield": dividend_yield_pct,
+                "dividend_rate": dividend_rate,
+                "ex_dividend_date": ex_dividend_date,
+                "last_dividend_value": last_dividend_value,
+                "five_yr_avg_yield": five_yr_avg_yield,
                 "beta": float(beta) if beta else None,
                 "week_52_high": float(week_52_high) if week_52_high else None,
                 "week_52_low": float(week_52_low) if week_52_low else None,
                 "avg_volume": int(avg_volume) if avg_volume else None,
+                "fifty_day_avg": fifty_day_avg,
+                "two_hundred_day_avg": two_hundred_day_avg,
+                "earnings_date": earnings_date,
+            },
+            "analyst": {
+                "recommendation": recommendation,
+                "recommendation_mean": recommendation_mean,
+                "analyst_count": analyst_count,
+                "target_mean": target_mean,
+                "target_high": target_high,
+                "target_low": target_low,
             },
             "about": {
                 "description": info.get("longBusinessSummary"),
                 "employees": info.get("fullTimeEmployees"),
                 "website": info.get("website"),
                 "ceo": ceo,
-                "founded": None,  # yfinance doesn't reliably expose this
+                "founded": None,
             },
         }
     except Exception as e:
@@ -486,8 +563,13 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
             "sector": None,
             "industry": None,
             "currency": "ILS" if is_israeli else "USD",
-            "price": {"current": None, "change": None, "change_pct": None, "previous_close": None},
+            "market_state": "CLOSED",
+            "price": {"current": None, "change": None, "change_pct": None, "previous_close": None,
+                      "day_high": None, "day_low": None, "post_market_price": None,
+                      "post_market_change_pct": None, "pre_market_price": None},
             "stats": {},
+            "analyst": {"recommendation": None, "recommendation_mean": None, "analyst_count": None,
+                        "target_mean": None, "target_high": None, "target_low": None},
             "about": {"description": None, "employees": None, "website": None, "ceo": None, "founded": None},
         }
 
