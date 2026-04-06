@@ -22,3 +22,4 @@ psycopg2-binary==2.9.9
 pdfplumber==0.10.3
 PyPDF2==3.0.1
 scipy==1.11.4
+telethon==1.42.0

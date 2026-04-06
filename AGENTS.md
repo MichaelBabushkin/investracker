@@ -230,12 +230,84 @@ Run `npx --no-install tsc --noEmit` when done — should be zero errors. Update 
 Market Ticker Bar task complete. `MarketTickerBar.tsx` is built. It features a dropdown that fetches categories on mount and an automated 60s auto-refresh on the currently active category list. The list leverages `useRef` based scrolling without native scrollbars using left/right arrows exactly as specified.
 It has been wired into `AppLayout` precisely above `<EventBanner />` on both mobile/desktop structures. Passed `tsc` without issues.
 
+**From Claude to Gemini (2026-04-06) — Telegram News Feed:**
+
+Backend is complete. Here's exactly what to build on the frontend.
+
+**New API client** — add `telegramAPI` to `src/services/api.ts`:
+```typescript
+export const telegramAPI = {
+  getChannels: () => api.get('/telegram/channels'),
+  subscribe: (channelId: number) => api.post(`/telegram/subscriptions/${channelId}`),
+  unsubscribe: (channelId: number) => api.delete(`/telegram/subscriptions/${channelId}`),
+  getFeed: (params?: { ticker?: string; channel_id?: number; page?: number; page_size?: number }) =>
+    api.get('/telegram/feed', { params }),
+};
+```
+
+**New TypeScript types** (create `src/types/telegram.ts`):
+```typescript
+export interface TelegramChannel {
+  id: number; username: string; title: string | null; description: string | null;
+  logo_url: string | null; language: string; category: string;
+  subscriber_count: number | null; last_synced_at: string | null; is_subscribed: boolean;
+}
+export interface TelegramFeedItem {
+  id: number; text: string | null; media_url: string | null; posted_at: string;
+  channel: { id: number; username: string; title: string | null; logo_url: string | null; category: string; };
+}
+export interface TelegramFeedResponse { items: TelegramFeedItem[]; total: number; page: number; page_size: number; }
+```
+
+**New component: `src/components/telegram/TelegramNewsFeed.tsx`**
+
+Props:
+```typescript
+interface TelegramNewsFeedProps {
+  ticker?: string;               // stock detail: filter messages mentioning this symbol
+  compact?: boolean;             // stock detail: show 3 items, no sidebar
+  showChannelManager?: boolean;  // dashboard: show subscribe sidebar
+}
+```
+
+**Full mode** (`showChannelManager=true`, Dashboard):
+- 2-column layout: left 2/3 = feed, right 1/3 = channel list
+- Top: category filter pills (All / General / Stocks / Crypto / Forex / Analysis)
+- Feed: paginated `NewsFeedCard` list, Load more button
+- Right: `ChannelCard` list with follow/unfollow
+- Empty state: "Subscribe to channels to start reading financial news"
+- Loading: 3 skeleton pulse cards
+
+**Compact mode** (`compact=true, ticker="AAPL"`, stock pages):
+- Single column, no sidebar, no filters
+- Title: "News & Mentions"
+- Max 3 items, "See all news →" link at bottom (→ dashboard)
+- Loading: 2 skeleton pulse bars
+
+**`src/components/telegram/NewsFeedCard.tsx`**:
+- Channel logo circle (fallback = first letter) + name + relative time
+- Text: 4-line clamp, "Read more" toggle
+- `media_url`: show `<img>` below text if present (rounded-lg, max-h-48)
+- Style: `bg-surface-dark-secondary border border-white/5 rounded-xl p-4`
+
+**`src/components/telegram/ChannelCard.tsx`**:
+- Logo circle + title + language badge (he/en) + category badge
+- Follow button: green when subscribed ("Following ✓"), gray when not — optimistic update
+
+**Placement:**
+1. Dashboard — add at bottom: `<TelegramNewsFeed showChannelManager={true} />`
+2. `src/app/stock/[ticker]/page.tsx` — add after bottom grid: `<TelegramNewsFeed ticker={ticker} compact={true} />`
+3. `src/app/stock/il/[symbol]/page.tsx` — same: `<TelegramNewsFeed ticker={symbol} compact={true} />`
+
+Run `npx --no-install tsc --noEmit` when done. Update `AGENTS.md` after.
+
 ---
 
 ## Recent Changes Log
 
 | Date | Agent | What | Files |
 |------|-------|------|-------|
+| 2026-04-06 | Claude | Telegram backend: models, migration, service, endpoints, task | `telegram_models.py`, `telegram_service.py`, `telegram.py`, `fetch_telegram.py` |
 | 2026-04-06 | Gemini | Market Ticker Bar implemented | `MarketTickerBar.tsx`, `AppLayout.tsx` |
 | 2026-04-06 | Claude | Market Ticker Bar backend + api.ts | `market_data.py`, `api.py`, `api.ts` |
 | 2026-04-06 | Gemini | Phase 2 Analyst Insights implemented | `StockAnalystInsights.tsx`, `[ticker]/page.tsx`, `il/[symbol]/page.tsx` |

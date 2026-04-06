@@ -56,7 +56,12 @@ class Settings(BaseSettings):
     # File Upload
     MAX_FILE_SIZE_MB: int = int(os.getenv("MAX_FILE_SIZE_MB", "10"))
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./uploads")
-    
+
+    # Telegram MTProto (Telethon)
+    TELEGRAM_API_ID: int = int(os.getenv("TELEGRAM_API_ID", "0"))
+    TELEGRAM_API_HASH: str = os.getenv("TELEGRAM_API_HASH", "")
+    TELEGRAM_SESSION_STRING: str = os.getenv("TELEGRAM_SESSION_STRING", "")
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
 settings = Settings()
