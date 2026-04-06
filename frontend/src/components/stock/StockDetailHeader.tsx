@@ -52,14 +52,14 @@ export default function StockDetailHeader({ data, market }: StockDetailHeaderPro
         </div>
         <div className={`flex items-center gap-2 font-medium tabular-nums ${isPositive ? 'text-gain' : 'text-loss'}`}>
           <span>{isPositive && data.price.change !== null ? '+' : ''}{data.price.change !== null ? formatCurrency(data.price.change, data.currency as MarketCurrency) : '-'}</span>
-          <span>({isPositive && data.price.change_pct !== null ? '+' : ''}{data.price.change_pct !== null ? formatPercentage(data.price.change_pct) : '-'})</span>
+          <span>({data.price.change_pct !== null ? formatPercentage(data.price.change_pct) : '-'})</span>
         </div>
         {data.market_state !== "OPEN" && data.price.post_market_price !== null && (
           <div className="flex items-center gap-2 text-xs text-gray-400 mt-1 tabular-nums">
             <span>Post-Market:</span>
             <span>{formatCurrency(data.price.post_market_price, data.currency as MarketCurrency)}</span>
             <span className={isPostMarketPositive ? 'text-gain' : 'text-loss'}>
-              {isPostMarketPositive ? '+' : ''}{formatPercentage(data.price.post_market_change_pct || 0)}
+              {formatPercentage(data.price.post_market_change_pct || 0)}
             </span>
           </div>
         )}

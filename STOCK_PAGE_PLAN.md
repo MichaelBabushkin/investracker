@@ -12,207 +12,118 @@ Reference designs: Yahoo Finance + Investing.com — but darker, more minimal, p
 
 ---
 
-## Page Layout (Desktop: 3-column, Mobile: stacked)
+## ✅ Completed
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  HEADER: Logo · Name · Ticker · Exchange · Sector badge · Market status │
-│  Price · Change (+/-) · Change% · Currency                              │
-└─────────────────────────────────────────────────────────────────────────┘
+### Backend (Claude)
+- [x] `get_stock_detail()` helper in `stock_price_service.py` — yfinance metadata, market state, analyst, MAs, dividends, earnings, extended hours
+- [x] `get_stock_history()` helper — OHLCV with period/interval mapping
+- [x] `GET /world-stocks/stock/{ticker}/detail` + `/history` endpoints
+- [x] `GET /israeli-stocks/stock/{symbol}/detail` + `/history` endpoints
+- [x] `recommendations_trend` (last 4 months) added to analyst object
+- [x] `upgrades_downgrades` (last 10) added to analyst object
 
-┌──────────────────────────────────┐  ┌────────────────────────────────┐
-│  PRICE CHART (recharts)          │  │  YOUR POSITION (if held)       │
-│  1D / 1W / 1M / 3M / 1Y / ALL   │  │  Shares · Avg cost · P/L       │
-│  Candlestick or area line        │  │  Current value · Return %      │
-└──────────────────────────────────┘  └────────────────────────────────┘
+### Frontend (Gemini + Claude)
+- [x] Page routes `app/stock/[ticker]/page.tsx` + `app/stock/il/[symbol]/page.tsx`
+- [x] `StockDetailHeader` — logo, name, ticker, exchange, sector, market state dot, price, change, day range, post-market
+- [x] `StockPriceChart` — recharts area chart, 1D/1W/1M/3M/1Y/ALL periods, 1D x-axis as HH:MM
+- [x] `StockKeyStats` — all stats with null guards, forward PE, MAs, annual dividend, ex-div date, earnings date
+- [x] `StockAbout` — description with Read more toggle, CEO/employees/founded/website
+- [x] `StockYourPosition` — shown only when `portfolio.held === true`
+- [x] `StockTransactionHistory` — BUY/SELL/DIVIDEND badges, all columns
+- [x] `StockDividends` — payment_date, net_amount, per_share
+- [x] `StockAnalystConsensus` — recommendation pill, analyst count, price target range bar
+- [x] All stock symbols wrapped in `<Link>` across holdings/transactions tables
+- [x] `api.ts` wired to real endpoints (`stockAPI.getWorldDetail` etc.)
+- [x] Mock data removed from pages (real API only)
 
-┌─────────────┐  ┌─────────────┐  ┌──────────────────────────────────┐
-│  KEY STATS  │  │  ABOUT      │  │  YOUR TRANSACTIONS (this stock)  │
-│  Mkt cap    │  │  Description│  │  Date · Type · Qty · Price · P/L │
-│  P/E ratio  │  │  CEO        │  │                                  │
-│  Div yield  │  │  Employees  │  └──────────────────────────────────┘
-│  52w hi/lo  │  │  Founded    │
-│  Avg vol    │  │  Website    │  ┌──────────────────────────────────┐
-│  Beta       │  └─────────────┘  │  DIVIDENDS RECEIVED              │
-└─────────────┘                   │  Date · Amount · Per share       │
-                                  └──────────────────────────────────┘
-```
-
----
-
-## Routes
-
-| Route | Market | Example |
-|-------|--------|---------|
-| `/stock/[ticker]` | World (USD) | `/stock/AAPL` |
-| `/stock/il/[symbol]` | Israeli (ILS) | `/stock/il/TEVA` |
-
-Both map to the same page component with a `market` prop.
+### Bug fixes (Claude)
+- [x] Double `+` sign on change_pct — `formatPercentage` already adds `+`, removed manual prefix
+- [x] Loading state flashing sidebar — replaced `min-h-screen bg-surface-dark` spinner with skeleton layout
 
 ---
 
-## Data Sources
+## 🔜 Remaining Work
 
-### From yfinance (fetched fresh on page load via backend)
-- Current price, day change, day change %
-- 52-week high/low
-- Market cap, P/E ratio, EPS, dividend yield, beta, average volume
-- Company description, CEO, employees, founded year, website, industry
-- Historical OHLCV for chart (1D/1W/1M/3M/1Y periods)
+### Claude — in progress / pending
 
-### From our DB (existing data)
-- User's holdings: quantity, purchase_cost, average cost/share, current value, unrealized P/L
-- All transactions for this stock (BUY/SELL/DIVIDEND)
-- Dividends received
-- Logo (logo_url / logo_svg from world_stocks or israeli_stocks table)
+None currently.
+
+### Gemini — next tasks
+
+See the exact prompt below to copy to Gemini.
 
 ---
 
-## Backend Work — Claude owns
+## Gemini Task Prompt (copy-paste)
 
-### New endpoints to add to `world_stocks.py` and `israeli_stocks.py`
-
-#### 1. `GET /world-stocks/stock/{ticker}/detail`
-Returns everything in one call:
-```json
-{
-  "ticker": "AAPL",
-  "company_name": "Apple Inc.",
-  "exchange": "NASDAQ",
-  "sector": "Technology",
-  "industry": "Consumer Electronics",
-  "logo_url": "...",
-  "currency": "USD",
-  "market_status": "open|closed|pre|after",
-  "price": { "current": 255.92, "change": 0.29, "change_pct": 0.11, "previous_close": 255.63 },
-  "stats": {
-    "market_cap": 3900000000000,
-    "pe_ratio": 32.1,
-    "eps": 6.43,
-    "dividend_yield": 0.52,
-    "beta": 1.24,
-    "week_52_high": 260.10,
-    "week_52_low": 169.21,
-    "avg_volume": 58000000
-  },
-  "about": {
-    "description": "Apple Inc. designs...",
-    "employees": 150000,
-    "website": "https://apple.com",
-    "ceo": "Tim Cook",
-    "founded": 1976
-  },
-  "portfolio": {
-    "held": true,
-    "quantity": 11.0,
-    "purchase_cost": 2372.14,
-    "avg_cost_per_share": 215.65,
-    "current_value": 2815.12,
-    "unrealized_pl": 442.98,
-    "unrealized_pl_pct": 18.67
-  },
-  "transactions": [
-    { "id": 1, "date": "2024-02-05", "type": "BUY", "quantity": 11, "price": 185.85, "total": 2372.14, "realized_pl": null }
-  ],
-  "dividends": [
-    { "id": 1, "date": "2024-02-15", "amount": 2.79, "per_share": 0.24 }
-  ]
-}
 ```
+Hey Gemini. The stock detail page is live and working. Here's the next batch of frontend tasks for you.
 
-#### 2. `GET /world-stocks/stock/{ticker}/history?period=1M`
-Returns OHLCV for chart rendering:
-```json
-{
-  "ticker": "AAPL",
-  "period": "1M",
-  "data": [
-    { "date": "2024-03-01", "open": 179.00, "high": 182.50, "low": 178.20, "close": 181.40, "volume": 55000000 }
-  ]
-}
-```
+### Context
+- Backend already returns `analyst.recommendations_trend` (array of last 4 months) and `analyst.upgrades_downgrades` (last 10 entries) from the `/detail` endpoint.
+- TypeScript types are already updated in `src/types/stock-detail.ts`:
+  - `RecommendationTrendItem` — { period, strong_buy, buy, hold, sell, strong_sell }
+  - `UpgradeDowngradeItem` — { date, firm, to_grade, from_grade, action }
+  - `StockAnalyst` now includes `recommendations_trend: RecommendationTrendItem[]` and `upgrades_downgrades: UpgradeDowngradeItem[]`
 
-**Periods**: `1D`, `1W`, `1M`, `3M`, `1Y`, `ALL`  
-**yfinance mapping**: `1d/5m`, `5d/15m`, `1mo/1d`, `3mo/1d`, `1y/1d`, `5y/1wk`
+### Task 1 — Create `src/components/stock/StockAnalystInsights.tsx`
 
-#### 3. `GET /israeli-stocks/stock/{symbol}/detail`
-Same structure as world, but:
-- Currency: ILS
-- Price in ILS (not agorot — already fixed)
-- yfinance ticker: `symbol + ".TA"`
+A new card component placed BELOW the existing `StockAnalystConsensus` card (in the left column of the bottom grid, inside the `space-y-6` div).
 
-#### 4. `GET /israeli-stocks/stock/{symbol}/history?period=1M`
-Same as world history endpoint.
-
-### yfinance fields to extract (in a new `get_stock_detail()` helper in `stock_price_service.py`)
-```python
-t = yf.Ticker(ticker)
-info = t.info  # full metadata
-fast = t.fast_info  # lightweight, fast
-hist = t.history(period="1mo", interval="1d")  # chart data
-```
-
-Key `info` fields: `longBusinessSummary`, `fullTimeEmployees`, `website`, `companyOfficers`,
-`marketCap`, `trailingPE`, `trailingEps`, `dividendYield`, `beta`, `fiftyTwoWeekHigh`,
-`fiftyTwoWeekLow`, `averageVolume`, `industry`, `sector`
-
----
-
-## Frontend Work — Gemini owns
-
-### New files to create
-
-#### `frontend/src/app/stock/[ticker]/page.tsx`
-World stock detail page (dynamic route).
-
-#### `frontend/src/app/stock/il/[symbol]/page.tsx`
-Israeli stock detail page.
-
-#### `frontend/src/components/stock/StockDetailHeader.tsx`
-Logo, name, ticker, exchange badge, sector badge, market status dot (green=open/yellow=pre/gray=closed), price, change.
-
-#### `frontend/src/components/stock/StockPriceChart.tsx`
-Recharts `ComposedChart` with area fill. Period selector tabs: 1D · 1W · 1M · 3M · 1Y · ALL.
-Fetches `/stock/{ticker}/history?period=X` on tab change.
-Show volume bars at bottom (smaller, muted).
-
-#### `frontend/src/components/stock/StockKeyStats.tsx`
-Grid of stats cards: Market Cap · P/E · EPS · Div Yield · Beta · 52W High · 52W Low · Avg Volume.
-Format large numbers: `$3.9T`, `$58M`, etc.
-
-#### `frontend/src/components/stock/StockAbout.tsx`
-Company description (truncated, "Read more" toggle), website link, employees, founded.
-
-#### `frontend/src/components/stock/StockYourPosition.tsx`
-Only shown if `portfolio.held === true`.
-Shows: Shares held · Avg cost · Current value · Unrealized P/L (color coded gain/loss).
-Use `MetricCard` component from `components/ui/MetricCard`.
-
-#### `frontend/src/components/stock/StockTransactionHistory.tsx`
-Table of user's transactions for this stock. Columns: Date · Type badge · Shares · Price · Total · Realized P/L.
-Type badges: BUY=green, SELL=red, DIVIDEND=blue.
-
-#### `frontend/src/components/stock/StockDividends.tsx`
-Table of dividends received. Columns: Ex-Date · Payment Date · Amount · Per Share.
-
-### Modify existing files (Gemini)
-
-Make all stock symbols clickable — wrap them in `<Link href="/stock/TICKER">` or `<Link href="/stock/il/SYMBOL">`:
-
-- `frontend/src/components/WorldStockHoldings.tsx` — ticker column
-- `frontend/src/components/WorldStockTransactions.tsx` — symbol column  
-- `frontend/src/components/IsraeliStockHoldings.tsx` — symbol column
-- `frontend/src/components/IsraeliStockTransactions.tsx` — symbol column
-- `frontend/src/components/Dashboard.tsx` — holdings table symbol column
-
-### Add API calls (Gemini edits `api.ts`)
+Props:
 ```typescript
-stockAPI: {
-  getWorldDetail: (ticker: string) => api.get(`/world-stocks/stock/${ticker}/detail`),
-  getWorldHistory: (ticker: string, period: string) => api.get(`/world-stocks/stock/${ticker}/history?period=${period}`),
-  getIsraeliDetail: (symbol: string) => api.get(`/israeli-stocks/stock/${symbol}/detail`),
-  getIsraeliHistory: (symbol: string, period: string) => api.get(`/israeli-stocks/stock/${symbol}/history?period=${period}`),
+interface StockAnalystInsightsProps {
+  analyst: StockAnalyst;
 }
+```
+
+The card has 2 sections separated by a divider:
+
+**Section A — Recommendation Trend (stacked bar chart)**
+- Title: "Recommendation Trend"
+- Use Recharts `BarChart` with stacked bars
+- X-axis: period labels — map "0m" → "Current", "-1m" → "1M ago", "-2m" → "2M ago", "-3m" → "3M ago"
+- 5 stacked bar series with these colors:
+  - strong_buy: #4ADE80 (text-gain)
+  - buy: #86EFAC (lighter green)
+  - hold: #F59E0B (text-warn)
+  - sell: #FB923C (orange)
+  - strong_sell: #F43F5E (text-loss)
+- Each bar segment tooltip shows the count
+- Legend below chart: small colored squares + labels
+- Chart height: 160px
+- If `recommendations_trend` is empty, show a muted "No trend data available" text instead
+
+**Section B — Upgrades & Downgrades**
+- Title: "Recent Rating Changes"
+- A compact table (no Card wrapper, just the inner content):
+  - Columns: Date | Firm | Action | To Grade | From Grade
+  - Action badge: "Upgrade" (green) / "Downgrade" (red) / "Initiated" (blue) / "Maintained" (gray) / "Reiterated" (gray)
+  - Map `action` field: "up" → "Upgrade", "down" → "Downgrade", "init" → "Initiated", "main" → "Maintained", "reit" → "Reiterated"
+  - Font size: text-xs for all cells
+  - Max 8 rows shown
+- If `upgrades_downgrades` is empty, show muted "No recent rating changes" text
+
+Return null if both arrays are empty.
+
+### Task 2 — Wire it into both pages
+
+In `src/app/stock/[ticker]/page.tsx` and `src/app/stock/il/[symbol]/page.tsx`:
+- Import `StockAnalystInsights`
+- Add `<StockAnalystInsights analyst={data.analyst} />` below `<StockAnalystConsensus .../>` in the left-column `space-y-6` div
+
+### Task 3 — Fix `src/data/mock-stock-detail.ts`
+
+The mock file already has `recommendations_trend: []` and `upgrades_downgrades: []`. No change needed — it's already been updated.
+
+### Design rules
+- Use `<Card>` + `<CardHeader>` + `<CardTitle>` from `components/ui/Card`
+- Dark fintech theme: `bg-surface-dark-secondary`, `border-white/10`
+- Colors: `text-gain` (#4ADE80), `text-loss` (#F43F5E), `text-warn` (#F59E0B)
+- recharts is already in the project (used by StockPriceChart)
+
+Run `npx --no-install tsc --noEmit` when done — should be zero errors.
+Update `AGENTS.md` after.
 ```
 
 ---
@@ -239,66 +150,5 @@ Follow `CLAUDE.md` design system throughout.
 - Card wrapper: `bg-surface-dark-secondary rounded-xl border border-white/10 p-6`
 
 ### Loading states
-- Header skeleton: pulse bars for name and price
-- Chart: `<Loader2 className="animate-spin" />` centered
-- Stats/about: pulse grid
-
-### Back navigation
-Arrow button top-left: `← Back` goes to `-1` in router history (works from any entry point).
-
----
-
-## Parallel Work Split
-
-### Claude does first (backend, ~2 tasks):
-1. `get_stock_detail()` helper in `stock_price_service.py` — calls yfinance, returns structured dict
-2. `GET /world-stocks/stock/{ticker}/detail` + `/history` endpoints in `world_stocks.py`
-3. `GET /israeli-stocks/stock/{symbol}/detail` + `/history` endpoints in `israeli_stocks.py`
-
-### Gemini does in parallel (frontend, ~3 tasks):
-1. Create page routes + skeleton layout (`app/stock/[ticker]/page.tsx`, `app/stock/il/[symbol]/page.tsx`)
-2. Build `StockDetailHeader`, `StockKeyStats`, `StockAbout`, `StockYourPosition` components with mock/placeholder data
-3. Build `StockPriceChart`, `StockTransactionHistory`, `StockDividends` components
-
-### Then converge (both):
-4. Claude: wire up `api.ts` additions (shared file — Claude does this pass to avoid conflict)
-5. Gemini: replace placeholder data with real API calls
-6. Gemini: add `<Link>` wrappers to all existing symbol columns
-
----
-
-## File Ownership During This Feature
-
-| File | Owner |
-|------|-------|
-| `stock_price_service.py` | Claude |
-| `world_stocks.py` | Claude |
-| `israeli_stocks.py` | Claude |
-| `app/stock/[ticker]/page.tsx` | Gemini |
-| `app/stock/il/[symbol]/page.tsx` | Gemini |
-| `components/stock/*.tsx` (all new) | Gemini |
-| `services/api.ts` | Claude (step 4) |
-| Existing holdings/transactions components | Gemini (link-wrapping only) |
-
----
-
-## Open Questions (decide before starting)
-
-1. **Chart type**: Area line (simpler, like Yahoo Finance mobile) or candlestick (more pro)?
-   → Recommend: area line for MVP, candlestick later
-2. **1D data**: yfinance 1D with 5-min intervals is unreliable outside US market hours — show last-close flat line with a note?
-3. **Israeli stocks**: some may have no yfinance data (delisted, small cap) — graceful fallback to just our DB data
-
----
-
-## Status
-
-- [ ] Backend: `get_stock_detail()` helper (Claude)
-- [ ] Backend: world detail + history endpoints (Claude)
-- [ ] Backend: Israeli detail + history endpoints (Claude)
-- [ ] Frontend: page routes + layout skeleton (Gemini)
-- [ ] Frontend: header + stats + about + position components (Gemini)
-- [ ] Frontend: chart + transactions + dividends components (Gemini)
-- [ ] Frontend: `api.ts` additions (Claude)
-- [ ] Frontend: wire real data into components (Gemini)
-- [ ] Frontend: add links to all symbol columns (Gemini)
+- Skeleton layout (no full-screen background override — AppLayout provides it)
+- Pulse animation matching page structure

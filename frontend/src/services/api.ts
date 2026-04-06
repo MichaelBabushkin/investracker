@@ -831,6 +831,27 @@ export const stockAPI = {
   },
 };
 
+export const marketDataAPI = {
+  getCategories: async () => {
+    const response = await api.get("/market-data/categories");
+    return response.data as { id: string; name: string }[];
+  },
+  getIndices: async (category: string = "us") => {
+    const response = await api.get(`/market-data/indices?category=${category}`);
+    return response.data as {
+      category: string;
+      name: string;
+      items: {
+        symbol: string;
+        name: string;
+        price: number | null;
+        change: number | null;
+        change_pct: number | null;
+      }[];
+    };
+  },
+};
+
 export const calendarAPI = {
   getEvents: async (params?: { start_date?: string; end_date?: string; market?: string; event_type?: string }) => {
     const response = await api.get("/calendar/events", { params });

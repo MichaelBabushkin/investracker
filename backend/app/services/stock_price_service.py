@@ -487,6 +487,44 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
         target_high = float(info.get("targetHighPrice")) if info.get("targetHighPrice") else None
         target_low = float(info.get("targetLowPrice")) if info.get("targetLowPrice") else None
 
+        # Recommendation trend (last 4 months)
+        recommendations_trend = []
+        try:
+            rec_df = t.recommendations
+            if rec_df is not None and not rec_df.empty:
+                for _, row in rec_df.tail(4).iterrows():
+                    period_val = row.name if hasattr(row, 'name') else None
+                    period_str = str(period_val) if period_val is not None else None
+                    recommendations_trend.append({
+                        "period": period_str,
+                        "strong_buy": int(row.get("strongBuy", 0)),
+                        "buy": int(row.get("buy", 0)),
+                        "hold": int(row.get("hold", 0)),
+                        "sell": int(row.get("sell", 0)),
+                        "strong_sell": int(row.get("strongSell", 0)),
+                    })
+        except Exception:
+            pass
+
+        # Upgrades & Downgrades (last 10)
+        upgrades_downgrades = []
+        try:
+            ud_df = t.upgrades_downgrades
+            if ud_df is not None and not ud_df.empty:
+                ud_df = ud_df.sort_index(ascending=False).head(10).reset_index()
+                for _, row in ud_df.iterrows():
+                    grade_date = row.get("GradeDate") or row.get("Date")
+                    date_str = str(grade_date)[:10] if grade_date is not None else None
+                    upgrades_downgrades.append({
+                        "date": date_str,
+                        "firm": row.get("Firm"),
+                        "to_grade": row.get("ToGrade"),
+                        "from_grade": row.get("FromGrade"),
+                        "action": row.get("Action"),
+                    })
+        except Exception:
+            pass
+
         # Forward metrics
         forward_pe = float(info.get("forwardPE")) if info.get("forwardPE") else None
         forward_eps = float(info.get("forwardEps")) if info.get("forwardEps") else None
@@ -545,6 +583,8 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
                 "target_mean": target_mean,
                 "target_high": target_high,
                 "target_low": target_low,
+                "recommendations_trend": recommendations_trend,
+                "upgrades_downgrades": upgrades_downgrades,
             },
             "about": {
                 "description": info.get("longBusinessSummary"),
@@ -569,7 +609,8 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
                       "post_market_change_pct": None, "pre_market_price": None},
             "stats": {},
             "analyst": {"recommendation": None, "recommendation_mean": None, "analyst_count": None,
-                        "target_mean": None, "target_high": None, "target_low": None},
+                        "target_mean": None, "target_high": None, "target_low": None,
+                        "recommendations_trend": [], "upgrades_downgrades": []},
             "about": {"description": None, "employees": None, "website": None, "ceo": None, "founded": None},
         }
 

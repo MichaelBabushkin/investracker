@@ -28,6 +28,23 @@ export interface StockStats {
   earnings_date: string | null;    // "YYYY-MM-DD"
 }
 
+export interface RecommendationTrendItem {
+  period: string | null;   // e.g. "0m", "-1m", "-2m", "-3m"
+  strong_buy: number;
+  buy: number;
+  hold: number;
+  sell: number;
+  strong_sell: number;
+}
+
+export interface UpgradeDowngradeItem {
+  date: string | null;
+  firm: string | null;
+  to_grade: string | null;
+  from_grade: string | null;
+  action: string | null;  // "up" | "down" | "main" | "init" | "reit"
+}
+
 export interface StockAnalyst {
   recommendation: string | null;        // "buy" | "hold" | "sell" | "strong_buy" etc.
   recommendation_mean: number | null;   // 1=Strong Buy … 5=Strong Sell
@@ -35,6 +52,8 @@ export interface StockAnalyst {
   target_mean: number | null;
   target_high: number | null;
   target_low: number | null;
+  recommendations_trend: RecommendationTrendItem[];
+  upgrades_downgrades: UpgradeDowngradeItem[];
 }
 
 export interface StockAbout {
