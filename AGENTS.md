@@ -432,6 +432,7 @@ That's it — no other files need changing.
 
 | Date | Agent | What | Files |
 |------|-------|------|-------|
+| 2026-04-07 | Gemini | Redesign Telegram UI to match Neon Ledger aesthetics (User Feed + Admin Modal) | `TelegramNewsFeed.tsx`, `NewsFeedCard.tsx`, `ChannelCard.tsx`, `TelegramSection.tsx` |
 | 2026-04-07 | Claude | Add DELETE /admin/channels/{id} endpoint | `telegram.py` |
 | 2026-04-07 | Gemini | Telegram Channel Admin UI implemented | `TelegramSection.tsx`, `AdminLayout.tsx`, `admin/page.tsx`, `api.ts` |
 | 2026-04-07 | Claude | Fix telegram endpoint 500 (current_user dict vs object) | `telegram.py` |

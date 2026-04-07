@@ -103,22 +103,22 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
   if (compact) {
     return (
       <div className="w-full">
-        <h3 className="text-lg font-semibold text-white mb-4">News & Mentions</h3>
+        <h3 className="text-lg font-bold text-white tracking-tight mb-4">News & Mentions</h3>
         <div className="space-y-4">
           {loadingFeed && page === 1 ? (
             <>
-              <div className="h-24 bg-surface-dark-secondary rounded-xl animate-pulse border border-white/5" />
-              <div className="h-24 bg-surface-dark-secondary rounded-xl animate-pulse border border-white/5" />
+              <div className="h-32 bg-[#101522] rounded-2xl animate-pulse border border-white/5" />
+              <div className="h-32 bg-[#101522] rounded-2xl animate-pulse border border-white/5" />
             </>
           ) : feed.length === 0 ? (
-             <div className="text-sm text-gray-400 py-6 text-center border border-white/5 rounded-xl border-dashed">
+             <div className="text-sm text-gray-400 py-6 text-center border border-white/5 rounded-2xl border-dashed">
                No recent news mentions found.
              </div>
           ) : (
             <>
               {feed.map(item => <NewsFeedCard key={item.id} item={item} />)}
               <div className="pt-2 text-center">
-                <Link href="/" className="text-sm text-brand-400 hover:text-brand-300 font-medium inline-flex items-center gap-1 group">
+                <Link href="/" className="text-sm text-teal-400 hover:text-teal-300 font-medium inline-flex items-center gap-1 group">
                   See all news <span className="transition-transform group-hover:translate-x-1">→</span>
                 </Link>
               </div>
@@ -132,8 +132,11 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
   // Full Mode (Dashboard)
   return (
     <div className="w-full mt-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-white">Market News Feed</h2>
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
+        <div>
+          <div className="text-teal-400 text-[11px] font-bold tracking-widest uppercase mb-1">Market Pulse</div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Telegram Intel</h2>
+        </div>
         
         {/* Mobile-only toggle for channels */}
         <div className="flex gap-2 pb-2 overflow-x-auto scrollbar-hide lg:hidden">
@@ -141,10 +144,10 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border
+                className={`px-4 py-1.5 rounded-full text-[13px] font-bold whitespace-nowrap transition-all border
                   ${activeCategory === cat 
-                    ? 'bg-brand-400/10 text-brand-400 border-brand-400/20' 
-                    : 'bg-surface-dark-secondary text-gray-400 border-white/5 hover:text-white hover:border-white/10'
+                    ? 'bg-teal-400 text-black border-teal-400 shadow-[0_0_15px_rgba(45,212,191,0.2)]' 
+                    : 'bg-[#101522] text-gray-400 border-white/5 hover:text-white hover:bg-white/5'
                   }
                 `}
               >
@@ -154,20 +157,38 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
           </div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Left Column: Feed */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-5">
           
+          {/* Desktop Filters above feed */}
+          <div className="hidden lg:flex gap-2.5 flex-wrap mb-2">
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-4 py-1.5 rounded-full text-[13px] font-bold transition-all border
+                  ${activeCategory === cat 
+                    ? 'bg-teal-400 text-black border-teal-400 shadow-[0_0_15px_rgba(45,212,191,0.2)]' 
+                    : 'bg-[#101522] text-gray-400 border-[#232A3B] hover:text-white hover:bg-white/5'
+                  }
+                `}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
           {loadingFeed && page === 1 ? (
             <div className="space-y-4">
-              <div className="h-40 bg-surface-dark-secondary rounded-xl animate-pulse border border-white/5" />
-              <div className="h-32 bg-surface-dark-secondary rounded-xl animate-pulse border border-white/5" />
-              <div className="h-48 bg-surface-dark-secondary rounded-xl animate-pulse border border-white/5" />
+              <div className="h-48 bg-[#101522] rounded-2xl animate-pulse border border-[#232A3B]" />
+              <div className="h-40 bg-[#101522] rounded-2xl animate-pulse border border-[#232A3B]" />
+              <div className="h-64 bg-[#101522] rounded-2xl animate-pulse border border-[#232A3B]" />
             </div>
           ) : feed.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 bg-surface-dark-secondary border border-white/5 border-dashed rounded-xl">
-              <p className="text-gray-400 mb-2">Subscribe to channels to start reading financial news</p>
+            <div className="flex flex-col items-center justify-center py-16 bg-[#101522] border border-white/5 border-dashed rounded-2xl">
+              <p className="text-gray-400 mb-2 font-medium">Subscribe to channels to start reading financial news</p>
             </div>
           ) : (
             <>
@@ -177,10 +198,10 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
                 <button 
                   onClick={loadMore}
                   disabled={loadingFeed}
-                  className="w-full py-3 mt-4 text-sm font-medium text-white bg-surface-dark-secondary border border-white/10 rounded-xl hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-3 mt-2 text-sm font-bold text-white bg-[#101522] border border-[#232A3B] rounded-2xl hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
                 >
                   {loadingFeed ? (
-                    <><Loader2 size={16} className="animate-spin text-brand-400" /> Loading...</>
+                    <><Loader2 size={16} className="animate-spin text-teal-400" /> Loading...</>
                   ) : (
                     'Load more'
                   )}
@@ -190,48 +211,27 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
           )}
         </div>
 
-        {/* Right Column: Channels Manager */}
+        {/* Right Column: Channels Manager (Discover) */}
         {showChannelManager && (
-          <div className="space-y-4">
+          <div className="space-y-6 lg:pl-4">
             
-            {/* Desktop Filters */}
-            <div className="hidden lg:flex gap-2 flex-wrap mb-4">
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border
-                    ${activeCategory === cat 
-                      ? 'bg-brand-400/10 text-brand-400 border-brand-400/20' 
-                      : 'bg-surface-dark-secondary text-gray-400 border-white/5 hover:text-white hover:border-white/10'
-                    }
-                  `}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4 sticky top-20 max-h-[80vh] overflow-y-auto">
-              <h3 className="text-sm font-semibold text-white mb-4 flex items-center justify-between">
-                <span>Manage Subscriptions</span>
-                <span className="text-xs font-normal text-gray-500 bg-white/5 px-2 py-0.5 rounded-full">
-                  {filteredChannels.length} channels
-                </span>
+            <div className="sticky top-24">
+              <h3 className="text-[11px] font-bold tracking-widest text-gray-500 uppercase mb-3 px-1">
+                Discover
               </h3>
               
               {loadingChannels ? (
                 <div className="space-y-3">
                   {[1,2,3,4,5].map(i => (
-                    <div key={i} className="h-14 bg-white/5 rounded-xl animate-pulse" />
+                    <div key={i} className="h-16 bg-white/5 rounded-xl animate-pulse" />
                   ))}
                 </div>
               ) : filteredChannels.length === 0 ? (
-                <div className="text-xs text-gray-500 text-center py-6">
-                  No channels found for this category
+                <div className="text-[13px] text-gray-500 py-4 px-1">
+                  No channels found for this category.
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="flex flex-col gap-1">
                   {filteredChannels.map(channel => (
                     <ChannelCard 
                       key={channel.id} 
@@ -241,6 +241,22 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
                   ))}
                 </div>
               )}
+
+              {/* Placeholder for trending to match screenshot perfectly */}
+              <div className="mt-8">
+                <h3 className="text-[11px] font-bold tracking-widest text-gray-500 uppercase mb-3 px-1">
+                  Trending
+                </h3>
+                <div className="bg-[#101522] border border-[#232A3B] p-4 rounded-2xl">
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="text-[10px] font-bold text-teal-400 uppercase bg-teal-400/10 px-1.5 py-0.5 rounded">Hot</span>
+                    <span className="text-[10px] text-gray-500">#BTCUSD</span>
+                  </div>
+                  <div className="text-[13px] font-semibold text-white mt-1">Spot BTC ETF Approval News</div>
+                  <div className="text-[11px] text-gray-500 mt-1">7.4k posts in last hour</div>
+                </div>
+              </div>
+
             </div>
           </div>
         )}

@@ -240,74 +240,101 @@ export default function TelegramSection() {
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-dark-secondary rounded-xl border border-white/10 w-full max-w-md overflow-hidden">
-            <div className="p-5 border-b border-white/5 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Add Telegram Channel</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-white p-1">
-                <X size={20} />
+        <div className="fixed inset-0 bg-[#06080D]/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-[#101522] rounded-[24px] border border-[#232A3B] w-full max-w-md overflow-hidden transform transition-all shadow-2xl shadow-black max-h-[90vh] overflow-y-auto">
+            <div className="px-6 pt-6 pb-4 flex items-start justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-white tracking-tight">Add Channel Source</h3>
+                <p className="text-[13px] text-gray-400 mt-1.5">Integrate a new Telegram data stream into the ledger.</p>
+              </div>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-white p-1 ml-4 bg-white/5 rounded-full transition-colors">
+                <X size={18} />
               </button>
             </div>
             
-            <form onSubmit={handleAddSubmit} className="p-5 space-y-4">
+            <form onSubmit={handleAddSubmit} className="px-6 pb-6 space-y-5">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Username</label>
+                <label className="block text-[11px] font-bold tracking-widest text-gray-500 uppercase mb-2">Telegram @Username</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                    @
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="w-5 h-5 rounded-full bg-teal-400/20 text-teal-400 flex items-center justify-center text-[11px] font-black">
+                      @
+                    </div>
                   </div>
                   <input
                     type="text"
                     required
                     value={newUsername}
                     onChange={(e) => setNewUsername(e.target.value)}
-                    placeholder="calcalist"
-                    className="w-full bg-surface-dark border border-white/10 rounded-lg py-2 pl-8 pr-3 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-400/50"
+                    placeholder="username_here"
+                    className="w-full bg-[#0A0D14] border border-[#232A3B] rounded-xl py-3 pl-10 pr-4 text-[14px] text-white placeholder-gray-600 focus:outline-none focus:border-teal-400/50 focus:ring-1 focus:ring-teal-400/50 transition-all font-medium"
                   />
                 </div>
               </div>
               
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Language</label>
-                <select
-                  value={newLanguage}
-                  onChange={(e) => setNewLanguage(e.target.value)}
-                  className="w-full bg-surface-dark border border-white/10 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-1 focus:ring-brand-400/50"
-                >
-                  <option value="he">Hebrew</option>
-                  <option value="en">English</option>
-                </select>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-[11px] font-bold tracking-widest text-gray-500 uppercase mb-2">Category</label>
+                  <div className="relative">
+                    <select
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      className="w-full bg-[#0A0D14] border border-[#232A3B] rounded-xl py-3 px-4 text-[13px] text-white focus:outline-none focus:border-teal-400/50 focus:ring-1 focus:ring-teal-400/50 transition-all appearance-none font-medium cursor-pointer"
+                    >
+                      <option value="general">General</option>
+                      <option value="finance">Finance</option>
+                      <option value="stocks">Stocks</option>
+                      <option value="crypto">Crypto</option>
+                      <option value="forex">Forex</option>
+                      <option value="analysis">Analysis</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1">
+                  <label className="block text-[11px] font-bold tracking-widest text-gray-500 uppercase mb-2">Primary Language</label>
+                  <div className="relative">
+                    <select
+                      value={newLanguage}
+                      onChange={(e) => setNewLanguage(e.target.value)}
+                      className="w-full bg-[#0A0D14] border border-[#232A3B] rounded-xl py-3 px-4 text-[13px] text-white focus:outline-none focus:border-teal-400/50 focus:ring-1 focus:ring-teal-400/50 transition-all appearance-none font-medium cursor-pointer"
+                    >
+                      <option value="en">English</option>
+                      <option value="he">Hebrew</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-teal-900/10 border border-teal-400/20 rounded-xl p-3 flex gap-3 text-[12px] leading-relaxed mt-2 items-start">
+                <div className="shrink-0 w-4 h-4 rounded-full border border-teal-400/50 text-teal-400 flex items-center justify-center font-serif italic text-[10px] mt-0.5">
+                  i
+                </div>
+                <p className="text-teal-200/70">
+                  Ensure the channel is public. Private channels require an administrative invitation link to be processed by our crawlers.
+                </p>
               </div>
               
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Category</label>
-                <select
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  className="w-full bg-surface-dark border border-white/10 rounded-lg py-2 px-3 text-white focus:outline-none focus:ring-1 focus:ring-brand-400/50"
-                >
-                  <option value="general">General</option>
-                  <option value="stocks">Stocks</option>
-                  <option value="crypto">Crypto</option>
-                  <option value="forex">Forex</option>
-                  <option value="analysis">Analysis</option>
-                </select>
-              </div>
-              
-              <div className="pt-2 flex justify-end gap-3">
+              <div className="pt-4 flex justify-between gap-3">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                  className="flex-1 px-4 py-3 text-[14px] font-bold text-gray-300 bg-[#1D2433] hover:bg-[#2A344A] rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isAdding || !newUsername}
-                  className="flex items-center gap-2 bg-brand-400 text-surface-dark px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-500 transition-colors disabled:opacity-50"
+                  className="flex-1 flex justify-center items-center gap-2 bg-teal-400 text-[#0A0D14] px-4 py-3 rounded-xl text-[14px] font-bold hover:bg-teal-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(45,212,191,0.2)]"
                 >
-                  {isAdding ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                  {isAdding ? <Loader2 size={16} className="animate-spin" /> : null}
                   Add Channel
                 </button>
               </div>
