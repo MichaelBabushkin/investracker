@@ -31,6 +31,7 @@ import IsraeliMarketHighlights from "./IsraeliMarketHighlights";
 import WorldMarketHighlights from "./WorldMarketHighlights";
 import Link from "next/link";
 import { worldStocksAPI } from "@/services/api";
+import TelegramNewsFeed from "@/components/telegram/TelegramNewsFeed";
 
 interface PortfolioData {
   totalValue: number;
@@ -469,6 +470,9 @@ export default function Dashboard() {
           <IsraeliMarketHighlights />
           <WorldMarketHighlights />
         </div>
+
+        {/* ── Telegram News Feed ── */}
+        <TelegramNewsFeed showChannelManager={true} />
       </div>
 
       {/* Upload Modal */}

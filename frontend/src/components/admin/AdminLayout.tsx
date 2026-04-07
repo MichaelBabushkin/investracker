@@ -8,9 +8,10 @@ import {
   ChevronDown,
   ChevronRight,
   DollarSign,
+  Send,
 } from "lucide-react";
 
-export type AdminSection = "users" | "stocks" | "jobs" | "prices";
+export type AdminSection = "users" | "stocks" | "jobs" | "prices" | "telegram";
 
 interface AdminCategory {
   id: AdminSection;
@@ -76,6 +77,12 @@ const adminCategories: AdminCategory[] = [
       { id: "cache", name: "Cache Management", description: "Clear and manage cache" },
       { id: "history", name: "Job History", description: "View execution history" },
     ],
+  },
+  {
+    id: "telegram",
+    name: "Telegram Channels",
+    icon: Send,  
+    description: "Manage news channel sources and sync",
   },
 ];
 

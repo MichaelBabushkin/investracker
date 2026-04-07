@@ -32,6 +32,9 @@ from .user_event_notification_preferences import UserEventNotificationPreference
 # Education Progress
 from .education_progress import EducationProgress
 
+# Telegram News Feed
+from .telegram_models import TelegramChannel, UserTelegramSubscription, TelegramMessage
+
 __all__ = [
     "User",
     # Israeli Stock Models
@@ -54,4 +57,8 @@ __all__ = [
     "UserEventNotificationPreferences",
     # Education
     "EducationProgress",
+    # Telegram
+    "TelegramChannel",
+    "UserTelegramSubscription",
+    "TelegramMessage",
 ]

@@ -876,4 +876,50 @@ export const userSettingsAPI = {
   },
 };
 
+export const telegramAPI = {
+  getChannels: async () => {
+    const response = await api.get('/telegram/channels');
+    return response.data;
+  },
+  subscribe: async (channelId: number) => {
+    const response = await api.post(`/telegram/subscriptions/${channelId}`);
+    return response.data;
+  },
+  unsubscribe: async (channelId: number) => {
+    const response = await api.delete(`/telegram/subscriptions/${channelId}`);
+    return response.data;
+  },
+  getFeed: async (params?: { ticker?: string; channel_id?: number; page?: number; page_size?: number }) => {
+    const response = await api.get('/telegram/feed', { params });
+    return response.data;
+  }
+};
+
+export const telegramAdminAPI = {
+  listChannels: async () => {
+    const res = await api.get('/telegram/admin/channels');
+    return res.data as {
+      id: number; username: string; title: string | null; language: string;
+      category: string; is_active: boolean; subscriber_count: number | null;
+      subscriber_count_app: number; message_count: number; last_synced_at: string | null;
+    }[];
+  },
+  addChannel: async (body: { username: string; language: string; category: string }) => {
+    const res = await api.post('/telegram/admin/channels', body);
+    return res.data;
+  },
+  updateChannel: async (id: number, body: Partial<{ is_active: boolean; language: string; category: string; title: string }>) => {
+    const res = await api.patch(`/telegram/admin/channels/${id}`, body);
+    return res.data;
+  },
+  syncChannel: async (id: number) => {
+    const res = await api.post(`/telegram/admin/channels/${id}/sync`);
+    return res.data;
+  },
+  deleteChannel: async (id: number) => {
+    const res = await api.delete(`/telegram/admin/channels/${id}`);
+    return res.data;
+  },
+};
+
 export default api;
