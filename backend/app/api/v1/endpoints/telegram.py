@@ -102,6 +102,7 @@ def unsubscribe(
 def get_feed(
     ticker: Optional[str] = Query(None, description="Filter messages mentioning this ticker/symbol"),
     channel_id: Optional[int] = Query(None, description="Filter to a single channel"),
+    category: Optional[str] = Query(None, description="Filter by channel category (e.g. stocks, crypto)"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
@@ -109,7 +110,7 @@ def get_feed(
 ):
     """
     Paginated feed from channels the user is subscribed to.
-    Optionally filter by ticker mention or specific channel.
+    Optionally filter by ticker mention, specific channel, or category.
     """
     offset = (page - 1) * page_size
     params: dict = {"user_id": current_user.id, "limit": page_size, "offset": offset}
@@ -128,6 +129,12 @@ def get_feed(
         # Search for ticker and common name variants — simple ILIKE for now
         where_parts.append("tm.text ILIKE :ticker_pattern")
         params["ticker_pattern"] = f"%{ticker}%"
+
+    if category:
+        # Filter channels whose categories JSON array contains the given category
+        where_parts.append("tc.categories::jsonb @> :cat_json::jsonb")
+        import json
+        params["cat_json"] = json.dumps([category.lower()])
 
     where_sql = " AND ".join(where_parts)
 

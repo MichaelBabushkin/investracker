@@ -889,7 +889,7 @@ export const telegramAPI = {
     const response = await api.delete(`/telegram/subscriptions/${channelId}`);
     return response.data;
   },
-  getFeed: async (params?: { ticker?: string; channel_id?: number; page?: number; page_size?: number }) => {
+  getFeed: async (params?: { ticker?: string; channel_id?: number; category?: string; page?: number; page_size?: number }) => {
     const response = await api.get('/telegram/feed', { params });
     return response.data;
   }

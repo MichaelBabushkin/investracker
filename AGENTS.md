@@ -432,6 +432,8 @@ That's it — no other files need changing.
 
 | Date | Agent | What | Files |
 |------|-------|------|-------|
+| 2026-04-07 | Claude | Wire category filter tabs to feed (backend `?category=` param + frontend re-fetch) | `telegram.py`, `api.ts`, `TelegramNewsFeed.tsx` |
+| 2026-04-07 | Claude | Multi-category support for telegram channels (JSON array + migration) | `telegram_models.py`, `telegram.py`, `api.ts`, `TelegramSection.tsx`, `TelegramNewsFeed.tsx`, `types/telegram.ts` |
 | 2026-04-07 | Gemini | Redesign Telegram UI to match Neon Ledger aesthetics (User Feed + Admin Modal) | `TelegramNewsFeed.tsx`, `NewsFeedCard.tsx`, `ChannelCard.tsx`, `TelegramSection.tsx` |
 | 2026-04-07 | Claude | Add DELETE /admin/channels/{id} endpoint | `telegram.py` |
 | 2026-04-07 | Gemini | Telegram Channel Admin UI implemented | `TelegramSection.tsx`, `AdminLayout.tsx`, `admin/page.tsx`, `api.ts` |

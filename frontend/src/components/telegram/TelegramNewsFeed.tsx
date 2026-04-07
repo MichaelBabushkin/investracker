@@ -25,12 +25,14 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
   const [hasMore, setHasMore] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
 
-  const fetchFeed = async (pageNum: number, isLoadMore = false) => {
+  const fetchFeed = async (pageNum: number, isLoadMore = false, category?: string) => {
     try {
       setLoadingFeed(true);
       const params: any = { page: pageNum, page_size: compact ? 3 : 10 };
       if (ticker) params.ticker = ticker;
-      
+      const cat = category !== undefined ? category : activeCategory;
+      if (cat && cat !== "All") params.category = cat.toLowerCase();
+
       const res = await telegramAPI.getFeed(params);
       
       if (isLoadMore) {
@@ -60,16 +62,18 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
   };
 
   useEffect(() => {
-    fetchFeed(1);
+    setPage(1);
+    setFeed([]);
+    fetchFeed(1, false, activeCategory);
     if (showChannelManager) {
       fetchChannels();
     }
-  }, [ticker, showChannelManager]);
+  }, [ticker, showChannelManager, activeCategory]);
 
   const loadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
-    fetchFeed(nextPage, true);
+    fetchFeed(nextPage, true, activeCategory);
   };
 
   const toggleSubscription = async (channelId: number, isSubscribed: boolean) => {
