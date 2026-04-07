@@ -3,7 +3,7 @@ Market Data endpoints — indices ticker bar.
 """
 
 from fastapi import APIRouter, Depends, Query
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeoutError
 import yfinance as yf
 import logging
 
@@ -97,8 +97,10 @@ def _fetch_one(symbol: str, name: str) -> dict | None:
     try:
         t = yf.Ticker(symbol)
         fi = t.fast_info
-        price = float(fi.last_price) if fi.last_price else None
-        prev  = float(fi.previous_close) if fi.previous_close else None
+        price = getattr(fi, "last_price", None)
+        price = float(price) if price else None
+        prev  = getattr(fi, "previous_close", None)
+        prev  = float(prev) if prev else None
         if price is None:
             return None
         change     = round(price - prev, 4) if prev is not None else None
@@ -146,10 +148,25 @@ def get_indices(
             pool.submit(_fetch_one, sym, name): (sym, name)
             for sym, name in cat["tickers"]
         }
-        for future in as_completed(futures, timeout=10):
-            data = future.result()
-            if data:
-                results.append(data)
+        try:
+            for future in as_completed(futures, timeout=15):
+                try:
+                    data = future.result()
+                    if data:
+                        results.append(data)
+                except Exception:
+                    pass
+        except FuturesTimeoutError:
+            # Collect results from futures that already completed
+            for future, (sym, name) in futures.items():
+                if future.done():
+                    try:
+                        data = future.result()
+                        if data:
+                            results.append(data)
+                    except Exception:
+                        pass
+            logger.warning(f"Timeout fetching some tickers for category '{category}', returning partial results")
 
     # Preserve the original order defined in CATEGORIES
     order = {sym: i for i, (sym, _) in enumerate(cat["tickers"])}
