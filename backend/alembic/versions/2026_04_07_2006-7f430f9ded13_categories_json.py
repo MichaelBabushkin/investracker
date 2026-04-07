@@ -7,6 +7,8 @@ Create Date: 2026-04-07 20:06:13.440206
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import text
+import json
 
 
 # revision identifiers, used by Alembic.
@@ -16,25 +18,34 @@ branch_labels = None
 depends_on = None
 
 
-import json
+def _column_exists(table: str, column: str) -> bool:
+    conn = op.get_bind()
+    result = conn.execute(
+        text("SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = :t AND column_name = :c)"),
+        {"t": table, "c": column}
+    )
+    return result.scalar()
+
 
 def upgrade():
-    # 1. Add new column 'categories'
-    op.add_column("telegram_channels", sa.Column("categories", sa.JSON(), nullable=True))
-    
-    # 2. Migrate existing data
-    connection = op.get_bind()
-    result = connection.execute(sa.text("SELECT id, category FROM telegram_channels"))
-    for row in result:
-        categories = json.dumps([row.category] if row.category else ["general"])
-        connection.execute(
-            sa.text("UPDATE telegram_channels SET categories = :categories WHERE id = :id"),
-            {"categories": categories, "id": row.id}
-        )
-    
-    # 3. Drop old 'category' column safely
-    with op.batch_alter_table("telegram_channels") as batch_op:
-        batch_op.drop_column("category")
+    conn = op.get_bind()
+
+    # 1. Add 'categories' column if missing
+    if not _column_exists("telegram_channels", "categories"):
+        op.add_column("telegram_channels", sa.Column("categories", sa.JSON(), nullable=True))
+
+    # 2. Migrate data from 'category' → 'categories' (only if 'category' still exists)
+    if _column_exists("telegram_channels", "category"):
+        result = conn.execute(sa.text("SELECT id, category FROM telegram_channels"))
+        for row in result:
+            categories = json.dumps([row.category] if row.category else ["general"])
+            conn.execute(
+                sa.text("UPDATE telegram_channels SET categories = :categories WHERE id = :id"),
+                {"categories": categories, "id": row.id}
+            )
+        # 3. Drop old 'category' column
+        with op.batch_alter_table("telegram_channels") as batch_op:
+            batch_op.drop_column("category")
 
 
 def downgrade():
