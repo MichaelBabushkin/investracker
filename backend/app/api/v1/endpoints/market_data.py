@@ -5,12 +5,37 @@ Market Data endpoints — indices ticker bar.
 from fastapi import APIRouter, Depends, Query
 from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeoutError
 import yfinance as yf
+import requests
+import time
 import logging
 
 from app.core.deps import get_current_user
 
 router = APIRouter(prefix="/market-data", tags=["market-data"])
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Shared HTTP session — mimics a browser to avoid Yahoo Finance rate limits
+# ---------------------------------------------------------------------------
+_session = requests.Session()
+_session.headers.update({
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+})
+
+# ---------------------------------------------------------------------------
+# Simple in-process cache  { category: (timestamp, items) }
+# ---------------------------------------------------------------------------
+_CACHE: dict[str, tuple[float, list]] = {}
+CACHE_TTL = 120  # seconds — refresh data every 2 minutes max
+
 
 # ---------------------------------------------------------------------------
 # Category definitions
@@ -24,7 +49,6 @@ CATEGORIES: dict[str, dict] = {
             ("^IXIC",  "Nasdaq"),
             ("^RUT",   "Russell 2000"),
             ("^VIX",   "VIX"),
-            ("^CBOE",  "CBOE Interest I"),
         ],
     },
     "europe": {
@@ -52,8 +76,8 @@ CATEGORIES: dict[str, dict] = {
     "crypto": {
         "name": "Cryptocurrencies",
         "tickers": [
-            ("BTC-USD", "Bitcoin USD"),
-            ("ETH-USD", "Ethereum USD"),
+            ("BTC-USD", "Bitcoin"),
+            ("ETH-USD", "Ethereum"),
             ("BNB-USD", "BNB"),
             ("SOL-USD", "Solana"),
             ("XRP-USD", "XRP"),
@@ -90,19 +114,26 @@ CATEGORIES: dict[str, dict] = {
     },
 }
 
+
 # ---------------------------------------------------------------------------
-# Helper
+# Helper — fetch a single ticker using the shared session
 # ---------------------------------------------------------------------------
 def _fetch_one(symbol: str, name: str) -> dict | None:
     try:
-        t = yf.Ticker(symbol)
+        t = yf.Ticker(symbol, session=_session)
         fi = t.fast_info
         price = getattr(fi, "last_price", None)
         price = float(price) if price else None
         prev  = getattr(fi, "previous_close", None)
         prev  = float(prev) if prev else None
         if price is None:
-            return None
+            # Fallback: try history (1 day)
+            hist = t.history(period="2d", auto_adjust=False)
+            if not hist.empty:
+                price = float(hist["Close"].iloc[-1])
+                prev  = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else None
+            if price is None:
+                return None
         change     = round(price - prev, 4) if prev is not None else None
         change_pct = round((change / prev) * 100, 2) if change is not None and prev else None
         return {
@@ -113,8 +144,41 @@ def _fetch_one(symbol: str, name: str) -> dict | None:
             "change_pct": change_pct,
         }
     except Exception as e:
-        logger.debug(f"market_data _fetch_one({symbol}): {e}")
+        logger.warning(f"market_data _fetch_one({symbol}): {e}")
         return None
+
+
+def _fetch_category(cat_id: str, tickers: list[tuple[str, str]]) -> list[dict]:
+    """Fetch all tickers for a category in parallel, return sorted results."""
+    results: list[dict] = []
+    with ThreadPoolExecutor(max_workers=min(len(tickers), 6)) as pool:
+        futures = {
+            pool.submit(_fetch_one, sym, name): (sym, name)
+            for sym, name in tickers
+        }
+        try:
+            for future in as_completed(futures, timeout=20):
+                try:
+                    data = future.result()
+                    if data:
+                        results.append(data)
+                except Exception:
+                    pass
+        except FuturesTimeoutError:
+            for future in futures:
+                if future.done():
+                    try:
+                        data = future.result()
+                        if data:
+                            results.append(data)
+                    except Exception:
+                        pass
+            logger.warning(f"Timeout fetching tickers for '{cat_id}', returning partial results")
+
+    # Preserve definition order
+    order = {sym: i for i, (sym, _) in enumerate(tickers)}
+    results.sort(key=lambda r: order.get(r["symbol"], 999))
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -136,44 +200,32 @@ def get_indices(
 ):
     """
     Return current price + change for all tickers in the requested category.
-    Fetches in parallel (one thread per ticker) with a 10-second total timeout.
+    Results are cached for CACHE_TTL seconds to reduce Yahoo Finance requests.
     """
-    cat = CATEGORIES.get(category.lower())
+    cat_id = category.lower()
+    cat = CATEGORIES.get(cat_id)
     if cat is None:
         return {"category": category, "name": category, "items": []}
 
-    results: list[dict] = []
-    with ThreadPoolExecutor(max_workers=len(cat["tickers"])) as pool:
-        futures = {
-            pool.submit(_fetch_one, sym, name): (sym, name)
-            for sym, name in cat["tickers"]
-        }
-        try:
-            for future in as_completed(futures, timeout=15):
-                try:
-                    data = future.result()
-                    if data:
-                        results.append(data)
-                except Exception:
-                    pass
-        except FuturesTimeoutError:
-            # Collect results from futures that already completed
-            for future, (sym, name) in futures.items():
-                if future.done():
-                    try:
-                        data = future.result()
-                        if data:
-                            results.append(data)
-                    except Exception:
-                        pass
-            logger.warning(f"Timeout fetching some tickers for category '{category}', returning partial results")
+    # Serve from cache if fresh
+    cached = _CACHE.get(cat_id)
+    if cached and (time.time() - cached[0]) < CACHE_TTL:
+        return {"category": cat_id, "name": cat["name"], "items": cached[1]}
 
-    # Preserve the original order defined in CATEGORIES
-    order = {sym: i for i, (sym, _) in enumerate(cat["tickers"])}
-    results.sort(key=lambda r: order.get(r["symbol"], 999))
+    items = _fetch_category(cat_id, cat["tickers"])
+
+    # Update cache (even if empty — avoids hammering Yahoo when blocked)
+    _CACHE[cat_id] = (time.time(), items)
 
     return {
-        "category": category,
+        "category": cat_id,
         "name":     cat["name"],
-        "items":    results,
+        "items":    items,
     }
+
+
+@router.delete("/cache")
+def clear_cache(_: dict = Depends(get_current_user)):
+    """Force-clear the in-process price cache (useful after a block lifts)."""
+    _CACHE.clear()
+    return {"cleared": True}
