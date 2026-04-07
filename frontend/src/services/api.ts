@@ -916,6 +916,10 @@ export const telegramAdminAPI = {
     const res = await api.post(`/telegram/admin/channels/${id}/sync`);
     return res.data;
   },
+  deleteChannel: async (id: number) => {
+    const res = await api.delete(`/telegram/admin/channels/${id}`);
+    return res.data;
+  },
 };
 
 export default api;

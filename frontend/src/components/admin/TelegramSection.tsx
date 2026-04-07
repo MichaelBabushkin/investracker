@@ -55,8 +55,10 @@ export default function TelegramSection() {
         prev.map((c) => (c.id === id ? { ...c, is_active: !currentActive } : c))
       );
       toast.success(currentActive ? "Channel deactivated" : "Channel activated");
-    } catch (error) {
-      toast.error("Failed to update channel");
+    } catch (error: any) {
+      console.error(error);
+      const msg = error.response?.data?.detail || error.message || "Failed to update channel";
+      toast.error(`Failed to update channel: ${msg}`);
     }
   };
 
@@ -64,12 +66,24 @@ export default function TelegramSection() {
     try {
       setSyncingId(id);
       const res = await telegramAdminAPI.syncChannel(id);
-      toast.success(`Synced ${res.new_messages_count || 0} new messages`);
+      toast.success(`Synced ${res.new_messages ?? 0} new messages`);
       fetchChannels();
     } catch (error) {
       toast.error("Failed to sync channel");
     } finally {
       setSyncingId(null);
+    }
+  };
+
+  const handleDelete = async (id: number, username: string) => {
+    if (window.confirm(`Delete @${username} permanently? This removes all messages and subscriptions.`)) {
+      try {
+        await telegramAdminAPI.deleteChannel(id);
+        setChannels((prev) => prev.filter((c) => c.id !== id));
+        toast.success("Channel deleted successfully");
+      } catch (error) {
+        toast.error("Failed to delete channel");
+      }
     }
   };
 
@@ -205,6 +219,16 @@ export default function TelegramSection() {
                      >
                        <X size={14} />
                        Deactivate
+                     </button>
+                  )}
+                  
+                  {!channel.is_active && (
+                     <button
+                       onClick={() => handleDelete(channel.id, channel.username)}
+                       className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg bg-loss/10 text-loss hover:bg-loss/20 border border-loss/20 transition-colors"
+                     >
+                       <Trash2 size={14} />
+                       Delete
                      </button>
                   )}
                 </div>

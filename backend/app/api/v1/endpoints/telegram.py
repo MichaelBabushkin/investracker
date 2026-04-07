@@ -281,6 +281,25 @@ def admin_update_channel(
     return {"updated": True, "channel_id": channel_id}
 
 
+@router.delete("/admin/channels/{channel_id}", status_code=200)
+def admin_delete_channel(
+    channel_id: int,
+    current_user: dict = Depends(get_admin_user),
+    db=Depends(get_db),
+):
+    """Permanently delete a channel and all its messages/subscriptions (CASCADE)."""
+    row = db.execute(
+        text("SELECT id, username FROM telegram_channels WHERE id = :id"),
+        {"id": channel_id},
+    ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Channel not found")
+
+    db.execute(text("DELETE FROM telegram_channels WHERE id = :id"), {"id": channel_id})
+    db.commit()
+    return {"deleted": True, "channel_id": channel_id, "username": row.username}
+
+
 @router.post("/admin/channels/{channel_id}/sync")
 def admin_sync_channel(
     channel_id: int,

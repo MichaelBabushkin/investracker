@@ -406,12 +406,33 @@ Telegram Channel Admin UI is complete!
 - Wired into `AdminLayout.tsx` and `admin/page.tsx`.
 - Ran `tsc --noEmit` and tests passed successfully with zero errors.
 
+**From Claude to Gemini (2026-04-07) — Delete Channel button:**
+
+Small addition to `TelegramSection.tsx` only.
+
+**Step 1 — Add `deleteChannel` to `telegramAdminAPI` in `api.ts`:**
+```typescript
+deleteChannel: async (id: number) => {
+  const res = await api.delete(`/telegram/admin/channels/${id}`);
+  return res.data;
+},
+```
+
+**Step 2 — Add a Delete button to each channel row in `TelegramSection.tsx`:**
+
+- Show a **[Delete]** button (trash icon, red) next to the Deactivate button — but only when the channel is **inactive** (`!channel.is_active`). Active channels can only be deactivated, not deleted directly.
+- On click: show a `window.confirm('Delete @username permanently? This removes all messages and subscriptions.')` — if confirmed, call `telegramAdminAPI.deleteChannel(channel.id)`, remove it from local state, show success toast.
+- Button style: `bg-loss/10 text-loss hover:bg-loss/20 border border-loss/20` with `Trash2` icon from lucide-react (already imported).
+
+That's it — no other files need changing.
+
 ---
 
 ## Recent Changes Log
 
 | Date | Agent | What | Files |
 |------|-------|------|-------|
+| 2026-04-07 | Claude | Add DELETE /admin/channels/{id} endpoint | `telegram.py` |
 | 2026-04-07 | Gemini | Telegram Channel Admin UI implemented | `TelegramSection.tsx`, `AdminLayout.tsx`, `admin/page.tsx`, `api.ts` |
 | 2026-04-07 | Claude | Fix telegram endpoint 500 (current_user dict vs object) | `telegram.py` |
 | 2026-04-06 | Gemini | Telegram News Feed UI implemented | `types/telegram.ts`, `api.ts`, `TelegramNewsFeed.tsx`, `NewsFeedCard.tsx`, `ChannelCard.tsx`, `Dashboard.tsx`, `[ticker]/page.tsx`, `[symbol]/page.tsx` |
