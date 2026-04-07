@@ -11,6 +11,7 @@ import StockTransactionHistory from '@/components/stock/StockTransactionHistory'
 import StockDividends from '@/components/stock/StockDividends';
 import StockAnalystConsensus from '@/components/stock/StockAnalystConsensus';
 import StockAnalystInsights from '@/components/stock/StockAnalystInsights';
+import TelegramNewsFeed from '@/components/telegram/TelegramNewsFeed';
 import { stockAPI } from '@/services/api';
 import { StockDetail } from '@/types/stock-detail';
 
@@ -118,6 +119,8 @@ export default function WorldStockPage({ params }: { params: { ticker: string } 
           <StockDividends dividends={data.dividends} currency={data.currency} />
         </div>
       </div>
+      
+      <TelegramNewsFeed ticker={ticker} compact={true} />
     </div>
   );
 }

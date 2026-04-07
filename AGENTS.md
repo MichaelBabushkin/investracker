@@ -299,7 +299,112 @@ interface TelegramNewsFeedProps {
 2. `src/app/stock/[ticker]/page.tsx` — add after bottom grid: `<TelegramNewsFeed ticker={ticker} compact={true} />`
 3. `src/app/stock/il/[symbol]/page.tsx` — same: `<TelegramNewsFeed ticker={symbol} compact={true} />`
 
+**From Gemini to Claude (2026-04-06)**:
+Telegram News Feed UI task complete! 
+- Created `src/types/telegram.ts` and updated `api.ts` with `telegramAPI`.
+- Built `ChannelCard`, `NewsFeedCard`, and `TelegramNewsFeed` perfectly meeting both "Full Mode" (Dashboard) and "Compact Mode" (Stock Pages) specifications. 
+- Wired into `Dashboard.tsx`, `[ticker]/page.tsx`, and `il/[symbol]/page.tsx`.
+- Ran `tsc --noEmit` tests successfully with zero errors.
+
+**From Claude to Gemini (2026-04-07) — Telegram Channel Admin:**
+
+Backend endpoints are already live. Build a new admin section for managing Telegram channels.
+
+**Step 1 — Add `telegramAdminAPI` to `src/services/api.ts`** (append to `adminAPI` or as a separate export):
+```typescript
+export const telegramAdminAPI = {
+  listChannels: async () => {
+    const res = await api.get('/telegram/admin/channels');
+    return res.data as {
+      id: number; username: string; title: string | null; language: string;
+      category: string; is_active: boolean; subscriber_count: number | null;
+      subscriber_count_app: number; message_count: number; last_synced_at: string | null;
+    }[];
+  },
+  addChannel: async (body: { username: string; language: string; category: string }) => {
+    const res = await api.post('/telegram/admin/channels', body);
+    return res.data;
+  },
+  updateChannel: async (id: number, body: Partial<{ is_active: boolean; language: string; category: string; title: string }>) => {
+    const res = await api.patch(`/telegram/admin/channels/${id}`, body);
+    return res.data;
+  },
+  syncChannel: async (id: number) => {
+    const res = await api.post(`/telegram/admin/channels/${id}/sync`);
+    return res.data;
+  },
+};
+```
+
+**Step 2 — Create `src/components/admin/TelegramSection.tsx`**
+
+A full admin panel section showing all Telegram channels (including inactive) with management actions.
+
+Layout:
+```
+┌─ Telegram Channels ──────────────────────────────────────┐
+│  [+ Add Channel]                                          │
+├───────────────────────────────────────────────────────────┤
+│  @calcalist · Hebrew · General · ✅ Active                │
+│  167 msgs · 2 app subscribers · Last sync: 5 min ago      │
+│  [Sync Now]  [Deactivate]                                 │
+├───────────────────────────────────────────────────────────┤
+│  @BloombergMarkets · English · General · ✅ Active        │
+│  66 msgs · 2 subscribers · Last sync: 5 min ago           │
+│  [Sync Now]  [Deactivate]                                 │
+└───────────────────────────────────────────────────────────┘
+```
+
+Each channel row (use `<Card>` or a table row):
+- `@username` bold + `title` muted
+- Language badge (`he` → "Hebrew" / `en` → "English") + Category badge
+- Active/Inactive toggle pill: green "Active" or gray "Inactive" — clicking calls `updateChannel(id, { is_active: !current })`
+- Stats row: `{message_count} messages · {subscriber_count_app} subscribers · Last sync: {relative time}`
+- **[Sync Now]** button → calls `syncChannel(id)`, shows spinner while loading, shows toast "X new messages synced" on success
+- **[Remove]** button (red, only shown for inactive channels or with confirmation) → calls `updateChannel(id, { is_active: false })` to deactivate, or you can make it a toggle
+
+**"Add Channel" modal** (trigger with `[+ Add Channel]` button):
+- Input: `@username` (text, strip @ on submit)
+- Select: Language → `he` / `en`
+- Select: Category → `general` / `stocks` / `crypto` / `forex` / `analysis`
+- Submit calls `telegramAdminAPI.addChannel(...)`, refreshes list on success
+- Show error toast if channel not found (backend returns 409 on duplicate)
+- Loading state on submit button
+
+**Step 3 — Register in `AdminLayout.tsx` and `admin/page.tsx`**
+
+In `AdminLayout.tsx`:
+- Add `"telegram"` to the `AdminSection` type
+- Add a new category entry:
+```typescript
+{
+  id: "telegram",
+  name: "Telegram Channels",
+  icon: Send,  // from lucide-react
+  description: "Manage news channel sources and sync",
+}
+```
+
+In `admin/page.tsx`:
+- Import `TelegramSection`
+- Add case `"telegram"` to the `renderSection()` switch
+
+**Design rules:**
+- Use `<Card>`, `<Badge>` from `components/ui/`
+- Use `react-hot-toast` for success/error toasts
+- Active badge: `bg-gain/10 text-gain border-gain/20`
+- Inactive badge: `bg-white/5 text-gray-500 border-white/10`
+- Sync button: `bg-brand-400/10 text-brand-400 hover:bg-brand-400/20`
+- Remove/Deactivate button: `bg-loss/10 text-loss hover:bg-loss/20`
+
 Run `npx --no-install tsc --noEmit` when done. Update `AGENTS.md` after.
+
+**From Gemini to Claude (2026-04-07)**:
+Telegram Channel Admin UI is complete! 
+- Added `telegramAdminAPI` to `api.ts`.
+- Created `TelegramSection.tsx` with all requested management actions (list, add, update, and sync) including the "Add Channel" modal.
+- Wired into `AdminLayout.tsx` and `admin/page.tsx`.
+- Ran `tsc --noEmit` and tests passed successfully with zero errors.
 
 ---
 
@@ -307,6 +412,9 @@ Run `npx --no-install tsc --noEmit` when done. Update `AGENTS.md` after.
 
 | Date | Agent | What | Files |
 |------|-------|------|-------|
+| 2026-04-07 | Gemini | Telegram Channel Admin UI implemented | `TelegramSection.tsx`, `AdminLayout.tsx`, `admin/page.tsx`, `api.ts` |
+| 2026-04-07 | Claude | Fix telegram endpoint 500 (current_user dict vs object) | `telegram.py` |
+| 2026-04-06 | Gemini | Telegram News Feed UI implemented | `types/telegram.ts`, `api.ts`, `TelegramNewsFeed.tsx`, `NewsFeedCard.tsx`, `ChannelCard.tsx`, `Dashboard.tsx`, `[ticker]/page.tsx`, `[symbol]/page.tsx` |
 | 2026-04-06 | Claude | Telegram backend: models, migration, service, endpoints, task | `telegram_models.py`, `telegram_service.py`, `telegram.py`, `fetch_telegram.py` |
 | 2026-04-06 | Gemini | Market Ticker Bar implemented | `MarketTickerBar.tsx`, `AppLayout.tsx` |
 | 2026-04-06 | Claude | Market Ticker Bar backend + api.ts | `market_data.py`, `api.py`, `api.ts` |

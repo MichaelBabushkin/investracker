@@ -41,7 +41,7 @@ def list_channels(
             WHERE tc.is_active = true
             ORDER BY tc.title
         """),
-        {"user_id": current_user["id"]},
+        {"user_id": current_user.id},
     ).fetchall()
 
     return [dict(r._mapping) for r in rows]
@@ -71,7 +71,7 @@ def subscribe(
             VALUES (:user_id, :channel_id)
             ON CONFLICT ON CONSTRAINT uq_user_channel_subscription DO NOTHING
         """),
-        {"user_id": current_user["id"], "channel_id": channel_id},
+        {"user_id": current_user.id, "channel_id": channel_id},
     )
     db.commit()
     return {"subscribed": True, "channel_id": channel_id}
@@ -88,7 +88,7 @@ def unsubscribe(
             DELETE FROM user_telegram_subscriptions
             WHERE user_id = :user_id AND channel_id = :channel_id
         """),
-        {"user_id": current_user["id"], "channel_id": channel_id},
+        {"user_id": current_user.id, "channel_id": channel_id},
     )
     db.commit()
     return {"unsubscribed": True, "channel_id": channel_id}
@@ -112,7 +112,7 @@ def get_feed(
     Optionally filter by ticker mention or specific channel.
     """
     offset = (page - 1) * page_size
-    params: dict = {"user_id": current_user["id"], "limit": page_size, "offset": offset}
+    params: dict = {"user_id": current_user.id, "limit": page_size, "offset": offset}
 
     # Build WHERE clauses
     where_parts = [
