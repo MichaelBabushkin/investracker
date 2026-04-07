@@ -900,15 +900,15 @@ export const telegramAdminAPI = {
     const res = await api.get('/telegram/admin/channels');
     return res.data as {
       id: number; username: string; title: string | null; language: string;
-      category: string; is_active: boolean; subscriber_count: number | null;
+      categories: string[]; is_active: boolean; subscriber_count: number | null;
       subscriber_count_app: number; message_count: number; last_synced_at: string | null;
     }[];
   },
-  addChannel: async (body: { username: string; language: string; category: string }) => {
+  addChannel: async (body: { username: string; language: string; categories: string[] }) => {
     const res = await api.post('/telegram/admin/channels', body);
     return res.data;
   },
-  updateChannel: async (id: number, body: Partial<{ is_active: boolean; language: string; category: string; title: string }>) => {
+  updateChannel: async (id: number, body: Partial<{ is_active: boolean; language: string; categories: string[]; title: string }>) => {
     const res = await api.patch(`/telegram/admin/channels/${id}`, body);
     return res.data;
   },

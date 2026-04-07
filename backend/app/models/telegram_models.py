@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, JSON, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -13,7 +13,7 @@ class TelegramChannel(Base):
     description = Column(Text, nullable=True)
     logo_url = Column(String(500), nullable=True)
     language = Column(String(5), default="en")          # "he" / "en"
-    category = Column(String(50), default="general")    # general / crypto / forex / stocks / analysis
+    categories = Column(JSON, default=lambda: ["general"]) # general / crypto / forex / stocks / analysis
     is_active = Column(Boolean, default=True, nullable=False)
     subscriber_count = Column(Integer, nullable=True)
     last_synced_at = Column(DateTime(timezone=True), nullable=True)

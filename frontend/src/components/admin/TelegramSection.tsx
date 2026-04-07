@@ -12,7 +12,7 @@ interface Channel {
   username: string;
   title: string | null;
   language: string;
-  category: string;
+  categories: string[];
   is_active: boolean;
   subscriber_count: number | null;
   subscriber_count_app: number;
@@ -29,7 +29,7 @@ export default function TelegramSection() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [newLanguage, setNewLanguage] = useState("he");
-  const [newCategory, setNewCategory] = useState("general");
+  const [newCategories, setNewCategories] = useState<string[]>(["general"]);
   const [isAdding, setIsAdding] = useState(false);
 
   const fetchChannels = async () => {
@@ -99,7 +99,7 @@ export default function TelegramSection() {
       await telegramAdminAPI.addChannel({
         username: cleanUsername,
         language: newLanguage,
-        category: newCategory,
+        categories: newCategories,
       });
       toast.success("Channel added successfully");
       setShowAddModal(false);
@@ -164,9 +164,11 @@ export default function TelegramSection() {
                       <Badge variant="neutral" className="text-[10px] px-1.5 py-0 uppercase">
                         {channel.language === 'he' ? 'Hebrew' : 'English'}
                       </Badge>
-                      <Badge variant="neutral" className="text-[10px] px-1.5 py-0 uppercase">
-                        {channel.category}
-                      </Badge>
+                      {channel.categories?.map(cat => (
+                        <Badge key={cat} variant="neutral" className="text-[10px] px-1.5 py-0 uppercase">
+                          {cat}
+                        </Badge>
+                      ))}
                       
                       <button 
                         onClick={() => handleToggleActive(channel.id, channel.is_active)}
@@ -273,24 +275,32 @@ export default function TelegramSection() {
               </div>
               
               <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-[11px] font-bold tracking-widest text-gray-500 uppercase mb-2">Category</label>
-                  <div className="relative">
-                    <select
-                      value={newCategory}
-                      onChange={(e) => setNewCategory(e.target.value)}
-                      className="w-full bg-[#0A0D14] border border-[#232A3B] rounded-xl py-3 px-4 text-[13px] text-white focus:outline-none focus:border-teal-400/50 focus:ring-1 focus:ring-teal-400/50 transition-all appearance-none font-medium cursor-pointer"
-                    >
-                      <option value="general">General</option>
-                      <option value="finance">Finance</option>
-                      <option value="stocks">Stocks</option>
-                      <option value="crypto">Crypto</option>
-                      <option value="forex">Forex</option>
-                      <option value="analysis">Analysis</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                    </div>
+                <div className="flex-[1.5]">
+                  <label className="block text-[11px] font-bold tracking-widest text-gray-500 uppercase mb-2">Categories</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['general', 'finance', 'stocks', 'crypto', 'forex', 'analysis'].map(cat => {
+                      const isSelected = newCategories.includes(cat);
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected && newCategories.length > 1) {
+                              setNewCategories(prev => prev.filter(c => c !== cat));
+                            } else if (!isSelected) {
+                              setNewCategories(prev => [...prev, cat]);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors capitalize ${
+                            isSelected 
+                              ? 'bg-teal-400/10 text-teal-400 border-teal-400/50' 
+                              : 'bg-[#0A0D14] text-gray-500 border-[#232A3B] hover:border-white/20 hover:text-gray-300'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

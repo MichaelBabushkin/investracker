@@ -5,7 +5,7 @@ export interface TelegramChannel {
   description: string | null;
   logo_url: string | null;
   language: string;
-  category: string;
+  categories: string[];
   subscriber_count: number | null;
   last_synced_at: string | null;
   is_subscribed: boolean;
@@ -21,7 +21,7 @@ export interface TelegramFeedItem {
     username: string; 
     title: string | null; 
     logo_url: string | null; 
-    category: string; 
+    categories: string[]; 
   };
 }
 

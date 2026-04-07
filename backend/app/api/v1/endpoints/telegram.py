@@ -31,7 +31,7 @@ def list_channels(
                 tc.description,
                 tc.logo_url,
                 tc.language,
-                tc.category,
+                tc.categories,
                 tc.subscriber_count,
                 tc.last_synced_at,
                 CASE WHEN uts.id IS NOT NULL THEN true ELSE false END AS is_subscribed
@@ -153,7 +153,7 @@ def get_feed(
                 tc.username AS channel_username,
                 tc.title AS channel_title,
                 tc.logo_url AS channel_logo_url,
-                tc.category AS channel_category
+                tc.categories AS channel_categories
             FROM telegram_messages tm
             JOIN telegram_channels tc ON tc.id = tm.channel_id
             JOIN user_telegram_subscriptions uts ON uts.channel_id = tc.id
@@ -176,7 +176,7 @@ def get_feed(
                 "username": r.channel_username,
                 "title": r.channel_title,
                 "logo_url": r.channel_logo_url,
-                "category": r.channel_category,
+                "categories": r.channel_categories,
             },
         })
 
@@ -208,7 +208,7 @@ def admin_add_channel(
         raise HTTPException(status_code=400, detail="username is required")
 
     language = body.get("language", "en")
-    category = body.get("category", "general")
+    categories = body.get("categories", ["general"])
 
     # Check duplicate
     existing = db.execute(
@@ -236,10 +236,11 @@ def admin_add_channel(
             # Non-fatal — channel is still created with minimal info
             pass
 
+    import json
     result = db.execute(
         text("""
-            INSERT INTO telegram_channels (username, title, description, logo_url, language, category, is_active, subscriber_count)
-            VALUES (:username, :title, :description, :logo_url, :language, :category, true, :subscriber_count)
+            INSERT INTO telegram_channels (username, title, description, logo_url, language, categories, is_active, subscriber_count)
+            VALUES (:username, :title, :description, :logo_url, :language, :categories, true, :subscriber_count)
             RETURNING id
         """),
         {
@@ -248,7 +249,7 @@ def admin_add_channel(
             "description": description,
             "logo_url": logo_url,
             "language": language,
-            "category": category,
+            "categories": json.dumps(categories),
             "subscriber_count": subscriber_count,
         },
     )
@@ -264,11 +265,15 @@ def admin_update_channel(
     current_user: dict = Depends(get_admin_user),
     db=Depends(get_db),
 ):
-    """Update channel fields: is_active, language, category, title."""
-    allowed = {"is_active", "language", "category", "title"}
+    """Update channel fields: is_active, language, categories, title."""
+    allowed = {"is_active", "language", "categories", "title"}
     updates = {k: v for k, v in body.items() if k in allowed}
     if not updates:
         raise HTTPException(status_code=400, detail="No valid fields to update")
+
+    if "categories" in updates:
+        import json
+        updates["categories"] = json.dumps(updates["categories"])
 
     set_parts = ", ".join(f"{k} = :{k}" for k in updates)
     updates["id"] = channel_id

@@ -97,7 +97,7 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
   // Filter channels based on active category
   const filteredChannels = activeCategory === "All" 
     ? channels 
-    : channels.filter(c => c.category?.toLowerCase() === activeCategory.toLowerCase());
+    : channels.filter(c => c.categories?.some(cat => cat.toLowerCase() === activeCategory.toLowerCase()));
 
   // Compact Mode (Stock Pages)
   if (compact) {
