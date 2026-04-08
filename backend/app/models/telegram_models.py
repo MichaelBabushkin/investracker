@@ -45,7 +45,10 @@ class TelegramMessage(Base):
     channel_id = Column(Integer, ForeignKey("telegram_channels.id", ondelete="CASCADE"), nullable=False, index=True)
     message_id = Column(Integer, nullable=False)        # Telegram's internal message id
     text = Column(Text, nullable=True)
-    media_url = Column(String(1000), nullable=True)     # Telegram CDN URL for photos
+    has_media = Column(Boolean, default=False)          # True if message has a photo/video
+    media_url = Column(String(1000), nullable=True)     # Reserved for future external hosting
+    views = Column(Integer, nullable=True)
+    forwards = Column(Integer, nullable=True)
     posted_at = Column(DateTime(timezone=True), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

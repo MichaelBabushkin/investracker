@@ -14,14 +14,17 @@ export interface TelegramChannel {
 export interface TelegramFeedItem {
   id: number;
   text: string | null;
-  media_url: string | null;
+  has_media: boolean;
+  media_proxy_url: string | null;
+  views: number | null;
+  forwards: number | null;
   posted_at: string;
-  channel: { 
-    id: number; 
-    username: string; 
-    title: string | null; 
-    logo_url: string | null; 
-    categories: string[]; 
+  channel: {
+    id: number;
+    username: string;
+    title: string | null;
+    logo_url: string | null;
+    categories: string[];
   };
 }
 
