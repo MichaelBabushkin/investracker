@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # Simple in-process cache  { category: (timestamp, items) }
 # ---------------------------------------------------------------------------
 _CACHE: dict[str, tuple[float, list]] = {}
-CACHE_TTL = 120  # seconds — refresh data every 2 minutes max
+CACHE_TTL = 300  # seconds — 5 minutes (closed markets don't change anyway)
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +56,15 @@ CATEGORIES: dict[str, dict] = {
             ("^BSESN",   "BSE Sensex"),
         ],
     },
+    "israel": {
+        "name": "Israel Markets",
+        "tickers": [
+            ("^TA125.TA", "TA-125"),
+            ("^TA35.TA",  "TA-35"),
+            ("^TA90.TA",  "TA-90"),
+            ("ILS=X",     "USD/ILS"),
+        ],
+    },
     "crypto": {
         "name": "Cryptocurrencies",
         "tickers": [
@@ -64,6 +73,7 @@ CATEGORIES: dict[str, dict] = {
             ("BNB-USD", "BNB"),
             ("SOL-USD", "Solana"),
             ("XRP-USD", "XRP"),
+            ("ADA-USD", "Cardano"),
         ],
     },
     "commodities": {
@@ -72,6 +82,7 @@ CATEGORIES: dict[str, dict] = {
             ("GC=F", "Gold"),
             ("SI=F", "Silver"),
             ("CL=F", "Crude Oil"),
+            ("BZ=F", "Brent Crude"),
             ("NG=F", "Natural Gas"),
             ("HG=F", "Copper"),
         ],
@@ -79,10 +90,10 @@ CATEGORIES: dict[str, dict] = {
     "rates": {
         "name": "Rates",
         "tickers": [
-            ("^TNX", "10Y Treasury"),
-            ("^FVX", "5Y Treasury"),
-            ("^TYX", "30Y Treasury"),
-            ("^IRX", "13W Treasury"),
+            ("^TNX", "US 10Y"),
+            ("^FVX", "US 5Y"),
+            ("^TYX", "US 30Y"),
+            ("^IRX", "US 13W"),
         ],
     },
     "currencies": {
@@ -93,47 +104,35 @@ CATEGORIES: dict[str, dict] = {
             ("JPY=X",    "USD/JPY"),
             ("ILS=X",    "USD/ILS"),
             ("CHFUSD=X", "CHF/USD"),
+            ("AUDUSD=X", "AUD/USD"),
         ],
     },
 }
 
 
 # ---------------------------------------------------------------------------
-# Helper — fetch a single ticker using the shared session
+# Helper — always returns last known price (works for closed markets too)
 # ---------------------------------------------------------------------------
 def _fetch_one(symbol: str, name: str) -> dict | None:
     try:
         t = yf.Ticker(symbol)
-        fi = t.fast_info
-        price = getattr(fi, "last_price", None)
-        price = float(price) if price else None
-        prev  = getattr(fi, "previous_close", None)
-        prev  = float(prev) if prev else None
 
-        if price is None:
-            logger.warning(f"[market_data] fast_info returned no price for {symbol}, trying history")
-            # Fallback: try history
-            hist = t.history(period="5d", auto_adjust=False)
-            logger.warning(f"[market_data] history for {symbol}: {len(hist)} rows, cols={list(hist.columns)}")
-            if not hist.empty:
-                price = float(hist["Close"].iloc[-1])
-                prev  = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else None
-            if price is None:
-                # Log raw HTTP status to diagnose Yahoo blocking
-                try:
-                    import urllib.request
-                    req = urllib.request.Request(
-                        f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=5d",
-                        headers={"User-Agent": "Mozilla/5.0"},
-                    )
-                    with urllib.request.urlopen(req, timeout=8) as resp:
-                        body = resp.read()
-                    logger.warning(
-                        f"[market_data] raw Yahoo HTTP for {symbol}: status={resp.status} size={len(body)}b"
-                    )
-                except Exception as http_e:
-                    logger.warning(f"[market_data] raw Yahoo HTTP for {symbol} FAILED: {http_e}")
-                return None
+        # Primary: history gives last close regardless of whether market is open
+        hist = t.history(period="5d", auto_adjust=False)
+        if hist.empty:
+            return None
+
+        price = float(hist["Close"].iloc[-1])
+        prev  = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else None
+
+        # Override with live price if market is currently open
+        try:
+            fi = t.fast_info
+            live = getattr(fi, "last_price", None)
+            if live:
+                price = float(live)
+        except Exception:
+            pass
 
         change     = round(price - prev, 4) if prev is not None else None
         change_pct = round((change / prev) * 100, 2) if change is not None and prev else None
@@ -145,7 +144,7 @@ def _fetch_one(symbol: str, name: str) -> dict | None:
             "change_pct": change_pct,
         }
     except Exception as e:
-        logger.warning(f"[market_data] _fetch_one({symbol}) exception: {e}")
+        logger.debug(f"market_data _fetch_one({symbol}): {e}")
         return None
 
 
@@ -158,7 +157,7 @@ def _fetch_category(cat_id: str, tickers: list[tuple[str, str]]) -> list[dict]:
             for sym, name in tickers
         }
         try:
-            for future in as_completed(futures, timeout=20):
+            for future in as_completed(futures, timeout=25):
                 try:
                     data = future.result()
                     if data:
@@ -201,7 +200,8 @@ def get_indices(
 ):
     """
     Return current price + change for all tickers in the requested category.
-    Results are cached for CACHE_TTL seconds to reduce Yahoo Finance requests.
+    Uses last available close so closed markets still show data.
+    Results cached for CACHE_TTL seconds.
     """
     cat_id = category.lower()
     cat = CATEGORIES.get(cat_id)
@@ -214,8 +214,6 @@ def get_indices(
         return {"category": cat_id, "name": cat["name"], "items": cached[1]}
 
     items = _fetch_category(cat_id, cat["tickers"])
-
-    # Update cache (even if empty — avoids hammering Yahoo when blocked)
     _CACHE[cat_id] = (time.time(), items)
 
     return {
@@ -227,24 +225,17 @@ def get_indices(
 
 @router.delete("/cache")
 def clear_cache(_: dict = Depends(get_current_user)):
-    """Force-clear the in-process price cache (useful after a block lifts)."""
+    """Force-clear the in-process price cache."""
     _CACHE.clear()
     return {"cleared": True}
 
 
 @router.get("/debug/{symbol}")
-def debug_symbol(
-    symbol: str,
-):
-    """
-    Debug endpoint — returns raw yfinance data for a single symbol.
-    Useful for diagnosing rate-limit issues on production.
-    """
+def debug_symbol(symbol: str):
+    """Debug endpoint — raw yfinance data for a single symbol. No auth required."""
     import traceback
-
     result: dict = {"symbol": symbol, "steps": {}}
 
-    # Step 1: fast_info
     try:
         t = yf.Ticker(symbol)
         fi = t.fast_info
@@ -256,7 +247,6 @@ def debug_symbol(
     except Exception as e:
         result["steps"]["fast_info"] = {"error": str(e), "trace": traceback.format_exc()[-500:]}
 
-    # Step 2: history fallback
     try:
         t2 = yf.Ticker(symbol)
         hist = t2.history(period="5d", auto_adjust=False)
@@ -268,7 +258,6 @@ def debug_symbol(
     except Exception as e:
         result["steps"]["history"] = {"error": str(e), "trace": traceback.format_exc()[-500:]}
 
-    # Step 3: raw HTTP check (does Yahoo respond at all?)
     try:
         import urllib.request
         req = urllib.request.Request(
