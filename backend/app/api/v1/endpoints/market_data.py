@@ -229,3 +229,58 @@ def clear_cache(_: dict = Depends(get_current_user)):
     """Force-clear the in-process price cache (useful after a block lifts)."""
     _CACHE.clear()
     return {"cleared": True}
+
+
+@router.get("/debug/{symbol}")
+def debug_symbol(
+    symbol: str,
+    _: dict = Depends(get_current_user),
+):
+    """
+    Debug endpoint — returns raw yfinance data for a single symbol.
+    Useful for diagnosing rate-limit issues on production.
+    """
+    import traceback
+
+    result: dict = {"symbol": symbol, "session_ua": _session.headers.get("User-Agent"), "steps": {}}
+
+    # Step 1: fast_info
+    try:
+        t = yf.Ticker(symbol, session=_session)
+        fi = t.fast_info
+        result["steps"]["fast_info"] = {
+            "last_price": getattr(fi, "last_price", "MISSING"),
+            "previous_close": getattr(fi, "previous_close", "MISSING"),
+            "currency": getattr(fi, "currency", "MISSING"),
+        }
+    except Exception as e:
+        result["steps"]["fast_info"] = {"error": str(e), "trace": traceback.format_exc()[-500:]}
+
+    # Step 2: history fallback
+    try:
+        t2 = yf.Ticker(symbol, session=_session)
+        hist = t2.history(period="5d", auto_adjust=False)
+        result["steps"]["history"] = {
+            "rows": len(hist),
+            "last_close": float(hist["Close"].iloc[-1]) if not hist.empty else None,
+            "columns": list(hist.columns),
+        }
+    except Exception as e:
+        result["steps"]["history"] = {"error": str(e), "trace": traceback.format_exc()[-500:]}
+
+    # Step 3: raw HTTP check (does Yahoo respond at all?)
+    try:
+        resp = _session.get(
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
+            params={"interval": "1d", "range": "5d"},
+            timeout=10,
+        )
+        result["steps"]["raw_http"] = {
+            "status_code": resp.status_code,
+            "content_length": len(resp.content),
+            "ok": resp.ok,
+        }
+    except Exception as e:
+        result["steps"]["raw_http"] = {"error": str(e)}
+
+    return result
