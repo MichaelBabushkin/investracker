@@ -104,6 +104,7 @@ def get_feed(
     ticker: Optional[str] = Query(None, description="Filter messages mentioning this ticker/symbol"),
     channel_id: Optional[int] = Query(None, description="Filter to a single channel"),
     category: Optional[str] = Query(None, description="Filter by channel category (e.g. stocks, crypto)"),
+    channel_ids: Optional[str] = Query(None, description="Comma-separated channel IDs to filter"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
@@ -111,7 +112,7 @@ def get_feed(
 ):
     """
     Paginated feed from channels the user is subscribed to.
-    Optionally filter by ticker mention, specific channel, or category.
+    Optionally filter by ticker mention, single channel, multiple channels, or category.
     """
     offset = (page - 1) * page_size
     params: dict = {"user_id": current_user.id, "limit": page_size, "offset": offset}
@@ -122,7 +123,14 @@ def get_feed(
         "tc.is_active = true",
     ]
 
-    if channel_id:
+    if channel_ids:
+        ids = [int(x.strip()) for x in channel_ids.split(",") if x.strip().isdigit()]
+        if ids:
+            placeholders = ", ".join(f":cid_{i}" for i in range(len(ids)))
+            where_parts.append(f"tm.channel_id IN ({placeholders})")
+            for i, cid in enumerate(ids):
+                params[f"cid_{i}"] = cid
+    elif channel_id:
         where_parts.append("tm.channel_id = :channel_id")
         params["channel_id"] = channel_id
 
