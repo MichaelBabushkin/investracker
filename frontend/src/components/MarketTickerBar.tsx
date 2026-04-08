@@ -18,9 +18,21 @@ interface IndexItem {
   change_pct: number | null;
 }
 
+// Static fallback so the dropdown always renders without waiting for the API
+const DEFAULT_CATEGORIES: Category[] = [
+  { id: "us", name: "US Markets" },
+  { id: "europe", name: "Europe Markets" },
+  { id: "asia", name: "Asia Markets" },
+  { id: "israel", name: "Israel Markets" },
+  { id: "crypto", name: "Cryptocurrencies" },
+  { id: "commodities", name: "Commodities" },
+  { id: "rates", name: "Rates" },
+  { id: "currencies", name: "Currencies" },
+];
+
 export default function MarketTickerBar() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+  const [selectedCategory, setSelectedCategory] = useState<Category>(DEFAULT_CATEGORIES[0]);
   const [items, setItems] = useState<IndexItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -39,17 +51,14 @@ export default function MarketTickerBar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetch categories on mount
+  // Fetch categories from API (updates the static defaults with server list)
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const data = await marketDataAPI.getCategories();
-        setCategories(data);
-        if (data.length > 0) {
-          setSelectedCategory(data[0]); // Default to first (usually US Markets)
-        }
-      } catch (err) {
-        console.error("Failed to load categories:", err);
+        if (data.length > 0) setCategories(data);
+      } catch {
+        // Keep using DEFAULT_CATEGORIES
       }
     };
     fetchCategories();
@@ -60,7 +69,6 @@ export default function MarketTickerBar() {
     let intervalId: NodeJS.Timeout;
 
     const fetchItems = async () => {
-      if (!selectedCategory) return;
       try {
         const data = await marketDataAPI.getIndices(selectedCategory.id);
         setItems(data.items);
@@ -71,11 +79,9 @@ export default function MarketTickerBar() {
       }
     };
 
-    if (selectedCategory) {
-      setLoading(true);
-      fetchItems();
-      intervalId = setInterval(fetchItems, 60000); // refresh every 60s
-    }
+    setLoading(true);
+    fetchItems();
+    intervalId = setInterval(fetchItems, 60000); // refresh every 60s
 
     return () => {
       if (intervalId) clearInterval(intervalId);
@@ -95,14 +101,14 @@ export default function MarketTickerBar() {
 
   const formatPrice = (price: number | null) => {
     if (price === null) return "-";
-    if (selectedCategory?.id === "currencies") {
+    if (selectedCategory.id === "currencies") {
       return formatCurrency(price, "USD");
     }
     return price.toLocaleString("en-US", { maximumFractionDigits: 2 });
   };
 
   return (
-    <div className="bg-surface-dark-secondary border-b border-white/5 h-11 flex items-center px-4 gap-4 overflow-hidden relative">
+    <div className="bg-surface-dark-secondary border-b border-white/5 h-11 flex items-center px-4 gap-4 relative">
       {/* Category Dropdown */}
       <div className="relative shrink-0" ref={dropdownRef}>
         <button
@@ -113,31 +119,28 @@ export default function MarketTickerBar() {
           <ChevronDown size={14} className={`transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
         </button>
 
-        {dropdownOpen && categories.length > 0 && (
-          <div className="absolute top-full left-0 mt-2 bg-surface-dark-secondary border border-white/10 rounded-lg shadow-xl py-1 z-50 min-w-[150px]">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  setSelectedCategory(cat);
-                  setDropdownOpen(false);
-                }}
-                className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                  selectedCategory?.id === cat.id
-                    ? "text-brand-400 bg-brand-400/10"
-                    : "text-gray-300 hover:text-white hover:bg-white/5"
+        <div className={`absolute top-full left-0 mt-2 bg-surface-dark-secondary border border-white/10 rounded-lg shadow-xl py-1 z-50 min-w-[150px] ${dropdownOpen ? "" : "hidden"}`}>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => {
+                setSelectedCategory(cat);
+                setDropdownOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2 text-sm transition-colors ${selectedCategory.id === cat.id
+                  ? "text-brand-400 bg-brand-400/10"
+                  : "text-gray-300 hover:text-white hover:bg-white/5"
                 }`}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        )}
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Scrollable Tiles */}
-      <div 
-        ref={scrollContainerRef} 
+      <div
+        ref={scrollContainerRef}
         className="flex items-center gap-0 overflow-x-hidden flex-1 scrollbar-hide"
       >
         {loading ? (
