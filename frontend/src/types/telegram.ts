@@ -15,6 +15,7 @@ export interface TelegramFeedItem {
   id: number;
   text: string | null;
   has_media: boolean;
+  media_type: string | null;
   media_proxy_url: string | null;
   views: number | null;
   forwards: number | null;

@@ -149,6 +149,7 @@ def get_feed(
                 tm.id,
                 tm.text,
                 tm.has_media,
+                tm.media_type,
                 tm.views,
                 tm.forwards,
                 tm.posted_at,
@@ -173,6 +174,7 @@ def get_feed(
             "id": r.id,
             "text": r.text,
             "has_media": bool(r.has_media),
+            "media_type": r.media_type,
             "media_proxy_url": f"telegram/media/{r.channel_id}/{r.id}" if r.has_media else None,
             "views": r.views,
             "forwards": r.forwards,
@@ -206,10 +208,10 @@ def get_message_media(
     db=Depends(get_db),
 ):
     """
-    Download and stream a Telegram message photo.
+    Download and stream a Telegram message photo or video.
     Uses the DB message id (our PK) to look up the Telegram message_id and channel username.
     """
-    from app.services.telegram_service import is_configured, download_message_photo
+    from app.services.telegram_service import is_configured, download_message_media
 
     if not is_configured():
         raise HTTPException(status_code=503, detail="Telegram not configured")
@@ -227,11 +229,12 @@ def get_message_media(
     if not row:
         raise HTTPException(status_code=404, detail="Media not found")
 
-    photo_bytes = download_message_photo(row.username, row.message_id)
-    if not photo_bytes:
+    result = download_message_media(row.username, row.message_id)
+    if not result:
         raise HTTPException(status_code=404, detail="Could not download media")
 
-    return Response(content=photo_bytes, media_type="image/jpeg")
+    media_bytes, mime_type = result
+    return Response(content=media_bytes, media_type=mime_type)
 
 
 # ---------------------------------------------------------------------------

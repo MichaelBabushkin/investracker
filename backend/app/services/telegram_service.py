@@ -81,7 +81,17 @@ async def _fetch_recent_messages_async(username: str, limit: int = 100) -> list[
                 if not msg.text and not msg.media:
                     continue
 
-                has_media = isinstance(msg.media, (MessageMediaPhoto, MessageMediaDocument))
+                media_type = None
+                if isinstance(msg.media, MessageMediaPhoto):
+                    media_type = "photo"
+                elif isinstance(msg.media, MessageMediaDocument):
+                    doc = msg.media.document
+                    mime = getattr(doc, "mime_type", "") or ""
+                    if mime.startswith("video/"):
+                        media_type = "video"
+                    else:
+                        media_type = "document"
+                has_media = media_type in ("photo", "video")
 
                 posted_at = msg.date
                 if posted_at and posted_at.tzinfo is None:
@@ -91,6 +101,7 @@ async def _fetch_recent_messages_async(username: str, limit: int = 100) -> list[
                     "message_id": msg.id,
                     "text": msg.text or None,
                     "has_media": has_media,
+                    "media_type": media_type,
                     "views": getattr(msg, "views", None),
                     "forwards": getattr(msg, "forwards", None),
                     "posted_at": posted_at,
@@ -103,15 +114,27 @@ async def _fetch_recent_messages_async(username: str, limit: int = 100) -> list[
     return results
 
 
-async def _download_message_photo_async(username: str, message_id: int) -> Optional[bytes]:
-    """Download the photo from a specific message. Returns raw bytes or None."""
+async def _download_message_media_async(username: str, message_id: int) -> Optional[tuple[bytes, str]]:
+    """
+    Download photo or video from a specific message.
+    Returns (bytes, mime_type) or None.
+    """
     async with _get_client() as client:
         try:
             msgs = await client.get_messages(username, ids=message_id)
             msg = msgs if not isinstance(msgs, list) else (msgs[0] if msgs else None)
-            if not msg or not isinstance(msg.media, MessageMediaPhoto):
+            if not msg or not msg.media:
                 return None
-            return await client.download_media(msg.media, file=bytes)
+            if isinstance(msg.media, MessageMediaPhoto):
+                data = await client.download_media(msg.media, file=bytes)
+                return (data, "image/jpeg") if data else None
+            if isinstance(msg.media, MessageMediaDocument):
+                doc = msg.media.document
+                mime = getattr(doc, "mime_type", "application/octet-stream") or "application/octet-stream"
+                if mime.startswith("video/") or mime.startswith("image/"):
+                    data = await client.download_media(msg.media, file=bytes)
+                    return (data, mime) if data else None
+            return None
         except (ChannelPrivateError, ValueError):
             return None
         except FloodWaitError as e:
@@ -133,9 +156,9 @@ def fetch_recent_messages(username: str, limit: int = 100) -> list[dict]:
     return asyncio.run(_fetch_recent_messages_async(username, limit=limit))
 
 
-def download_message_photo(username: str, message_id: int) -> Optional[bytes]:
-    """Synchronous wrapper around _download_message_photo_async."""
-    return asyncio.run(_download_message_photo_async(username, message_id))
+def download_message_media(username: str, message_id: int) -> Optional[tuple[bytes, str]]:
+    """Synchronous wrapper around _download_message_media_async. Returns (bytes, mime_type) or None."""
+    return asyncio.run(_download_message_media_async(username, message_id))
 
 
 def sync_channel(channel_id: int, username: str, db) -> int:
@@ -151,8 +174,8 @@ def sync_channel(channel_id: int, username: str, db) -> int:
     for msg in messages:
         result = db.execute(
             text("""
-                INSERT INTO telegram_messages (channel_id, message_id, text, has_media, views, forwards, posted_at)
-                VALUES (:channel_id, :message_id, :text, :has_media, :views, :forwards, :posted_at)
+                INSERT INTO telegram_messages (channel_id, message_id, text, has_media, media_type, views, forwards, posted_at)
+                VALUES (:channel_id, :message_id, :text, :has_media, :media_type, :views, :forwards, :posted_at)
                 ON CONFLICT ON CONSTRAINT uq_channel_message DO NOTHING
             """),
             {
@@ -160,6 +183,7 @@ def sync_channel(channel_id: int, username: str, db) -> int:
                 "message_id": msg["message_id"],
                 "text": msg["text"],
                 "has_media": msg.get("has_media", False),
+                "media_type": msg.get("media_type"),
                 "views": msg.get("views"),
                 "forwards": msg.get("forwards"),
                 "posted_at": msg["posted_at"],
