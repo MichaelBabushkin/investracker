@@ -5,7 +5,6 @@ Market Data endpoints — indices ticker bar.
 from fastapi import APIRouter, Depends, Query
 from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeoutError
 import yfinance as yf
-import requests
 import time
 import logging
 
@@ -13,22 +12,6 @@ from app.core.deps import get_current_user
 
 router = APIRouter(prefix="/market-data", tags=["market-data"])
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Shared HTTP session — mimics a browser to avoid Yahoo Finance rate limits
-# ---------------------------------------------------------------------------
-_session = requests.Session()
-_session.headers.update({
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/122.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
-})
 
 # ---------------------------------------------------------------------------
 # Simple in-process cache  { category: (timestamp, items) }
@@ -120,7 +103,7 @@ CATEGORIES: dict[str, dict] = {
 # ---------------------------------------------------------------------------
 def _fetch_one(symbol: str, name: str) -> dict | None:
     try:
-        t = yf.Ticker(symbol, session=_session)
+        t = yf.Ticker(symbol)
         fi = t.fast_info
         price = getattr(fi, "last_price", None)
         price = float(price) if price else None
@@ -138,14 +121,15 @@ def _fetch_one(symbol: str, name: str) -> dict | None:
             if price is None:
                 # Log raw HTTP status to diagnose Yahoo blocking
                 try:
-                    resp = _session.get(
-                        f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
-                        params={"interval": "1d", "range": "5d"},
-                        timeout=8,
+                    import urllib.request
+                    req = urllib.request.Request(
+                        f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=5d",
+                        headers={"User-Agent": "Mozilla/5.0"},
                     )
+                    with urllib.request.urlopen(req, timeout=8) as resp:
+                        body = resp.read()
                     logger.warning(
-                        f"[market_data] raw Yahoo HTTP for {symbol}: status={resp.status_code} "
-                        f"size={len(resp.content)}b ok={resp.ok}"
+                        f"[market_data] raw Yahoo HTTP for {symbol}: status={resp.status} size={len(body)}b"
                     )
                 except Exception as http_e:
                     logger.warning(f"[market_data] raw Yahoo HTTP for {symbol} FAILED: {http_e}")
@@ -258,11 +242,11 @@ def debug_symbol(
     """
     import traceback
 
-    result: dict = {"symbol": symbol, "session_ua": _session.headers.get("User-Agent"), "steps": {}}
+    result: dict = {"symbol": symbol, "steps": {}}
 
     # Step 1: fast_info
     try:
-        t = yf.Ticker(symbol, session=_session)
+        t = yf.Ticker(symbol)
         fi = t.fast_info
         result["steps"]["fast_info"] = {
             "last_price": getattr(fi, "last_price", "MISSING"),
@@ -274,7 +258,7 @@ def debug_symbol(
 
     # Step 2: history fallback
     try:
-        t2 = yf.Ticker(symbol, session=_session)
+        t2 = yf.Ticker(symbol)
         hist = t2.history(period="5d", auto_adjust=False)
         result["steps"]["history"] = {
             "rows": len(hist),
@@ -286,15 +270,17 @@ def debug_symbol(
 
     # Step 3: raw HTTP check (does Yahoo respond at all?)
     try:
-        resp = _session.get(
-            f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
-            params={"interval": "1d", "range": "5d"},
-            timeout=10,
+        import urllib.request
+        req = urllib.request.Request(
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=5d",
+            headers={"User-Agent": "Mozilla/5.0"},
         )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read()
         result["steps"]["raw_http"] = {
-            "status_code": resp.status_code,
-            "content_length": len(resp.content),
-            "ok": resp.ok,
+            "status_code": resp.status,
+            "content_length": len(body),
+            "ok": resp.status == 200,
         }
     except Exception as e:
         result["steps"]["raw_http"] = {"error": str(e)}
