@@ -3,6 +3,7 @@ Telegram news feed endpoints.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import text
 from typing import Optional
 
@@ -154,7 +155,9 @@ def get_feed(
             SELECT
                 tm.id,
                 tm.text,
-                tm.media_url,
+                tm.has_media,
+                tm.views,
+                tm.forwards,
                 tm.posted_at,
                 tc.id AS channel_id,
                 tc.username AS channel_username,
@@ -176,7 +179,10 @@ def get_feed(
         items.append({
             "id": r.id,
             "text": r.text,
-            "media_url": r.media_url,
+            "has_media": bool(r.has_media),
+            "media_proxy_url": f"telegram/media/{r.channel_id}/{r.id}" if r.has_media else None,
+            "views": r.views,
+            "forwards": r.forwards,
             "posted_at": r.posted_at,
             "channel": {
                 "id": r.channel_id,
@@ -193,6 +199,46 @@ def get_feed(
         "page": page,
         "page_size": page_size,
     }
+
+
+# ---------------------------------------------------------------------------
+# Media proxy
+# ---------------------------------------------------------------------------
+
+@router.get("/media/{channel_id}/{message_db_id}")
+def get_message_media(
+    channel_id: int,
+    message_db_id: int,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """
+    Download and stream a Telegram message photo.
+    Uses the DB message id (our PK) to look up the Telegram message_id and channel username.
+    """
+    from app.services.telegram_service import is_configured, download_message_photo
+
+    if not is_configured():
+        raise HTTPException(status_code=503, detail="Telegram not configured")
+
+    row = db.execute(
+        text("""
+            SELECT tm.message_id, tc.username
+            FROM telegram_messages tm
+            JOIN telegram_channels tc ON tc.id = tm.channel_id
+            WHERE tm.id = :db_id AND tm.channel_id = :channel_id AND tm.has_media = true
+        """),
+        {"db_id": message_db_id, "channel_id": channel_id},
+    ).fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    photo_bytes = download_message_photo(row.username, row.message_id)
+    if not photo_bytes:
+        raise HTTPException(status_code=404, detail="Could not download media")
+
+    return Response(content=photo_bytes, media_type="image/jpeg")
 
 
 # ---------------------------------------------------------------------------

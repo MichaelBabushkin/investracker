@@ -13,7 +13,7 @@ from typing import Optional
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from telethon.tl.types import MessageMediaPhoto, Channel
+from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument, Channel
 from telethon.errors import FloodWaitError, ChannelPrivateError
 
 from app.core.config import settings
@@ -71,24 +71,17 @@ async def _fetch_channel_meta_async(username: str) -> Optional[dict]:
 async def _fetch_recent_messages_async(username: str, limit: int = 100) -> list[dict]:
     """
     Fetch the most recent `limit` messages from a public channel.
-    Returns list of dicts with: message_id, text, media_url, posted_at.
+    Returns list of dicts with: message_id, text, has_media, views, forwards, posted_at.
     """
     results = []
     async with _get_client() as client:
         try:
             async for msg in client.iter_messages(username, limit=limit):
+                # Skip service messages (joins, pins, etc.) that have no content
                 if not msg.text and not msg.media:
-                    continue  # skip empty/service messages
+                    continue
 
-                media_url = None
-                if isinstance(msg.media, MessageMediaPhoto):
-                    try:
-                        # Get the largest available photo size URL from Telegram CDN
-                        # We don't download it — Telegram CDN URLs require auth anyway
-                        # For now store None; media display via re-download in a proxy endpoint
-                        media_url = None
-                    except Exception:
-                        pass
+                has_media = isinstance(msg.media, (MessageMediaPhoto, MessageMediaDocument))
 
                 posted_at = msg.date
                 if posted_at and posted_at.tzinfo is None:
@@ -97,7 +90,9 @@ async def _fetch_recent_messages_async(username: str, limit: int = 100) -> list[
                 results.append({
                     "message_id": msg.id,
                     "text": msg.text or None,
-                    "media_url": media_url,
+                    "has_media": has_media,
+                    "views": getattr(msg, "views", None),
+                    "forwards": getattr(msg, "forwards", None),
                     "posted_at": posted_at,
                 })
         except (ChannelPrivateError, ValueError) as e:
@@ -106,6 +101,22 @@ async def _fetch_recent_messages_async(username: str, limit: int = 100) -> list[
             logger.warning(f"FloodWait {e.seconds}s when reading @{username}")
 
     return results
+
+
+async def _download_message_photo_async(username: str, message_id: int) -> Optional[bytes]:
+    """Download the photo from a specific message. Returns raw bytes or None."""
+    async with _get_client() as client:
+        try:
+            msgs = await client.get_messages(username, ids=message_id)
+            msg = msgs if not isinstance(msgs, list) else (msgs[0] if msgs else None)
+            if not msg or not isinstance(msg.media, MessageMediaPhoto):
+                return None
+            return await client.download_media(msg.media, file=bytes)
+        except (ChannelPrivateError, ValueError):
+            return None
+        except FloodWaitError as e:
+            logger.warning(f"FloodWait {e.seconds}s downloading media from @{username}")
+            return None
 
 
 # ---------------------------------------------------------------------------
@@ -119,7 +130,12 @@ def fetch_channel_meta(username: str) -> Optional[dict]:
 
 def fetch_recent_messages(username: str, limit: int = 100) -> list[dict]:
     """Synchronous wrapper around _fetch_recent_messages_async."""
-    return asyncio.run(_fetch_recent_messages_async(username))
+    return asyncio.run(_fetch_recent_messages_async(username, limit=limit))
+
+
+def download_message_photo(username: str, message_id: int) -> Optional[bytes]:
+    """Synchronous wrapper around _download_message_photo_async."""
+    return asyncio.run(_download_message_photo_async(username, message_id))
 
 
 def sync_channel(channel_id: int, username: str, db) -> int:
@@ -133,18 +149,19 @@ def sync_channel(channel_id: int, username: str, db) -> int:
     new_count = 0
 
     for msg in messages:
-        # INSERT … ON CONFLICT DO NOTHING
         result = db.execute(
             text("""
-                INSERT INTO telegram_messages (channel_id, message_id, text, media_url, posted_at)
-                VALUES (:channel_id, :message_id, :text, :media_url, :posted_at)
+                INSERT INTO telegram_messages (channel_id, message_id, text, has_media, views, forwards, posted_at)
+                VALUES (:channel_id, :message_id, :text, :has_media, :views, :forwards, :posted_at)
                 ON CONFLICT ON CONSTRAINT uq_channel_message DO NOTHING
             """),
             {
                 "channel_id": channel_id,
                 "message_id": msg["message_id"],
                 "text": msg["text"],
-                "media_url": msg["media_url"],
+                "has_media": msg.get("has_media", False),
+                "views": msg.get("views"),
+                "forwards": msg.get("forwards"),
                 "posted_at": msg["posted_at"],
             },
         )
