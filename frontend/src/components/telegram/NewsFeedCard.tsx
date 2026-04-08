@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TelegramFeedItem } from '@/types/telegram';
-import { Share2, Eye, Forward, X, ImageOff } from 'lucide-react';
+import { Share2, Eye, Forward, X } from 'lucide-react';
 import api from '@/services/api';
 
 interface NewsFeedCardProps {
@@ -93,6 +93,9 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const { src: imgSrc, state: imgState } = useAuthImage(item.has_media ? item.media_proxy_url : null);
 
+  // If media failed and there's no text, hide the card entirely (wait until resolved)
+  if (item.has_media && imgState === 'error' && !item.text) return null;
+
   const title = item.channel.title || item.channel.username;
   const initial = title.charAt(0).toUpperCase();
   const isHebrew = item.text ? /[\u0590-\u05FF]/.test(item.text) : false;
@@ -172,11 +175,7 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
                 />
               </div>
             )}
-            {imgState === 'error' && (
-              <div className="mt-1 rounded-xl border border-white/5 h-12 flex items-center justify-center gap-2 text-xs text-gray-600">
-                <ImageOff size={14} /> Media unavailable
-              </div>
-            )}
+            {/* imgState === 'error' with text: render nothing — card shows text only */}
           </>
         )}
 
