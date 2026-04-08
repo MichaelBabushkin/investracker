@@ -24,21 +24,26 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [selectedChannelIds, setSelectedChannelIds] = useState<Set<number>>(new Set());
 
-  const fetchFeed = async (pageNum: number, isLoadMore = false) => {
+  const subscribedChannels = channels.filter(c => c.is_subscribed);
+
+  const fetchFeed = async (pageNum: number, isLoadMore = false, channelIds?: Set<number>) => {
     try {
       setLoadingFeed(true);
+      const active = channelIds ?? selectedChannelIds;
       const params: any = { page: pageNum, page_size: compact ? 3 : 10 };
       if (ticker) params.ticker = ticker;
-      
+      if (active.size > 0) params.channel_ids = Array.from(active).join(',');
+
       const res = await telegramAPI.getFeed(params);
-      
+
       if (isLoadMore) {
         setFeed(prev => [...prev, ...res.items]);
       } else {
         setFeed(res.items);
       }
-      
+
       setHasMore(res.items.length === (compact ? 3 : 10));
     } catch (error) {
       console.error("Failed to fetch telegram feed", error);
@@ -61,15 +66,24 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
 
   useEffect(() => {
     fetchFeed(1);
-    if (showChannelManager) {
-      fetchChannels();
-    }
-  }, [ticker, showChannelManager]);
+    fetchChannels();
+  }, [ticker]);
 
   const loadMore = () => {
     const nextPage = page + 1;
     setPage(nextPage);
     fetchFeed(nextPage, true);
+  };
+
+  const toggleChannelFilter = (channelId: number) => {
+    setSelectedChannelIds(prev => {
+      const next = new Set(prev);
+      if (next.has(channelId)) next.delete(channelId);
+      else next.add(channelId);
+      setPage(1);
+      fetchFeed(1, false, next);
+      return next;
+    });
   };
 
   const toggleSubscription = async (channelId: number, isSubscribed: boolean) => {
@@ -138,15 +152,16 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
           <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Telegram Intel</h2>
         </div>
         
-        {/* Mobile-only toggle for channels */}
-        <div className="flex gap-2 pb-2 overflow-x-auto scrollbar-hide lg:hidden">
+        {/* Mobile filters */}
+        <div className="flex flex-col gap-2 lg:hidden">
+          <div className="flex gap-2 pb-1 overflow-x-auto scrollbar-hide">
             {CATEGORIES.map(cat => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
                 className={`px-4 py-1.5 rounded-full text-[13px] font-bold whitespace-nowrap transition-all border
-                  ${activeCategory === cat 
-                    ? 'bg-teal-400 text-black border-teal-400 shadow-[0_0_15px_rgba(45,212,191,0.2)]' 
+                  ${activeCategory === cat
+                    ? 'bg-teal-400 text-black border-teal-400 shadow-[0_0_15px_rgba(45,212,191,0.2)]'
                     : 'bg-[#101522] text-gray-400 border-white/5 hover:text-white hover:bg-white/5'
                   }
                 `}
@@ -155,6 +170,42 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
               </button>
             ))}
           </div>
+          {subscribedChannels.length > 1 && (
+            <div className="flex gap-2 pb-1 overflow-x-auto scrollbar-hide">
+              {subscribedChannels.map(ch => {
+                const isActive = selectedChannelIds.has(ch.id);
+                const label = ch.title || ch.username;
+                const initial = label.charAt(0).toUpperCase();
+                return (
+                  <button
+                    key={ch.id}
+                    onClick={() => toggleChannelFilter(ch.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all border
+                      ${isActive
+                        ? 'bg-white/10 text-white border-white/20'
+                        : 'bg-[#101522] text-gray-500 border-white/5 hover:text-gray-300'
+                      }
+                    `}
+                  >
+                    <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0
+                      ${isActive ? 'bg-teal-400 text-black' : 'bg-white/10 text-gray-400'}`}>
+                      {initial}
+                    </span>
+                    {label}
+                  </button>
+                );
+              })}
+              {selectedChannelIds.size > 0 && (
+                <button
+                  onClick={() => { setSelectedChannelIds(new Set()); setPage(1); fetchFeed(1, false, new Set()); }}
+                  className="px-3 py-1 rounded-full text-[12px] text-gray-500 border border-dashed border-white/10 whitespace-nowrap"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -163,21 +214,59 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
         <div className="lg:col-span-2 space-y-5">
           
           {/* Desktop Filters above feed */}
-          <div className="hidden lg:flex gap-2.5 flex-wrap mb-2">
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-1.5 rounded-full text-[13px] font-bold transition-all border
-                  ${activeCategory === cat 
-                    ? 'bg-teal-400 text-black border-teal-400 shadow-[0_0_15px_rgba(45,212,191,0.2)]' 
-                    : 'bg-[#101522] text-gray-400 border-[#232A3B] hover:text-white hover:bg-white/5'
-                  }
-                `}
-              >
-                {cat}
-              </button>
-            ))}
+          <div className="hidden lg:flex flex-col gap-2.5 mb-2">
+            <div className="flex gap-2.5 flex-wrap">
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-4 py-1.5 rounded-full text-[13px] font-bold transition-all border
+                    ${activeCategory === cat
+                      ? 'bg-teal-400 text-black border-teal-400 shadow-[0_0_15px_rgba(45,212,191,0.2)]'
+                      : 'bg-[#101522] text-gray-400 border-[#232A3B] hover:text-white hover:bg-white/5'
+                    }
+                  `}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            {/* Channel filter pills — only shown when subscribed to 2+ channels */}
+            {subscribedChannels.length > 1 && (
+              <div className="flex gap-2 flex-wrap">
+                {subscribedChannels.map(ch => {
+                  const isActive = selectedChannelIds.has(ch.id);
+                  const label = ch.title || ch.username;
+                  const initial = label.charAt(0).toUpperCase();
+                  return (
+                    <button
+                      key={ch.id}
+                      onClick={() => toggleChannelFilter(ch.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold transition-all border
+                        ${isActive
+                          ? 'bg-white/10 text-white border-white/20'
+                          : 'bg-[#101522] text-gray-500 border-[#232A3B] hover:text-gray-300 hover:bg-white/5'
+                        }
+                      `}
+                    >
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0
+                        ${isActive ? 'bg-teal-400 text-black' : 'bg-white/10 text-gray-400'}`}>
+                        {initial}
+                      </span>
+                      {label}
+                    </button>
+                  );
+                })}
+                {selectedChannelIds.size > 0 && (
+                  <button
+                    onClick={() => { setSelectedChannelIds(new Set()); setPage(1); fetchFeed(1, false, new Set()); }}
+                    className="px-3 py-1 rounded-full text-[12px] text-gray-500 border border-dashed border-white/10 hover:text-white transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {loadingFeed && page === 1 ? (
