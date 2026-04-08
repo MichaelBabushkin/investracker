@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TelegramFeedItem } from '@/types/telegram';
-import { Share2, Eye, Forward, X } from 'lucide-react';
+import { Share2, Eye, Forward, X, ImageOff } from 'lucide-react';
 import api from '@/services/api';
 
 interface NewsFeedCardProps {
@@ -24,30 +24,43 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function useAuthImage(proxyUrl: string | null): string | null {
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+type ImageState = 'loading' | 'loaded' | 'error';
+
+function useAuthImage(proxyUrl: string | null): { src: string | null; state: ImageState } {
+  const [src, setSrc] = useState<string | null>(null);
+  const [state, setState] = useState<ImageState>('loading');
 
   useEffect(() => {
-    if (!proxyUrl) return;
+    if (!proxyUrl) {
+      setState('error');
+      return;
+    }
     let objectUrl: string | null = null;
+    setState('loading');
+    setSrc(null);
 
     api.get(proxyUrl, { responseType: 'blob' })
       .then(res => {
-        objectUrl = URL.createObjectURL(res.data);
-        setBlobUrl(objectUrl);
+        // Only create blob URL if it's actually an image
+        if (res.data && res.data.size > 0) {
+          objectUrl = URL.createObjectURL(res.data);
+          setSrc(objectUrl);
+          setState('loaded');
+        } else {
+          setState('error');
+        }
       })
-      .catch(() => setBlobUrl(null));
+      .catch(() => setState('error'));
 
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [proxyUrl]);
 
-  return blobUrl;
+  return { src, state };
 }
 
 function ImageModal({ src, onClose }: { src: string; onClose: () => void }) {
-  // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
@@ -56,7 +69,7 @@ function ImageModal({ src, onClose }: { src: string; onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <button
@@ -78,11 +91,12 @@ function ImageModal({ src, onClose }: { src: string; onClose: () => void }) {
 export default function NewsFeedCard({ item }: NewsFeedCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const imgSrc = useAuthImage(item.has_media ? item.media_proxy_url : null);
+  const { src: imgSrc, state: imgState } = useAuthImage(item.has_media ? item.media_proxy_url : null);
 
   const title = item.channel.title || item.channel.username;
   const initial = title.charAt(0).toUpperCase();
   const isHebrew = item.text ? /[\u0590-\u05FF]/.test(item.text) : false;
+  const dir = isHebrew ? 'rtl' : 'ltr';
 
   const viewsStr = formatCount(item.views);
   const forwardsStr = formatCount(item.forwards);
@@ -97,8 +111,9 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
   return (
     <>
       <div className="bg-[#101522] border border-[#232A3B] rounded-2xl p-4 sm:p-5 flex flex-col gap-3 hover:border-white/10 hover:shadow-lg hover:shadow-black/20 transition-all duration-300">
-        {/* Header — aligns right for Hebrew content */}
-        <div className={`flex items-center gap-3 ${isHebrew ? 'flex-row-reverse' : ''}`}>
+
+        {/* Header — avatar always left, text alignment follows content direction */}
+        <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full shrink-0 overflow-hidden bg-surface-dark flex items-center justify-center text-teal-400 text-lg font-bold border border-white/5">
             {item.channel.logo_url ? (
               <img src={item.channel.logo_url} alt={title} className="w-full h-full object-cover" />
@@ -106,9 +121,10 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
               <span>{initial}</span>
             )}
           </div>
+          {/* Title block — text-right for Hebrew, text-left otherwise */}
           <div className={`flex-1 min-w-0 ${isHebrew ? 'text-right' : 'text-left'}`}>
             <span className="text-[15px] font-semibold text-white truncate block">{title}</span>
-            <div className={`flex items-center gap-2 text-xs text-brand-400/70 ${isHebrew ? 'flex-row-reverse justify-end' : ''}`}>
+            <div className="flex items-center gap-2 text-xs text-brand-400/70" dir={dir}>
               <span>@{item.channel.username}</span>
               <span className="w-1 h-1 rounded-full bg-white/20" />
               <span>{timeAgo(item.posted_at)}</span>
@@ -119,8 +135,8 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
         {/* Text */}
         {item.text && (
           <div
-            className={`text-[14px] text-gray-300/90 leading-relaxed whitespace-pre-wrap mt-1 ${isHebrew ? 'text-right' : 'text-left'}`}
-            dir={isHebrew ? 'rtl' : 'ltr'}
+            className="text-[14px] text-gray-300/90 leading-relaxed whitespace-pre-wrap mt-1"
+            dir={dir}
           >
             <div className={expanded ? '' : 'line-clamp-4'}>
               {renderText(item.text)}
@@ -136,25 +152,32 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
           </div>
         )}
 
-        {/* Image — full dimensions, click to expand */}
-        {item.has_media && imgSrc && (
-          <div
-            className="mt-1 rounded-xl overflow-hidden border border-white/5 bg-[#0B0F1A] cursor-zoom-in"
-            onClick={() => setModalOpen(true)}
-            title="Click to expand"
-          >
-            <img
-              src={imgSrc}
-              alt="Telegram Media"
-              className="w-full object-contain max-h-96"
-              loading="lazy"
-            />
-          </div>
-        )}
-
-        {/* Loading placeholder (photo-only messages with no text yet) */}
-        {item.has_media && !imgSrc && !item.text && (
-          <div className="mt-1 rounded-xl border border-white/5 bg-[#0B0F1A] h-24 animate-pulse" />
+        {/* Image */}
+        {item.has_media && (
+          <>
+            {imgState === 'loading' && (
+              <div className="mt-1 rounded-xl border border-white/5 h-32 animate-pulse bg-white/5" />
+            )}
+            {imgState === 'loaded' && imgSrc && (
+              <div
+                className="mt-1 rounded-xl overflow-hidden border border-white/5 cursor-zoom-in"
+                onClick={() => setModalOpen(true)}
+                title="Click to expand"
+              >
+                <img
+                  src={imgSrc}
+                  alt="Telegram Media"
+                  className="w-full object-contain"
+                  loading="lazy"
+                />
+              </div>
+            )}
+            {imgState === 'error' && (
+              <div className="mt-1 rounded-xl border border-white/5 h-12 flex items-center justify-center gap-2 text-xs text-gray-600">
+                <ImageOff size={14} /> Media unavailable
+              </div>
+            )}
+          </>
         )}
 
         {/* Footer */}
@@ -181,7 +204,6 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
         </div>
       </div>
 
-      {/* Full-size modal */}
       {modalOpen && imgSrc && (
         <ImageModal src={imgSrc} onClose={() => setModalOpen(false)} />
       )}
