@@ -104,12 +104,39 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
   const viewsStr = formatCount(item.views);
   const forwardsStr = formatCount(item.forwards);
 
-  const renderText = (text: string) =>
-    text.split(/([\s\n]+)/).map((word, i) => {
-      if ((word.startsWith('$') || word.startsWith('#')) && word.length > 1)
-        return <span key={i} className="text-teal-400 font-medium">{word}</span>;
-      return word;
-    });
+  const renderMarkdown = (text: string): React.ReactNode[] => {
+    const nodes: React.ReactNode[] = [];
+    // Matches: **bold**, _italic_, [text](url), raw https:// URLs, $TICKER, #HASHTAG
+    const pattern = /\*\*([^*]+)\*\*|__([^_]+)__|_([^_]+)_|\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(https?:\/\/\S+)|(\$\w+|#\w+)/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    let key = 0;
+
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index));
+
+      if (match[1]) {
+        nodes.push(<strong key={key++} className="font-semibold text-white">{match[1]}</strong>);
+      } else if (match[2] || match[3]) {
+        nodes.push(<em key={key++}>{match[2] ?? match[3]}</em>);
+      } else if (match[4] && match[5]) {
+        nodes.push(
+          <a key={key++} href={match[5]} target="_blank" rel="noopener noreferrer"
+            className="text-teal-400 underline hover:text-teal-300 break-all">{match[4]}</a>
+        );
+      } else if (match[6]) {
+        nodes.push(
+          <a key={key++} href={match[6]} target="_blank" rel="noopener noreferrer"
+            className="text-teal-400 underline hover:text-teal-300 break-all">{match[6]}</a>
+        );
+      } else if (match[7]) {
+        nodes.push(<span key={key++} className="text-teal-400 font-medium">{match[7]}</span>);
+      }
+      lastIndex = pattern.lastIndex;
+    }
+    if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
+    return nodes;
+  };
 
   return (
     <>
@@ -124,10 +151,9 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
               <span>{initial}</span>
             )}
           </div>
-          {/* Title block — text-right for Hebrew, text-left otherwise */}
-          <div className={`flex-1 min-w-0 ${isHebrew ? 'text-right' : 'text-left'}`}>
+          <div className="flex-1 min-w-0 text-left">
             <span className="text-[15px] font-semibold text-white truncate block">{title}</span>
-            <div className="flex items-center gap-2 text-xs text-brand-400/70" dir={dir}>
+            <div className="flex items-center gap-2 text-xs text-brand-400/70">
               <span>@{item.channel.username}</span>
               <span className="w-1 h-1 rounded-full bg-white/20" />
               <span>{timeAgo(item.posted_at)}</span>
@@ -142,7 +168,7 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
             dir={dir}
           >
             <div className={expanded ? '' : 'line-clamp-4'}>
-              {renderText(item.text)}
+              {renderMarkdown(item.text)}
             </div>
             {item.text.length > 200 && (
               <button
