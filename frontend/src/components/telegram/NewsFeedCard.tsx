@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TelegramFeedItem } from '@/types/telegram';
-import { Share2, Eye, Forward, X, ImageOff } from 'lucide-react';
+import { Share2, Eye, Forward, X } from 'lucide-react';
 import api from '@/services/api';
 
 interface NewsFeedCardProps {
@@ -26,9 +26,10 @@ function timeAgo(dateStr: string): string {
 
 type ImageState = 'loading' | 'loaded' | 'error';
 
-function useAuthImage(proxyUrl: string | null): { src: string | null; state: ImageState } {
+function useAuthMedia(proxyUrl: string | null): { src: string | null; state: ImageState; isVideo: boolean } {
   const [src, setSrc] = useState<string | null>(null);
   const [state, setState] = useState<ImageState>('loading');
+  const [isVideo, setIsVideo] = useState(false);
 
   useEffect(() => {
     if (!proxyUrl) {
@@ -38,13 +39,14 @@ function useAuthImage(proxyUrl: string | null): { src: string | null; state: Ima
     let objectUrl: string | null = null;
     setState('loading');
     setSrc(null);
+    setIsVideo(false);
 
     api.get(proxyUrl, { responseType: 'blob' })
       .then(res => {
-        // Only create blob URL if it's actually an image
         if (res.data && res.data.size > 0) {
           objectUrl = URL.createObjectURL(res.data);
           setSrc(objectUrl);
+          setIsVideo((res.data.type as string || '').startsWith('video/'));
           setState('loaded');
         } else {
           setState('error');
@@ -57,7 +59,7 @@ function useAuthImage(proxyUrl: string | null): { src: string | null; state: Ima
     };
   }, [proxyUrl]);
 
-  return { src, state };
+  return { src, state, isVideo };
 }
 
 function ImageModal({ src, onClose }: { src: string; onClose: () => void }) {
@@ -91,7 +93,10 @@ function ImageModal({ src, onClose }: { src: string; onClose: () => void }) {
 export default function NewsFeedCard({ item }: NewsFeedCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const { src: imgSrc, state: imgState } = useAuthImage(item.has_media ? item.media_proxy_url : null);
+  const { src: imgSrc, state: imgState, isVideo } = useAuthMedia(item.has_media ? item.media_proxy_url : null);
+
+  // If media failed and there's no text, hide the card entirely (wait until resolved)
+  if (item.has_media && imgState === 'error' && !item.text) return null;
 
   const title = item.channel.title || item.channel.username;
   const initial = title.charAt(0).toUpperCase();
@@ -101,19 +106,46 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
   const viewsStr = formatCount(item.views);
   const forwardsStr = formatCount(item.forwards);
 
-  const renderText = (text: string) =>
-    text.split(/([\s\n]+)/).map((word, i) => {
-      if ((word.startsWith('$') || word.startsWith('#')) && word.length > 1)
-        return <span key={i} className="text-teal-400 font-medium">{word}</span>;
-      return word;
-    });
+  const renderMarkdown = (text: string): React.ReactNode[] => {
+    const nodes: React.ReactNode[] = [];
+    // Matches: **bold**, _italic_, [text](url), raw https:// URLs, $TICKER, #HASHTAG
+    const pattern = /\*\*([^*]+)\*\*|__([^_]+)__|_([^_]+)_|\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(https?:\/\/\S+)|(\$\w+|#\w+)/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    let key = 0;
+
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index));
+
+      if (match[1]) {
+        nodes.push(<strong key={key++} className="font-semibold text-white">{match[1]}</strong>);
+      } else if (match[2] || match[3]) {
+        nodes.push(<em key={key++}>{match[2] ?? match[3]}</em>);
+      } else if (match[4] && match[5]) {
+        nodes.push(
+          <a key={key++} href={match[5]} target="_blank" rel="noopener noreferrer"
+            className="text-teal-400 underline hover:text-teal-300 break-all">{match[4]}</a>
+        );
+      } else if (match[6]) {
+        nodes.push(
+          <a key={key++} href={match[6]} target="_blank" rel="noopener noreferrer"
+            className="text-teal-400 underline hover:text-teal-300 break-all">{match[6]}</a>
+        );
+      } else if (match[7]) {
+        nodes.push(<span key={key++} className="text-teal-400 font-medium">{match[7]}</span>);
+      }
+      lastIndex = pattern.lastIndex;
+    }
+    if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
+    return nodes;
+  };
 
   return (
     <>
       <div className="bg-[#101522] border border-[#232A3B] rounded-2xl p-4 sm:p-5 flex flex-col gap-3 hover:border-white/10 hover:shadow-lg hover:shadow-black/20 transition-all duration-300">
 
-        {/* Header — avatar always left, text alignment follows content direction */}
-        <div className="flex items-center gap-3">
+        {/* Header — mirrors for Hebrew: avatar on right, text right-aligned */}
+        <div className={`flex items-center gap-3 ${isHebrew ? 'flex-row-reverse' : ''}`}>
           <div className="w-10 h-10 rounded-full shrink-0 overflow-hidden bg-surface-dark flex items-center justify-center text-teal-400 text-lg font-bold border border-white/5">
             {item.channel.logo_url ? (
               <img src={item.channel.logo_url} alt={title} className="w-full h-full object-cover" />
@@ -121,10 +153,9 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
               <span>{initial}</span>
             )}
           </div>
-          {/* Title block — text-right for Hebrew, text-left otherwise */}
           <div className={`flex-1 min-w-0 ${isHebrew ? 'text-right' : 'text-left'}`}>
             <span className="text-[15px] font-semibold text-white truncate block">{title}</span>
-            <div className="flex items-center gap-2 text-xs text-brand-400/70" dir={dir}>
+            <div className={`flex items-center gap-2 text-xs text-brand-400/70 ${isHebrew ? 'flex-row-reverse justify-end' : ''}`}>
               <span>@{item.channel.username}</span>
               <span className="w-1 h-1 rounded-full bg-white/20" />
               <span>{timeAgo(item.posted_at)}</span>
@@ -139,7 +170,7 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
             dir={dir}
           >
             <div className={expanded ? '' : 'line-clamp-4'}>
-              {renderText(item.text)}
+              {renderMarkdown(item.text)}
             </div>
             {item.text.length > 200 && (
               <button
@@ -152,31 +183,41 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
           </div>
         )}
 
-        {/* Image */}
+        {/* Media */}
         {item.has_media && (
           <>
             {imgState === 'loading' && (
               <div className="mt-1 rounded-xl border border-white/5 h-32 animate-pulse bg-white/5" />
             )}
             {imgState === 'loaded' && imgSrc && (
-              <div
-                className="mt-1 rounded-xl overflow-hidden border border-white/5 cursor-zoom-in"
-                onClick={() => setModalOpen(true)}
-                title="Click to expand"
-              >
-                <img
-                  src={imgSrc}
-                  alt="Telegram Media"
-                  className="w-full object-contain"
-                  loading="lazy"
-                />
-              </div>
+              isVideo ? (
+                <div className="mt-1 rounded-xl overflow-hidden border border-white/5">
+                  <video
+                    src={imgSrc}
+                    controls
+                    autoPlay
+                    muted
+                    playsInline
+                    loop
+                    className="w-full max-h-[480px] object-contain"
+                  />
+                </div>
+              ) : (
+                <div
+                  className="mt-1 rounded-xl overflow-hidden border border-white/5 cursor-zoom-in"
+                  onClick={() => setModalOpen(true)}
+                  title="Click to expand"
+                >
+                  <img
+                    src={imgSrc}
+                    alt="Telegram Media"
+                    className="w-full object-contain"
+                    loading="lazy"
+                  />
+                </div>
+              )
             )}
-            {imgState === 'error' && (
-              <div className="mt-1 rounded-xl border border-white/5 h-12 flex items-center justify-center gap-2 text-xs text-gray-600">
-                <ImageOff size={14} /> Media unavailable
-              </div>
-            )}
+            {/* imgState === 'error' with text: render nothing — card shows text only */}
           </>
         )}
 

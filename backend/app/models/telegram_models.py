@@ -46,6 +46,7 @@ class TelegramMessage(Base):
     message_id = Column(Integer, nullable=False)        # Telegram's internal message id
     text = Column(Text, nullable=True)
     has_media = Column(Boolean, default=False)          # True if message has a photo/video
+    media_type = Column(String(20), nullable=True)      # "photo" | "video" | "document"
     media_url = Column(String(1000), nullable=True)     # Reserved for future external hosting
     views = Column(Integer, nullable=True)
     forwards = Column(Integer, nullable=True)
