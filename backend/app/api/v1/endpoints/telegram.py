@@ -173,7 +173,7 @@ def get_feed(
             "id": r.id,
             "text": r.text,
             "has_media": bool(r.has_media),
-            "media_proxy_url": f"/api/v1/telegram/media/{r.channel_id}/{r.id}" if r.has_media else None,
+            "media_proxy_url": f"/api/telegram/media/{r.channel_id}/{r.id}" if r.has_media else None,
             "views": r.views,
             "forwards": r.forwards,
             "posted_at": r.posted_at,

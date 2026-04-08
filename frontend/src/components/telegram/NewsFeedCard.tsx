@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TelegramFeedItem } from '@/types/telegram';
 import { Share2, Eye, Forward } from 'lucide-react';
+import api from '@/services/api';
 
 interface NewsFeedCardProps {
   item: TelegramFeedItem;
@@ -23,9 +24,32 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+/** Fetches a protected image via axios (sends auth token) and returns a blob URL */
+function useAuthImage(proxyUrl: string | null): string | null {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!proxyUrl) return;
+    let objectUrl: string | null = null;
+
+    api.get(proxyUrl, { responseType: 'blob' })
+      .then(res => {
+        objectUrl = URL.createObjectURL(res.data);
+        setBlobUrl(objectUrl);
+      })
+      .catch(() => setBlobUrl(null));
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [proxyUrl]);
+
+  return blobUrl;
+}
+
 export default function NewsFeedCard({ item }: NewsFeedCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const [imgError, setImgError] = useState(false);
+  const imgSrc = useAuthImage(item.has_media ? item.media_proxy_url : null);
 
   const title = item.channel.title || item.channel.username;
   const initial = title.charAt(0).toUpperCase();
@@ -34,15 +58,12 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
   const viewsStr = formatCount(item.views);
   const forwardsStr = formatCount(item.forwards);
 
-  // Highlight $TICKER and #HASHTAG
   const renderText = (text: string) =>
     text.split(/([\s\n]+)/).map((word, i) => {
       if ((word.startsWith('$') || word.startsWith('#')) && word.length > 1)
         return <span key={i} className="text-teal-400 font-medium">{word}</span>;
       return word;
     });
-
-  const hasImage = item.has_media && item.media_proxy_url && !imgError;
 
   return (
     <div className="bg-[#101522] border border-[#232A3B] rounded-2xl p-4 sm:p-5 flex flex-col gap-3 hover:border-white/10 hover:shadow-lg hover:shadow-black/20 transition-all duration-300">
@@ -65,7 +86,7 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
         </div>
       </div>
 
-      {/* Text Content */}
+      {/* Text */}
       {item.text && (
         <div
           className={`text-[14px] text-gray-300/90 leading-relaxed whitespace-pre-wrap mt-1 ${isHebrew ? 'text-right' : 'text-left'}`}
@@ -85,17 +106,21 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
         </div>
       )}
 
-      {/* Media — loaded via proxy endpoint */}
-      {hasImage && (
+      {/* Image — loaded via authenticated proxy */}
+      {item.has_media && imgSrc && (
         <div className="mt-1 rounded-xl overflow-hidden border border-white/5 bg-[#0B0F1A]">
           <img
-            src={item.media_proxy_url!}
+            src={imgSrc}
             alt="Telegram Media"
             className="w-full max-h-64 object-cover"
             loading="lazy"
-            onError={() => setImgError(true)}
           />
         </div>
+      )}
+
+      {/* Photo-only placeholder while loading */}
+      {item.has_media && !imgSrc && !item.text && (
+        <div className="mt-1 rounded-xl border border-white/5 bg-[#0B0F1A] h-24 animate-pulse" />
       )}
 
       {/* Footer — real stats */}
@@ -111,11 +136,11 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
           </span>
         )}
         <a
-          href={`https://t.me/${item.channel.username}/${item.channel.id > 0 ? '' : ''}`}
+          href={`https://t.me/${item.channel.username}`}
           target="_blank"
           rel="noopener noreferrer"
           className="ml-auto flex items-center gap-1.5 hover:text-white transition-colors"
-          title="Open in Telegram"
+          title="Open channel in Telegram"
         >
           <Share2 size={13} />
         </a>
