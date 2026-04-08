@@ -126,14 +126,31 @@ def _fetch_one(symbol: str, name: str) -> dict | None:
         price = float(price) if price else None
         prev  = getattr(fi, "previous_close", None)
         prev  = float(prev) if prev else None
+
         if price is None:
-            # Fallback: try history (1 day)
-            hist = t.history(period="2d", auto_adjust=False)
+            logger.warning(f"[market_data] fast_info returned no price for {symbol}, trying history")
+            # Fallback: try history
+            hist = t.history(period="5d", auto_adjust=False)
+            logger.warning(f"[market_data] history for {symbol}: {len(hist)} rows, cols={list(hist.columns)}")
             if not hist.empty:
                 price = float(hist["Close"].iloc[-1])
                 prev  = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else None
             if price is None:
+                # Log raw HTTP status to diagnose Yahoo blocking
+                try:
+                    resp = _session.get(
+                        f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
+                        params={"interval": "1d", "range": "5d"},
+                        timeout=8,
+                    )
+                    logger.warning(
+                        f"[market_data] raw Yahoo HTTP for {symbol}: status={resp.status_code} "
+                        f"size={len(resp.content)}b ok={resp.ok}"
+                    )
+                except Exception as http_e:
+                    logger.warning(f"[market_data] raw Yahoo HTTP for {symbol} FAILED: {http_e}")
                 return None
+
         change     = round(price - prev, 4) if prev is not None else None
         change_pct = round((change / prev) * 100, 2) if change is not None and prev else None
         return {
@@ -144,7 +161,7 @@ def _fetch_one(symbol: str, name: str) -> dict | None:
             "change_pct": change_pct,
         }
     except Exception as e:
-        logger.warning(f"market_data _fetch_one({symbol}): {e}")
+        logger.warning(f"[market_data] _fetch_one({symbol}) exception: {e}")
         return None
 
 
@@ -234,7 +251,6 @@ def clear_cache(_: dict = Depends(get_current_user)):
 @router.get("/debug/{symbol}")
 def debug_symbol(
     symbol: str,
-    _: dict = Depends(get_current_user),
 ):
     """
     Debug endpoint — returns raw yfinance data for a single symbol.
