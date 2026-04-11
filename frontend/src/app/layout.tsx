@@ -41,7 +41,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${dmSans.variable} dark`}>
+    <html lang="en" className={`${inter.variable} ${dmSans.variable} dark`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                let theme = localStorage.getItem('colorTheme') || 'neon-ledger';
+                if (theme && theme !== 'neon-ledger') {
+                  document.documentElement.setAttribute('data-theme', theme);
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
       <body className="font-body antialiased bg-surface-dark text-gray-100">
         <Providers>
           <AppLayout>{children}</AppLayout>

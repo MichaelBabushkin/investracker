@@ -4,16 +4,58 @@
 
 /* ─── Design Tokens ─── */
 :root {
-  --color-bg: #F8FAFC;
-  --color-surface: #FFFFFF;
-  --color-surface-secondary: #F1F5F9;
-  --color-border: #E2E8F0;
-  --color-text-primary: #0F172A;
-  --color-text-secondary: #64748B;
-  --color-text-muted: #94A3B8;
+  /* Default: Neon Ledger (Original) */
+  --bg-core: #06080D;
+  --surface: #101522;
+  --bg-core-elevated: #0A0D14;
+  --surface-border: #232A3B;
+  --primary-accent: #2DD4BF;
+  --positive: #4ADE80;
+  --negative: #F43F5E;
+}
+
+[data-theme='ultraviolet'] {
+  --bg-core: #0D0B1F;
+  --surface: #1A1635;
+  --bg-core-elevated: #151329;
+  --surface-border: #2D2654;
+  --primary-accent: #A855F7;
+  --positive: #22D3EE;
+  --negative: #F472B6;
+}
+
+[data-theme='solar-flare'] {
+  --bg-core: #0F0D0B;
+  --surface: #1C1917;
+  --bg-core-elevated: #141210;
+  --surface-border: #2E2A27;
+  --primary-accent: #F59E0B;
+  --positive: #10B981;
+  --negative: #EF4444;
+}
+
+[data-theme='arctic-frost'] {
+  --bg-core: #F8FAFC;
+  --surface: rgba(255, 255, 255, 0.7);
+  --bg-core-elevated: #FFFFFF;
+  --surface-border: #E2E8F0;
+  --primary-accent: #0F172A;
+  --positive: #059669;
+  --negative: #DC2626;
+}
+
+[data-theme='stealth'] {
+  --bg-core: #000000;
+  --surface: #111111;
+  --bg-core-elevated: #050505;
+  --surface-border: #333333;
+  --primary-accent: #FFFFFF;
+  --positive: #FFFFFF;
+  --negative: #666666;
 }
 
 .dark {
+  /* Fallback legacy mapping for Neon Ledger components that implicitly relied on .dark */
   --color-bg: #0B0F1A;
   --color-surface: #111827;
   --color-surface-secondary: #1F2937;

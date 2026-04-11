@@ -242,8 +242,8 @@ export default function TelegramSection() {
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-[#06080D]/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-[#101522] rounded-[24px] border border-[#232A3B] w-full max-w-md overflow-hidden transform transition-all shadow-2xl shadow-black max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-surface-dark/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-surface-dark-secondary rounded-[24px] border border-surface-dark-border w-full max-w-md overflow-hidden transform transition-all shadow-2xl shadow-black max-h-[90vh] overflow-y-auto">
             <div className="px-6 pt-6 pb-4 flex items-start justify-between">
               <div>
                 <h3 className="text-xl font-bold text-white tracking-tight">Add Channel Source</h3>
@@ -259,7 +259,7 @@ export default function TelegramSection() {
                 <label className="block text-[11px] font-bold tracking-widest text-gray-500 uppercase mb-2">Telegram @Username</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <div className="w-5 h-5 rounded-full bg-teal-400/20 text-teal-400 flex items-center justify-center text-[11px] font-black">
+                    <div className="w-5 h-5 rounded-full bg-brand-400/20 text-brand-400 flex items-center justify-center text-[11px] font-black">
                       @
                     </div>
                   </div>
@@ -269,7 +269,7 @@ export default function TelegramSection() {
                     value={newUsername}
                     onChange={(e) => setNewUsername(e.target.value)}
                     placeholder="username_here"
-                    className="w-full bg-[#0A0D14] border border-[#232A3B] rounded-xl py-3 pl-10 pr-4 text-[14px] text-white placeholder-gray-600 focus:outline-none focus:border-teal-400/50 focus:ring-1 focus:ring-teal-400/50 transition-all font-medium"
+                    className="w-full bg-surface-dark-tertiary border border-surface-dark-border rounded-xl py-3 pl-10 pr-4 text-[14px] text-white placeholder-gray-600 focus:outline-none focus:border-brand-400/50 focus:ring-1 focus:ring-brand-400/50 transition-all font-medium"
                   />
                 </div>
               </div>
@@ -293,8 +293,8 @@ export default function TelegramSection() {
                           }}
                           className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors capitalize ${
                             isSelected 
-                              ? 'bg-teal-400/10 text-teal-400 border-teal-400/50' 
-                              : 'bg-[#0A0D14] text-gray-500 border-[#232A3B] hover:border-white/20 hover:text-gray-300'
+                              ? 'bg-brand-400/10 text-brand-400 border-brand-400/50' 
+                              : 'bg-surface-dark-tertiary text-gray-500 border-surface-dark-border hover:border-white/20 hover:text-gray-300'
                           }`}
                         >
                           {cat}
@@ -310,7 +310,7 @@ export default function TelegramSection() {
                     <select
                       value={newLanguage}
                       onChange={(e) => setNewLanguage(e.target.value)}
-                      className="w-full bg-[#0A0D14] border border-[#232A3B] rounded-xl py-3 px-4 text-[13px] text-white focus:outline-none focus:border-teal-400/50 focus:ring-1 focus:ring-teal-400/50 transition-all appearance-none font-medium cursor-pointer"
+                      className="w-full bg-surface-dark-tertiary border border-surface-dark-border rounded-xl py-3 px-4 text-[13px] text-white focus:outline-none focus:border-brand-400/50 focus:ring-1 focus:ring-brand-400/50 transition-all appearance-none font-medium cursor-pointer"
                     >
                       <option value="en">English</option>
                       <option value="he">Hebrew</option>
@@ -322,11 +322,11 @@ export default function TelegramSection() {
                 </div>
               </div>
 
-              <div className="bg-teal-900/10 border border-teal-400/20 rounded-xl p-3 flex gap-3 text-[12px] leading-relaxed mt-2 items-start">
-                <div className="shrink-0 w-4 h-4 rounded-full border border-teal-400/50 text-teal-400 flex items-center justify-center font-serif italic text-[10px] mt-0.5">
+              <div className="bg-brand-900/10 border border-brand-400/20 rounded-xl p-3 flex gap-3 text-[12px] leading-relaxed mt-2 items-start">
+                <div className="shrink-0 w-4 h-4 rounded-full border border-brand-400/50 text-brand-400 flex items-center justify-center font-serif italic text-[10px] mt-0.5">
                   i
                 </div>
-                <p className="text-teal-200/70">
+                <p className="text-brand-200/70">
                   Ensure the channel is public. Private channels require an administrative invitation link to be processed by our crawlers.
                 </p>
               </div>
@@ -342,7 +342,7 @@ export default function TelegramSection() {
                 <button
                   type="submit"
                   disabled={isAdding || !newUsername}
-                  className="flex-1 flex justify-center items-center gap-2 bg-teal-400 text-[#0A0D14] px-4 py-3 rounded-xl text-[14px] font-bold hover:bg-teal-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(45,212,191,0.2)]"
+                  className="flex-1 flex justify-center items-center gap-2 bg-brand-400 text-[#0A0D14] px-4 py-3 rounded-xl text-[14px] font-bold hover:bg-brand-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(45,212,191,0.2)]"
                 >
                   {isAdding ? <Loader2 size={16} className="animate-spin" /> : null}
                   Add Channel

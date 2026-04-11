@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import { Palette, User, Bell, Shield, Globe } from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { userSettingsAPI } from "@/services/api";
+import { userSettingsAPI, authAPI } from "@/services/api";
 
-type Theme = "light" | "dark" | "auto";
+type Theme = "neon-ledger" | "ultraviolet" | "solar-flare" | "arctic-frost" | "stealth";
 type Currency = "USD" | "ILS" | "EUR" | "GBP";
 
 interface CalendarPreferences {
@@ -16,7 +16,7 @@ interface CalendarPreferences {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string>("appearance");
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("neon-ledger");
   const [baseCurrency, setBaseCurrency] = useState<Currency>("USD");
   const [notifications, setNotifications] = useState({
     email: true,
@@ -42,7 +42,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     // Load settings from localStorage
-    const savedTheme = localStorage.getItem("theme") as Theme;
+    const savedTheme = localStorage.getItem("colorTheme") as Theme;
     const savedCurrency = localStorage.getItem("baseCurrency") as Currency;
 
     if (savedTheme) setTheme(savedTheme);
@@ -103,25 +103,27 @@ export default function SettingsPage() {
     }));
   };
 
-  const handleSaveSettings = () => {
-    localStorage.setItem("theme", theme);
+  const handleSaveSettings = async () => {
+    localStorage.setItem("colorTheme", theme);
     localStorage.setItem("baseCurrency", baseCurrency);
 
     applyTheme(theme);
+    
+    try {
+      await authAPI.updateUser({ theme, base_currency: baseCurrency });
+    } catch(err) {
+      console.error("Failed to sync settings to cloud:", err);
+    }
 
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
   const applyTheme = (selectedTheme: Theme) => {
-    if (
-      selectedTheme === "dark" ||
-      (selectedTheme === "auto" &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches)
-    ) {
-      document.documentElement.classList.add("dark");
+    if (selectedTheme !== "neon-ledger") {
+      document.documentElement.setAttribute("data-theme", selectedTheme);
     } else {
-      document.documentElement.classList.remove("dark");
+      document.documentElement.removeAttribute("data-theme");
     }
   };
 
@@ -209,60 +211,32 @@ export default function SettingsPage() {
                   <label className="block text-sm font-medium text-gray-400 mb-3">
                     Color Theme
                   </label>
-                  <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                     {[
-                      { value: "light", label: "Light", emoji: "☀️" },
-                      { value: "dark", label: "Dark", emoji: "🌙" },
-                      { value: "auto", label: "Auto", emoji: "🔄" },
+                      { value: "neon-ledger", label: "Neon Ledger", desc: "Default Dark", border: "border-brand-400" },
+                      { value: "ultraviolet", label: "Ultraviolet", desc: "Vibrant Indigo", border: "border-purple-500" },
+                      { value: "solar-flare", label: "Solar Flare", desc: "Warm Obsidian", border: "border-amber-500" },
+                      { value: "arctic-frost", label: "Arctic Frost", desc: "Crisp Light", border: "border-slate-800" },
+                      { value: "stealth", label: "Stealth", desc: "High Contrast", border: "border-white" },
                     ].map((option) => (
                       <button
                         key={option.value}
                         onClick={() => setTheme(option.value as Theme)}
-                        className={`p-4 border-2 rounded-xl transition-all ${
+                        className={`p-4 border-2 rounded-xl text-left transition-all ${
                           theme === option.value
-                            ? "border-brand-400 bg-brand-400/10"
+                            ? `bg-brand-400/10 ${option.border}`
                             : "border-white/10 hover:border-white/20 bg-surface-dark"
                         }`}
                       >
-                        <div className="text-3xl sm:text-4xl mb-2">
-                          {option.emoji}
-                        </div>
-                        <div className="text-sm sm:text-base font-medium text-gray-100">
+                        <div className="font-medium text-gray-100">
                           {option.label}
                         </div>
-                        {option.value === "auto" && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            System
-                          </div>
-                        )}
+                        <div className="text-xs text-gray-400 mt-1">
+                          {option.desc}
+                        </div>
                       </button>
                     ))}
                   </div>
-                </div>
-
-                {/* Color Accent (Future Feature) */}
-                <div className="mb-6 sm:mb-8">
-                  <label className="block text-sm font-medium text-gray-400 mb-3">
-                    Accent Color
-                  </label>
-                  <div className="flex gap-3 sm:gap-4">
-                    {[
-                      { name: "blue", bg: "bg-blue-500", ring: "ring-blue-400" },
-                      { name: "green", bg: "bg-emerald-500", ring: "ring-emerald-400" },
-                      { name: "purple", bg: "bg-purple-500", ring: "ring-purple-400" },
-                      { name: "red", bg: "bg-red-500", ring: "ring-red-400" },
-                      { name: "orange", bg: "bg-orange-500", ring: "ring-orange-400" },
-                    ].map((color) => (
-                      <button
-                        key={color.name}
-                        className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${color.bg} ring-2 ring-offset-2 ring-offset-surface-dark-secondary ${color.ring} opacity-60 hover:opacity-100 transition-opacity`}
-                        title={color.name}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Coming soon — customize accent colors
-                  </p>
                 </div>
               </div>
             )}

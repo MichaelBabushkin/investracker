@@ -12,6 +12,7 @@ export interface User {
   phone?: string;
   country?: string;
   base_currency: string;
+  theme?: string;
   risk_tolerance?: string;
   created_at: string;
 }
@@ -185,6 +186,20 @@ const authSlice = createSlice({
       .addCase(getCurrentUser.fulfilled, (state, action) => {
         state.isLoading = false;
         state.user = action.payload;
+        
+        // Sync user preferences with local storage and DOM
+        if (action.payload.theme) {
+          localStorage.setItem("colorTheme", action.payload.theme);
+          if (action.payload.theme !== "neon-ledger") {
+            document.documentElement.setAttribute("data-theme", action.payload.theme);
+          } else {
+            document.documentElement.removeAttribute("data-theme");
+          }
+        }
+        if (action.payload.base_currency) {
+          localStorage.setItem("baseCurrency", action.payload.base_currency);
+        }
+        
         state.isAuthenticated = true;
         state.isInitialized = true;
         state.error = null;

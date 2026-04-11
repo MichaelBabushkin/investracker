@@ -29,6 +29,7 @@ class UserResponse(BaseModel):
     phone: Optional[str] = None
     country: Optional[str] = None
     base_currency: str = "USD"
+    theme: str = "neon-ledger"
     risk_tolerance: Optional[str] = None
     created_at: datetime
     
@@ -43,6 +44,7 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     country: Optional[str] = None
     base_currency: Optional[str] = None
+    theme: Optional[str] = None
     risk_tolerance: Optional[str] = None
     investment_goals: Optional[str] = None
     timezone: Optional[str] = None

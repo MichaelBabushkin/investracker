@@ -34,6 +34,7 @@ class User(Base):
     timezone = Column(String(50), default="UTC")
     
     # Preferences
+    theme = Column(String(50), default="neon-ledger")
     base_currency = Column(String(3), default="USD")  # ISO currency code
     risk_tolerance = Column(String(20), nullable=True)  # conservative, moderate, aggressive
     investment_goals = Column(Text, nullable=True)

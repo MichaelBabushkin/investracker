@@ -124,15 +124,15 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
       } else if (match[4] && match[5]) {
         nodes.push(
           <a key={key++} href={match[5]} target="_blank" rel="noopener noreferrer"
-            className="text-teal-400 underline hover:text-teal-300 break-all">{match[4]}</a>
+            className="text-brand-400 underline hover:text-teal-300 break-all">{match[4]}</a>
         );
       } else if (match[6]) {
         nodes.push(
           <a key={key++} href={match[6]} target="_blank" rel="noopener noreferrer"
-            className="text-teal-400 underline hover:text-teal-300 break-all">{match[6]}</a>
+            className="text-brand-400 underline hover:text-teal-300 break-all">{match[6]}</a>
         );
       } else if (match[7]) {
-        nodes.push(<span key={key++} className="text-teal-400 font-medium">{match[7]}</span>);
+        nodes.push(<span key={key++} className="text-brand-400 font-medium">{match[7]}</span>);
       }
       lastIndex = pattern.lastIndex;
     }
@@ -142,11 +142,11 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
 
   return (
     <>
-      <div className="bg-[#101522] border border-[#232A3B] rounded-2xl p-4 sm:p-5 flex flex-col gap-3 hover:border-white/10 hover:shadow-lg hover:shadow-black/20 transition-all duration-300">
+      <div className="bg-surface-dark-secondary border border-surface-dark-border rounded-2xl p-4 sm:p-5 flex flex-col gap-3 hover:border-white/10 hover:shadow-lg hover:shadow-black/20 transition-all duration-300">
 
         {/* Header — mirrors for Hebrew: avatar on right, text right-aligned */}
         <div className={`flex items-center gap-3 ${isHebrew ? 'flex-row-reverse' : ''}`}>
-          <div className="w-10 h-10 rounded-full shrink-0 overflow-hidden bg-surface-dark flex items-center justify-center text-teal-400 text-lg font-bold border border-white/5">
+          <div className="w-10 h-10 rounded-full shrink-0 overflow-hidden bg-surface-dark flex items-center justify-center text-brand-400 text-lg font-bold border border-white/5">
             {item.channel.logo_url ? (
               <img src={item.channel.logo_url} alt={title} className="w-full h-full object-cover" />
             ) : (
@@ -175,7 +175,7 @@ export default function NewsFeedCard({ item }: NewsFeedCardProps) {
             {item.text.length > 200 && (
               <button
                 onClick={() => setExpanded(!expanded)}
-                className="text-teal-400 text-xs font-semibold mt-1.5 hover:underline"
+                className="text-brand-400 text-xs font-semibold mt-1.5 hover:underline"
               >
                 {expanded ? 'Show less' : 'Read more'}
               </button>

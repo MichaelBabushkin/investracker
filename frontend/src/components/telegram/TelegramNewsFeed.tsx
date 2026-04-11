@@ -87,7 +87,7 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
       if (next.has(channelId)) next.delete(channelId);
       else next.add(channelId);
       setPage(1);
-      fetchFeed(1, false, next);
+      fetchFeed(1, false, activeCategory, next);
       return next;
     });
   };
@@ -127,8 +127,8 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
         <div className="space-y-4">
           {loadingFeed && page === 1 ? (
             <>
-              <div className="h-32 bg-[#101522] rounded-2xl animate-pulse border border-white/5" />
-              <div className="h-32 bg-[#101522] rounded-2xl animate-pulse border border-white/5" />
+              <div className="h-32 bg-surface-dark-secondary rounded-2xl animate-pulse border border-white/5" />
+              <div className="h-32 bg-surface-dark-secondary rounded-2xl animate-pulse border border-white/5" />
             </>
           ) : feed.length === 0 ? (
              <div className="text-sm text-gray-400 py-6 text-center border border-white/5 rounded-2xl border-dashed">
@@ -138,7 +138,7 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
             <>
               {feed.map(item => <NewsFeedCard key={item.id} item={item} />)}
               <div className="pt-2 text-center">
-                <Link href="/" className="text-sm text-teal-400 hover:text-teal-300 font-medium inline-flex items-center gap-1 group">
+                <Link href="/" className="text-sm text-brand-400 hover:text-teal-300 font-medium inline-flex items-center gap-1 group">
                   See all news <span className="transition-transform group-hover:translate-x-1">→</span>
                 </Link>
               </div>
@@ -154,7 +154,7 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
     <div className="w-full mt-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
         <div>
-          <div className="text-teal-400 text-[11px] font-bold tracking-widest uppercase mb-1">Market Pulse</div>
+          <div className="text-brand-400 text-[11px] font-bold tracking-widest uppercase mb-1">Market Pulse</div>
           <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Telegram Intel</h2>
         </div>
         
@@ -167,8 +167,8 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
                 onClick={() => setActiveCategory(cat)}
                 className={`px-4 py-1.5 rounded-full text-[13px] font-bold whitespace-nowrap transition-all border
                   ${activeCategory === cat
-                    ? 'bg-teal-400 text-black border-teal-400 shadow-[0_0_15px_rgba(45,212,191,0.2)]'
-                    : 'bg-[#101522] text-gray-400 border-white/5 hover:text-white hover:bg-white/5'
+                    ? 'bg-brand-400 text-black border-brand-400 shadow-[0_0_15px_rgba(45,212,191,0.2)]'
+                    : 'bg-surface-dark-secondary text-gray-400 border-white/5 hover:text-white hover:bg-white/5'
                   }
                 `}
               >
@@ -189,12 +189,12 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
                     className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all border
                       ${isActive
                         ? 'bg-white/10 text-white border-white/20'
-                        : 'bg-[#101522] text-gray-500 border-white/5 hover:text-gray-300'
+                        : 'bg-surface-dark-secondary text-gray-500 border-white/5 hover:text-gray-300'
                       }
                     `}
                   >
                     <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0
-                      ${isActive ? 'bg-teal-400 text-black' : 'bg-white/10 text-gray-400'}`}>
+                      ${isActive ? 'bg-brand-400 text-black' : 'bg-white/10 text-gray-400'}`}>
                       {initial}
                     </span>
                     {label}
@@ -203,7 +203,7 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
               })}
               {selectedChannelIds.size > 0 && (
                 <button
-                  onClick={() => { setSelectedChannelIds(new Set()); setPage(1); fetchFeed(1, false, new Set()); }}
+                  onClick={() => { setSelectedChannelIds(new Set()); setPage(1); fetchFeed(1, false, activeCategory, new Set()); }}
                   className="px-3 py-1 rounded-full text-[12px] text-gray-500 border border-dashed border-white/10 whitespace-nowrap"
                 >
                   Clear
@@ -228,8 +228,8 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
                   onClick={() => setActiveCategory(cat)}
                   className={`px-4 py-1.5 rounded-full text-[13px] font-bold transition-all border
                     ${activeCategory === cat
-                      ? 'bg-teal-400 text-black border-teal-400 shadow-[0_0_15px_rgba(45,212,191,0.2)]'
-                      : 'bg-[#101522] text-gray-400 border-[#232A3B] hover:text-white hover:bg-white/5'
+                      ? 'bg-brand-400 text-black border-brand-400 shadow-[0_0_15px_rgba(45,212,191,0.2)]'
+                      : 'bg-surface-dark-secondary text-gray-400 border-surface-dark-border hover:text-white hover:bg-white/5'
                     }
                   `}
                 >
@@ -251,12 +251,12 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
                       className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold transition-all border
                         ${isActive
                           ? 'bg-white/10 text-white border-white/20'
-                          : 'bg-[#101522] text-gray-500 border-[#232A3B] hover:text-gray-300 hover:bg-white/5'
+                          : 'bg-surface-dark-secondary text-gray-500 border-surface-dark-border hover:text-gray-300 hover:bg-white/5'
                         }
                       `}
                     >
                       <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0
-                        ${isActive ? 'bg-teal-400 text-black' : 'bg-white/10 text-gray-400'}`}>
+                        ${isActive ? 'bg-brand-400 text-black' : 'bg-white/10 text-gray-400'}`}>
                         {initial}
                       </span>
                       {label}
@@ -265,7 +265,7 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
                 })}
                 {selectedChannelIds.size > 0 && (
                   <button
-                    onClick={() => { setSelectedChannelIds(new Set()); setPage(1); fetchFeed(1, false, new Set()); }}
+                    onClick={() => { setSelectedChannelIds(new Set()); setPage(1); fetchFeed(1, false, activeCategory, new Set()); }}
                     className="px-3 py-1 rounded-full text-[12px] text-gray-500 border border-dashed border-white/10 hover:text-white transition-colors"
                   >
                     Clear
@@ -277,12 +277,12 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
 
           {loadingFeed && page === 1 ? (
             <div className="space-y-4">
-              <div className="h-48 bg-[#101522] rounded-2xl animate-pulse border border-[#232A3B]" />
-              <div className="h-40 bg-[#101522] rounded-2xl animate-pulse border border-[#232A3B]" />
-              <div className="h-64 bg-[#101522] rounded-2xl animate-pulse border border-[#232A3B]" />
+              <div className="h-48 bg-surface-dark-secondary rounded-2xl animate-pulse border border-surface-dark-border" />
+              <div className="h-40 bg-surface-dark-secondary rounded-2xl animate-pulse border border-surface-dark-border" />
+              <div className="h-64 bg-surface-dark-secondary rounded-2xl animate-pulse border border-surface-dark-border" />
             </div>
           ) : feed.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 bg-[#101522] border border-white/5 border-dashed rounded-2xl">
+            <div className="flex flex-col items-center justify-center py-16 bg-surface-dark-secondary border border-white/5 border-dashed rounded-2xl">
               <p className="text-gray-400 mb-2 font-medium">Subscribe to channels to start reading financial news</p>
             </div>
           ) : (
@@ -293,10 +293,10 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
                 <button 
                   onClick={loadMore}
                   disabled={loadingFeed}
-                  className="w-full py-3 mt-2 text-sm font-bold text-white bg-[#101522] border border-[#232A3B] rounded-2xl hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-3 mt-2 text-sm font-bold text-white bg-surface-dark-secondary border border-surface-dark-border rounded-2xl hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
                 >
                   {loadingFeed ? (
-                    <><Loader2 size={16} className="animate-spin text-teal-400" /> Loading...</>
+                    <><Loader2 size={16} className="animate-spin text-brand-400" /> Loading...</>
                   ) : (
                     'Load more'
                   )}
@@ -342,9 +342,9 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
                 <h3 className="text-[11px] font-bold tracking-widest text-gray-500 uppercase mb-3 px-1">
                   Trending
                 </h3>
-                <div className="bg-[#101522] border border-[#232A3B] p-4 rounded-2xl">
+                <div className="bg-surface-dark-secondary border border-surface-dark-border p-4 rounded-2xl">
                   <div className="flex justify-between items-start mb-1">
-                    <span className="text-[10px] font-bold text-teal-400 uppercase bg-teal-400/10 px-1.5 py-0.5 rounded">Hot</span>
+                    <span className="text-[10px] font-bold text-brand-400 uppercase bg-brand-400/10 px-1.5 py-0.5 rounded">Hot</span>
                     <span className="text-[10px] text-gray-500">#BTCUSD</span>
                   </div>
                   <div className="text-[13px] font-semibold text-white mt-1">Spot BTC ETF Approval News</div>

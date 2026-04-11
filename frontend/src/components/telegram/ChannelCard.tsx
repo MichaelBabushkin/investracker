@@ -35,7 +35,7 @@ export default function ChannelCard({ channel, onToggleSubscription }: ChannelCa
     <div className="flex items-center justify-between p-3 rounded-xl bg-transparent hover:bg-white/5 transition-colors group">
       <div className="flex items-center gap-3 overflow-hidden">
         {/* Logo */}
-        <div className="w-10 h-10 rounded-full shrink-0 overflow-hidden bg-surface-dark flex items-center justify-center text-teal-400 font-bold border border-white/5">
+        <div className="w-10 h-10 rounded-full shrink-0 overflow-hidden bg-surface-dark flex items-center justify-center text-brand-400 font-bold border border-white/5">
           {channel.logo_url ? (
             <img src={channel.logo_url} alt={title} className="w-full h-full object-cover" />
           ) : (
@@ -58,7 +58,7 @@ export default function ChannelCard({ channel, onToggleSubscription }: ChannelCa
           ${
             isSubscribed
               ? 'bg-[#1D2433] text-gray-400 border-transparent hover:text-gray-200'
-              : 'bg-transparent text-teal-400 border-teal-400/50 hover:bg-teal-400/10'
+              : 'bg-transparent text-brand-400 border-brand-400/50 hover:bg-brand-400/10'
           }
           ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
         `}
