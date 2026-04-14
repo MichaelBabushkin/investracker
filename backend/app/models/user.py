@@ -18,7 +18,9 @@ class User(Base):
     
     id = Column(String(25), primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(255), nullable=False)
+    hashed_password = Column(String(255), nullable=True)
+    google_id = Column(String(255), unique=True, nullable=True, index=True)
+    oauth_provider = Column(String(50), nullable=True)  # 'google', None for password accounts
     first_name = Column(String(100), nullable=True)
     last_name = Column(String(100), nullable=True)
     role = Column(SQLEnum(UserRole), default=UserRole.USER, nullable=False)

@@ -11,6 +11,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { AlertTriangle } from "lucide-react";
 import LandingNav from "@/components/landing/LandingNav";
+import GoogleSSOButton from "@/components/GoogleSSOButton";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -85,6 +86,15 @@ export default function LoginPage() {
               Create one
             </Link>
           </p>
+
+          {/* Google SSO */}
+          <GoogleSSOButton onError={(msg) => setError(msg)} />
+
+          <div className="relative flex items-center gap-3 my-1">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs text-gray-500">or sign in with email</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
 
           {sessionExpired && (
             <div className="flex items-start gap-3 p-3 mb-6 rounded-lg bg-warn/10 border border-warn/20">

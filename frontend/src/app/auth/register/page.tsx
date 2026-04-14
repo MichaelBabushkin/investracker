@@ -9,6 +9,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { CheckCircle } from "lucide-react";
 import LandingNav from "@/components/landing/LandingNav";
+import GoogleSSOButton from "@/components/GoogleSSOButton";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -86,6 +87,15 @@ export default function RegisterPage() {
               Sign in
             </Link>
           </p>
+
+          {/* Google SSO */}
+          <GoogleSSOButton onError={(msg) => setError(msg)} />
+
+          <div className="relative flex items-center gap-3 my-1">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs text-gray-500">or create account with email</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <ErrorDisplay error={error} />
