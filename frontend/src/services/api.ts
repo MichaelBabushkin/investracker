@@ -130,6 +130,11 @@ export const authAPI = {
     const response = await api.post("/auth/logout");
     return response.data;
   },
+
+  googleAuth: async (idToken: string) => {
+    const response = await api.post("/auth/google", { id_token: idToken });
+    return response.data;
+  },
 };
 
 // Portfolio API

@@ -13,14 +13,15 @@ from app.core.auth import (
 )
 from app.models.user import User, generate_user_id
 from app.schemas.user import (
-    UserCreate, 
-    UserLogin, 
-    UserResponse, 
+    UserCreate,
+    UserLogin,
+    UserResponse,
     UserUpdate,
-    Token, 
+    Token,
     TokenRefresh,
     PasswordResetRequest,
-    PasswordReset
+    PasswordReset,
+    GoogleAuthRequest,
 )
 from app.core.config import settings
 
@@ -162,6 +163,99 @@ async def update_current_user(
     db.refresh(current_user)
     
     return current_user
+
+@router.post("/google", response_model=Token)
+async def google_auth(payload: GoogleAuthRequest, db: Session = Depends(get_db)):
+    """Authenticate or register a user via Google ID token.
+
+    Flow:
+    1. Verify the ID token with Google's public keys
+    2. Find user by google_id → log in
+    3. Find user by email → link account, log in
+    4. Neither → create new user, log in
+    """
+    from google.oauth2 import id_token as google_id_token
+    from google.auth.transport import requests as google_requests
+
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google SSO is not configured on this server",
+        )
+
+    # Verify the token with Google
+    try:
+        id_info = google_id_token.verify_oauth2_token(
+            payload.id_token,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid Google token: {str(e)}",
+        )
+
+    google_sub = id_info["sub"]          # unique Google user ID
+    email = id_info.get("email", "")
+    first_name = id_info.get("given_name", "")
+    last_name = id_info.get("family_name", "")
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google account did not provide an email address",
+        )
+
+    # 1. Find by google_id
+    user = db.query(User).filter(User.google_id == google_sub).first()
+
+    if not user:
+        # 2. Find by email (link existing password account)
+        user = db.query(User).filter(User.email == email).first()
+        if user:
+            user.google_id = google_sub
+            user.oauth_provider = "google"
+            db.commit()
+            db.refresh(user)
+        else:
+            # 3. Create new user
+            user_id = generate_user_id()
+            user = User(
+                id=user_id,
+                email=email,
+                hashed_password=None,
+                google_id=google_sub,
+                oauth_provider="google",
+                first_name=first_name or None,
+                last_name=last_name or None,
+                is_active=True,
+                is_verified=True,  # Google has verified the email
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user account",
+        )
+
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=access_token_expires,
+    )
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    }
+
 
 @router.post("/logout")
 async def logout():

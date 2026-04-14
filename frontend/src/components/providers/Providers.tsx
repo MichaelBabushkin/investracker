@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Provider } from "react-redux";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { store } from "@/store";
 import AuthInitializer from "@/components/AuthInitializer";
 
@@ -11,8 +12,10 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <Provider store={store}>
-      <AuthInitializer>{children}</AuthInitializer>
-    </Provider>
+    <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ""}>
+      <Provider store={store}>
+        <AuthInitializer>{children}</AuthInitializer>
+      </Provider>
+    </GoogleOAuthProvider>
   );
 }

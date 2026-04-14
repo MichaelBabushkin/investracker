@@ -60,6 +60,10 @@ class Token(BaseModel):
 class TokenRefresh(BaseModel):
     refresh_token: str
 
+# Google SSO
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+
 # Password Reset Request
 class PasswordResetRequest(BaseModel):
     email: EmailStr
