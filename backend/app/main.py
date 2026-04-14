@@ -20,10 +20,24 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     # Startup
     print("🚀 Starting Investracker API...")
-    
+
+    # Run Alembic migrations on every startup so Railway (or any environment)
+    # is always up to date without needing manual shell access.
+    try:
+        from pathlib import Path
+        from alembic.config import Config
+        from alembic import command
+        backend_dir = Path(__file__).resolve().parent.parent  # backend/
+        alembic_cfg = Config(str(backend_dir / "alembic.ini"))
+        alembic_cfg.set_main_option("script_location", str(backend_dir / "alembic"))
+        command.upgrade(alembic_cfg, "head")
+        print("✅ Database migrations applied.")
+    except Exception as e:
+        print(f"⚠️  Migration step failed (continuing): {e}")
+
     # Import here to avoid circular imports
     from app.core.database import ensure_tables_exist
-    
+
     # Ensure all required tables exist
     # This provides a robust fallback if migrations didn't run
     try:
