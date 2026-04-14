@@ -86,7 +86,7 @@ export default function PricingPage() {
             </div>
             <div className="mb-6">
               <h2 className="text-xl font-bold text-white mb-1">Early Access</h2>
-              <p className="text-sm text-gray-400">Full access while we're in beta</p>
+              <p className="text-sm text-gray-400">Full access while we&apos;re in beta</p>
             </div>
             <div className="mb-8">
               <span className="text-5xl font-bold text-white">Free</span>
