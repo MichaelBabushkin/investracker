@@ -8,6 +8,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import Link from "next/link";
 import Image from "next/image";
 import { CheckCircle } from "lucide-react";
+import LandingNav from "@/components/landing/LandingNav";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -59,30 +60,25 @@ export default function RegisterPage() {
     "w-full px-3.5 py-2.5 rounded-lg bg-surface-dark-secondary border border-white/10 text-gray-100 placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/40 focus:border-brand-400/40 transition-colors";
 
   return (
-    <div className="min-h-screen flex bg-surface-dark">
-      {/* Left panel — branding (hidden on mobile) */}
+    <div className="min-h-screen flex flex-col bg-surface-dark">
+      <LandingNav />
+      <div className="flex flex-1">
+      {/* Left panel — illustration (hidden on mobile) */}
       <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center bg-surface-dark-secondary">
-        <div className="absolute inset-0 dot-grid opacity-40" />
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[400px] bg-brand-400/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 text-center px-12">
-          <Image src="/images/investracker_logo-dark.svg" alt="Investracker" width={220} height={56} className="mx-auto mb-8" />
-          <h2 className="text-3xl font-heading font-bold text-gray-100 mb-3">
-            Start your journey
-          </h2>
-          <p className="text-gray-400 text-lg max-w-sm mx-auto">
-            Join thousands of investors tracking their portfolios with precision.
-          </p>
-        </div>
+        <div className="absolute inset-0 dot-grid opacity-20" />
+        <Image
+          src="/images/register.svg"
+          alt="Create your portfolio account"
+          width={420}
+          height={420}
+          className="relative z-10 w-[72%] h-auto"
+          priority
+        />
       </div>
 
       {/* Right panel — form */}
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex justify-center mb-8">
-            <Image src="/images/investracker_logo-dark.svg" alt="Investracker" width={180} height={44} />
-          </div>
-
           <h1 className="text-2xl font-heading font-bold text-gray-100 mb-1">Create account</h1>
           <p className="text-sm text-gray-400 mb-8">
             Already have an account?{" "}
@@ -146,6 +142,7 @@ export default function RegisterPage() {
             </button>
           </form>
         </div>
+      </div>
       </div>
     </div>
   );

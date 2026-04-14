@@ -10,6 +10,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import Link from "next/link";
 import Image from "next/image";
 import { AlertTriangle } from "lucide-react";
+import LandingNav from "@/components/landing/LandingNav";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -55,26 +56,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-surface-dark">
+    <div className="min-h-screen flex flex-col bg-surface-dark">
+      <LandingNav />
+      <div className="flex flex-1">
       {/* Image panel — top on mobile, left on desktop */}
-      <div className="relative w-full h-[45vh] lg:h-auto lg:w-1/2 overflow-hidden flex-shrink-0">
+      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center bg-surface-dark-secondary flex-shrink-0">
+        <div className="absolute inset-0 dot-grid opacity-20" />
         <Image
-          src="/images/auth-login-stocks-3d.png"
+          src="/images/login.svg"
           alt="Stock portfolio visualization"
-          fill
-          className="object-cover object-center"
+          width={420}
+          height={420}
+          className="relative z-10 w-[72%] h-auto"
           priority
         />
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/40" />
-        {/* Logo pinned top-left */}
-        <div className="absolute top-5 left-5 lg:top-10 lg:left-10 z-10">
-          <Image src="/images/investracker_logo-dark.svg" alt="Investracker" width={150} height={38} className="lg:w-[180px]" />
-        </div>
       </div>
 
-      {/* Form panel — bottom on mobile, right on desktop */}
-      <div className="flex-1 flex items-center justify-center px-6 py-0 lg:py-12">
+      {/* Form panel */}
+      <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
           <h1 className="text-3xl font-heading font-bold text-gray-100 mb-1">Welcome back</h1>
           <p className="text-gray-500 text-sm mb-8">Track your portfolio, analyze performance, and make smarter investment decisions.</p>
@@ -148,6 +147,7 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
+      </div>
       </div>
     </div>
   );
