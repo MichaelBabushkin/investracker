@@ -239,7 +239,11 @@ const authSlice = createSlice({
       .addCase(getCurrentUser.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
-        state.isAuthenticated = false;
+        // Only clear auth if we have no token — a transient 500 on /auth/me
+        // should not log the user out when they just received fresh tokens.
+        if (!state.token) {
+          state.isAuthenticated = false;
+        }
         state.isInitialized = true;
       })
 

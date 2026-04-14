@@ -27,8 +27,11 @@ export default function GoogleSSOButton({ onError }: GoogleSSOButtonProps) {
     try {
       const result = await dispatch(loginWithGoogle(idToken));
       if (loginWithGoogle.fulfilled.match(result)) {
-        await dispatch(getCurrentUser());
+        // Redirect immediately — tokens are stored, AuthInitializer will
+        // load the user profile. Don't await getCurrentUser here because
+        // a transient failure would incorrectly block the redirect.
         router.push("/");
+        dispatch(getCurrentUser());
       } else {
         onError?.((result.payload as string) ?? "Google sign-in failed");
       }
