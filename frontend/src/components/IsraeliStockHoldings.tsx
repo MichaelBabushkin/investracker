@@ -267,12 +267,6 @@ export default function IsraeliStockHoldings({
               </button>
             </div>
           )}
-          <button
-            onClick={fetchHoldings}
-            className="px-4 py-2 bg-surface-dark text-gray-300 rounded-xl hover:bg-white/10 transition-colors text-sm font-medium"
-          >
-            Refresh
-          </button>
         </div>
       </div>
 

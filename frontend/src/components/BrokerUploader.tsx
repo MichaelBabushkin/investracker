@@ -205,7 +205,7 @@ export default function BrokerUploader({
       )}
 
       {/* Broker Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-4">
         {BROKERS.map((broker) => (
           <div key={broker.id} className="relative">
             <BrokerUploadCard
@@ -222,9 +222,12 @@ export default function BrokerUploader({
               onUpload={(files) => handleBrokerUpload(broker.id, files)}
             />
             {!broker.enabled && (
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                <span className="bg-warn text-surface-dark px-4 py-2 rounded-lg font-semibold text-sm">
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center gap-2 group/tile">
+                <span className="bg-warn text-surface-dark px-3 py-1 rounded-lg font-semibold text-xs">
                   Coming Soon
+                </span>
+                <span className="text-xs font-medium text-white/0 group-hover/tile:text-white/80 transition-colors duration-150">
+                  {broker.name}
                 </span>
               </div>
             )}
@@ -233,11 +236,11 @@ export default function BrokerUploader({
       </div>
 
       {/* Banks Section */}
-      <div className="mt-12">
-        <h3 className="text-lg font-semibold text-gray-100 mb-4">
+      <div className="mt-6">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
           Israeli Banks
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {BANKS.map((bank) => (
             <div key={bank.id} className="relative">
               <BrokerUploadCard
@@ -254,9 +257,12 @@ export default function BrokerUploader({
                 onUpload={(files) => handleBrokerUpload(bank.id, files)}
               />
               {!bank.enabled && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                  <span className="bg-warn text-surface-dark px-4 py-2 rounded-lg font-semibold text-sm">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center gap-2 group/tile">
+                  <span className="bg-warn text-surface-dark px-3 py-1 rounded-lg font-semibold text-xs">
                     Coming Soon
+                  </span>
+                  <span className="text-xs font-medium text-white/0 group-hover/tile:text-white/80 transition-colors duration-150">
+                    {bank.name}
                   </span>
                 </div>
               )}
@@ -266,14 +272,9 @@ export default function BrokerUploader({
       </div>
 
       {/* Information Note */}
-      <div className="mt-8 bg-brand-400/10 border border-brand-400/20 rounded-xl p-4">
-        <h4 className="text-sm font-semibold text-brand-400 mb-2">
-          About Israeli Broker & Bank Support
-        </h4>
-        <p className="text-sm text-brand-400/80">
-          Each broker and bank has its own PDF format. Currently, Excellence is fully
-          supported. We&apos;re actively working on adding support for Meitav, IBI,
-          Altshuler, Interactive Brokers, and major Israeli banks.
+      <div className="mt-5 bg-brand-400/5 border border-brand-400/15 rounded-xl px-4 py-3">
+        <p className="text-xs text-brand-400/70">
+          Only <span className="text-brand-400 font-medium">Excellence</span> is fully supported. More brokers and banks are coming soon.
         </p>
       </div>
     </div>
