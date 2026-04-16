@@ -205,7 +205,7 @@ export default function BrokerUploader({
       )}
 
       {/* Broker Grid */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-4">
         {BROKERS.map((broker) => (
           <div key={broker.id} className="relative">
             <BrokerUploadCard
@@ -222,9 +222,12 @@ export default function BrokerUploader({
               onUpload={(files) => handleBrokerUpload(broker.id, files)}
             />
             {!broker.enabled && (
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                <span className="bg-warn text-surface-dark px-4 py-2 rounded-lg font-semibold text-sm">
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center gap-2 group/tile">
+                <span className="bg-warn text-surface-dark px-3 py-1 rounded-lg font-semibold text-xs">
                   Coming Soon
+                </span>
+                <span className="text-xs font-medium text-white/0 group-hover/tile:text-white/80 transition-colors duration-150">
+                  {broker.name}
                 </span>
               </div>
             )}
@@ -237,7 +240,7 @@ export default function BrokerUploader({
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
           Israeli Banks
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {BANKS.map((bank) => (
             <div key={bank.id} className="relative">
               <BrokerUploadCard
@@ -254,9 +257,12 @@ export default function BrokerUploader({
                 onUpload={(files) => handleBrokerUpload(bank.id, files)}
               />
               {!bank.enabled && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                  <span className="bg-warn text-surface-dark px-4 py-2 rounded-lg font-semibold text-sm">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center gap-2 group/tile">
+                  <span className="bg-warn text-surface-dark px-3 py-1 rounded-lg font-semibold text-xs">
                     Coming Soon
+                  </span>
+                  <span className="text-xs font-medium text-white/0 group-hover/tile:text-white/80 transition-colors duration-150">
+                    {bank.name}
                   </span>
                 </div>
               )}

@@ -42,7 +42,7 @@ export default function BrokerUploadCard({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative flex flex-col items-center justify-center gap-2.5 p-4 rounded-xl border-2 cursor-pointer transition-all select-none group
+      className={`relative flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 cursor-pointer transition-all select-none group min-h-[130px]
         ${isDragging
           ? "border-brand-400 bg-brand-400/10"
           : "border-white/10 bg-surface-dark hover:border-brand-400/50 hover:bg-white/5"
@@ -58,8 +58,8 @@ export default function BrokerUploadCard({
       />
 
       {/* Logo */}
-      <div className="w-20 h-10 flex items-center justify-center rounded-md overflow-hidden">
-        {brokerIcon || <Upload className="h-5 w-5 text-gray-500" />}
+      <div className="w-24 h-12 flex items-center justify-center rounded-md overflow-hidden">
+        {brokerIcon || <Upload className="h-6 w-6 text-gray-500" />}
       </div>
 
       {/* Name */}
@@ -69,7 +69,7 @@ export default function BrokerUploadCard({
 
       {/* Upload hint icon */}
       <Upload
-        size={12}
+        size={13}
         className={`transition-colors ${isDragging ? "text-brand-400" : "text-gray-600 group-hover:text-brand-400/60"}`}
       />
     </div>

@@ -316,7 +316,7 @@ export default function PortfolioDashboard() {
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={(e) => e.target === e.currentTarget && setUploadOpen(false)}
         >
-          <div className="bg-surface-dark-secondary border border-white/10 rounded-2xl w-full max-w-5xl max-h-[82vh] overflow-y-auto">
+          <div className="bg-surface-dark-secondary border border-white/10 rounded-2xl w-full max-w-6xl max-h-[82vh] overflow-y-auto">
             {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
               <h2 className="text-base font-semibold text-gray-100">Upload Report</h2>
