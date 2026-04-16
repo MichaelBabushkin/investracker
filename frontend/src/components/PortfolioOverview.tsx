@@ -182,9 +182,6 @@ export default function PortfolioOverview() {
               <h1 className="text-3xl font-bold text-gray-100">
                 Portfolio Overview
               </h1>
-              <p className="text-gray-400">
-                Manage your Israeli and international investments
-              </p>
             </div>
           </div>
         </div>
@@ -226,7 +223,6 @@ export default function PortfolioOverview() {
                 >
                   {view.name}
                 </h3>
-                <p className="mt-1 text-sm text-gray-400">{view.description}</p>
               </button>
             );
           })}

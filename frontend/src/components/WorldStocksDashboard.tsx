@@ -75,9 +75,6 @@ export default function WorldStocksDashboard() {
                 <h1 className="text-3xl font-bold text-gray-100">
                   World Stocks
                 </h1>
-                <p className="text-gray-400">
-                  Manage your international stock portfolio
-                </p>
               </div>
             </div>
 
@@ -138,17 +135,6 @@ export default function WorldStocksDashboard() {
             </nav>
           </div>
 
-          {/* Tab descriptions */}
-          <div className="mt-2">
-            {tabs.map(
-              (tab) =>
-                activeTab === tab.id && (
-                  <p key={tab.id} className="text-sm text-gray-400">
-                    {tab.description}
-                  </p>
-                )
-            )}
-          </div>
         </div>
 
         {/* Tab Content */}
