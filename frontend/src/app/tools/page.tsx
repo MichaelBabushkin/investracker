@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   TrendingUp, DollarSign, Calendar, Percent, Zap, Info,
-  Target, RefreshCw, Scale, Coffee, Briefcase, Rocket,
+  Target, RefreshCw, Scale, Coffee, Briefcase, Handshake,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -89,7 +89,10 @@ const HeroCard: React.FC<{ label: string; value: string; sub?: string }> = ({ la
         <span className="text-xs font-semibold text-brand-400 uppercase tracking-wider">{label}</span>
       </div>
       <p className="text-4xl lg:text-5xl font-heading font-bold text-gray-100 tabular-nums mt-2">{value}</p>
-      {sub && <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5"><Info size={12} />{sub}</p>}
+      <p className={`text-sm mt-1 flex items-center gap-1.5 min-h-[1.375rem] transition-opacity duration-200 ${sub ? "text-gray-500" : "opacity-0"}`}>
+        <Info size={12} className="flex-shrink-0" />
+        {sub ?? "\u00A0"}
+      </p>
     </div>
   </div>
 );
@@ -139,7 +142,7 @@ const RETURN_PRESETS = [
 const SCENARIOS = [
   { label: "Coffee money", desc: "$5/day", initial: 0, monthly: 150, icon: Coffee },
   { label: "Side hustle", desc: "$500/mo", initial: 5000, monthly: 500, icon: Briefcase },
-  { label: "Serious investor", desc: "$2k/mo", initial: 20000, monthly: 2000, icon: Rocket },
+  { label: "Serious investor", desc: "$2k/mo", initial: 20000, monthly: 2000, icon: Handshake },
 ];
 
 function CompoundCalculator() {
@@ -224,11 +227,10 @@ function CompoundCalculator() {
                 {RETURN_PRESETS.map((p) => (
                   <button key={p.value}
                     onClick={() => { setAnnualReturn(p.value); setCustomReturn(false); }}
-                    className={`flex flex-col px-3 py-2 rounded-lg border text-left transition-all ${
-                      annualReturn === p.value && !customReturn
+                    className={`flex flex-col px-3 py-2 rounded-lg border text-left transition-all ${annualReturn === p.value && !customReturn
                         ? "border-brand-400/50 bg-brand-400/8"
                         : "border-white/8 hover:border-white/20 hover:bg-white/3"
-                    }`}
+                      }`}
                   >
                     <span className={`text-xs font-semibold ${annualReturn === p.value && !customReturn ? "text-brand-400" : "text-gray-300"}`}>
                       {p.value}% — {p.label}
@@ -245,19 +247,6 @@ function CompoundCalculator() {
               </div>
             </div>
 
-            {/* Inflation toggle */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-surface-dark border border-white/5">
-              <div>
-                <p className="text-sm font-medium text-gray-300">Adjust for inflation</p>
-                <p className="text-[11px] text-gray-600">Assumes 2.5% annual inflation</p>
-              </div>
-              <button
-                onClick={() => setInflation(!inflation)}
-                className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${inflation ? "bg-brand-400" : "bg-white/10"}`}
-              >
-                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${inflation ? "translate-x-5" : "translate-x-1"}`} />
-              </button>
-            </div>
           </div>
         </div>
 
@@ -321,14 +310,34 @@ function CompoundCalculator() {
             </ResponsiveContainer>
           </div>
 
-          <div className="rounded-xl bg-surface-dark border border-white/5 p-4 text-sm">
-            <span className="text-gray-500">At <span className="text-brand-400 font-semibold">{annualReturn}%</span> annual return, every <span className="text-gray-200 font-semibold">$1,000</span> invested today becomes </span>
-            <span className="text-brand-400 font-semibold">{fmtFull(1000 * Math.pow(1 + annualReturn / 100, years))}</span>
-            <span className="text-gray-500"> in {years} years.</span>
-            {gainPct > 100 && (
-              <span className="text-gray-500"> Your money <span className="text-gain font-semibold">more than doubles</span> your contributions.</span>
-            )}
+        </div>
+      </div>
+
+      {/* Bottom row: toggle (left) + insight (right) — always at the same level */}
+      <div className="mt-6 pt-5 border-t border-white/5 grid lg:grid-cols-[1fr_1.6fr] gap-6 items-center">
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-surface-dark border border-white/5">
+          <div>
+            <p className="text-sm font-medium text-gray-300">Adjust for inflation</p>
+            <p className="text-[11px] text-gray-600">Assumes 2.5% annual inflation</p>
           </div>
+          <button
+            onClick={() => setInflation(!inflation)}
+            className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${
+              inflation ? "bg-brand-400" : "bg-white/10"
+            }`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+              inflation ? "translate-x-5" : "translate-x-0"
+            }`} />
+          </button>
+        </div>
+        <div className="rounded-xl bg-surface-dark border border-white/5 p-4 text-sm">
+          <span className="text-gray-500">At <span className="text-brand-400 font-semibold">{annualReturn}%</span> annual return, every <span className="text-gray-200 font-semibold">$1,000</span> invested today becomes </span>
+          <span className="text-brand-400 font-semibold">{fmtFull(1000 * Math.pow(1 + annualReturn / 100, years))}</span>
+          <span className="text-gray-500"> in {years} years.</span>
+          {gainPct > 100 && (
+            <span className="text-gray-500"> Your money <span className="text-gain font-semibold">more than doubles</span> your contributions.</span>
+          )}
         </div>
       </div>
     </ToolCard>
@@ -371,8 +380,8 @@ function RetirementCalculator() {
   const monthlyNeeded = gap <= 0
     ? 0
     : r === 0
-    ? gap / n
-    : gap * r / (Math.pow(1 + r, n) - 1);
+      ? gap / n
+      : gap * r / (Math.pow(1 + r, n) - 1);
 
   const chartData = useMemo(() => {
     const localR = returnRate / 100 / 12;
@@ -421,9 +430,8 @@ function RetirementCalculator() {
             <div className="flex gap-2 mb-3">
               {RETIREMENT_RETURN_PRESETS.map((p) => (
                 <button key={p.value} onClick={() => setReturnRate(p.value)}
-                  className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                    returnRate === p.value ? "border-brand-400/50 bg-brand-400/8 text-brand-400" : "border-white/8 text-gray-400 hover:border-white/20"
-                  }`}>{p.label} {p.value}%</button>
+                  className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${returnRate === p.value ? "border-brand-400/50 bg-brand-400/8 text-brand-400" : "border-white/8 text-gray-400 hover:border-white/20"
+                    }`}>{p.label} {p.value}%</button>
               ))}
             </div>
             <input type="range" min={3} max={15} step={0.5} value={returnRate}
@@ -586,9 +594,8 @@ function DRIPCalculator() {
             <div className="flex gap-2 mb-3">
               {YIELD_PRESETS.map((p) => (
                 <button key={p.value} onClick={() => setDividendYield(p.value)}
-                  className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                    dividendYield === p.value ? "border-brand-400/50 bg-brand-400/8 text-brand-400" : "border-white/8 text-gray-400 hover:border-white/20"
-                  }`}>{p.label} {p.value}%</button>
+                  className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${dividendYield === p.value ? "border-brand-400/50 bg-brand-400/8 text-brand-400" : "border-white/8 text-gray-400 hover:border-white/20"
+                    }`}>{p.label} {p.value}%</button>
               ))}
             </div>
             <input type="range" min={0.5} max={15} step={0.5} value={dividendYield}
@@ -741,11 +748,10 @@ function RiskRewardAnalyzer() {
           <div className="grid grid-cols-2 gap-2">
             {ALLOC_PRESETS.map(({ label, stocks, key }) => (
               <button key={key} onClick={() => setStockPct(Math.round(stocks * 100))}
-                className={`py-2 px-3 rounded-lg border text-xs font-medium text-left transition-all ${
-                  stockPct === Math.round(stocks * 100)
+                className={`py-2 px-3 rounded-lg border text-xs font-medium text-left transition-all ${stockPct === Math.round(stocks * 100)
                     ? "border-brand-400/50 bg-brand-400/8 text-brand-400"
                     : "border-white/8 text-gray-400 hover:border-white/20"
-                }`}>{label}</button>
+                  }`}>{label}</button>
             ))}
           </div>
 
@@ -870,11 +876,10 @@ export default function ToolsPage() {
           <button
             key={id}
             onClick={() => setActiveTool(id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all whitespace-nowrap flex-shrink-0 text-sm font-medium ${
-              activeTool === id
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all whitespace-nowrap flex-shrink-0 text-sm font-medium ${activeTool === id
                 ? "bg-brand-400/10 border-brand-400/30 text-brand-400"
                 : "border-white/8 text-gray-400 hover:border-white/20 hover:text-gray-200 bg-surface-dark-secondary"
-            }`}
+              }`}
           >
             <Icon size={16} />
             <span className="hidden sm:inline">{name}</span>
