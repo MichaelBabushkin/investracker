@@ -22,6 +22,7 @@ import {
   Calendar,
   GraduationCap,
   FileText,
+  Wrench,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -87,6 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOp
       ],
     },
     { name: "Analytics", href: "/analytics", icon: BarChart3, requiredRole: "viewer" },
+    { name: "Tools", href: "/tools", icon: Wrench, requiredRole: "viewer" },
     { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "viewer" },
     { name: "Education", href: "/education", icon: GraduationCap, requiredRole: "viewer" },
     { name: "Reports", href: "/reports", icon: FileText, requiredRole: "viewer" },
