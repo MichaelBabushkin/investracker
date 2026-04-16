@@ -16,9 +16,6 @@ import {
   ChevronUp,
   Shield,
   LogOut,
-  Globe2,
-  Landmark,
-  PieChart,
   Calendar,
   GraduationCap,
   FileText,
@@ -77,16 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOp
 
   const navItems: NavItem[] = [
     { name: "Home", href: "/", icon: Home },
-    {
-      name: "Portfolio",
-      icon: Briefcase,
-      requiredRole: "viewer",
-      subItems: [
-        { name: "Overview", href: "/portfolio", icon: PieChart },
-        { name: "World Stocks", href: "/world-stocks", icon: Globe2 },
-        { name: "Israeli Stocks", href: "/israeli-stocks", icon: Landmark },
-      ],
-    },
+    { name: "Portfolio", href: "/portfolio", icon: Briefcase, requiredRole: "viewer" },
     { name: "Analytics", href: "/analytics", icon: BarChart3, requiredRole: "viewer" },
     { name: "Tools", href: "/tools", icon: Wrench, requiredRole: "viewer" },
     { name: "Calendar", href: "/calendar", icon: Calendar, requiredRole: "viewer" },

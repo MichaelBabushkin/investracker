@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useRouter, usePathname } from "next/navigation";
 import { RootState, AppDispatch } from "@/store";
@@ -17,9 +17,6 @@ import {
   Menu,
   Calendar,
   Shield,
-  Globe2,
-  Landmark,
-  PieChart,
   X,
   LogOut,
   FileText,
@@ -31,125 +28,46 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-/* ── Portfolio sub-menu popup ── */
-const PortfolioPopup: React.FC<{
-  anchorLeft: number;
-  onNavigate: (href: string) => void;
-  onClose: () => void;
-}> = ({ anchorLeft, onNavigate, onClose }) => {
-  const pathname = usePathname();
-
-  const subItems = [
-    { name: "Overview", href: "/portfolio", icon: PieChart },
-    { name: "World Stocks", href: "/world-stocks", icon: Globe2 },
-    { name: "Israeli Stocks", href: "/israeli-stocks", icon: Landmark },
-  ];
-
-  return (
-    <>
-      {/* Invisible backdrop */}
-      <div className="fixed inset-0 z-50" onClick={onClose} />
-      {/* Popup card */}
-      <div
-        className="fixed bottom-[72px] z-50 bg-surface-dark-secondary border border-white/10 rounded-xl shadow-2xl p-2 w-48"
-        style={{ left: Math.max(8, Math.min(anchorLeft, window.innerWidth - 200)) }}
-      >
-        {subItems.map(({ name, href, icon: Icon }) => {
-          const active = pathname === href || (href !== "/portfolio" && pathname.startsWith(href));
-          return (
-            <button
-              key={name}
-              onClick={() => { onNavigate(href); onClose(); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                active
-                  ? "bg-brand-400/10 text-brand-400"
-                  : "text-gray-300 hover:bg-white/5"
-              }`}
-            >
-              <Icon size={17} className={active ? "text-brand-400" : "text-gray-500"} />
-              {name}
-            </button>
-          );
-        })}
-      </div>
-    </>
-  );
-};
-
 /* ── Mobile Bottom Tab Bar ── */
 const MobileBottomBar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [portfolioOpen, setPortfolioOpen] = useState(false);
-  const [popupLeft, setPopupLeft] = useState(0);
-  const portfolioTabRef = useRef<HTMLButtonElement>(null);
-
-  const isPortfolioSection =
-    pathname.startsWith("/portfolio") ||
-    pathname.startsWith("/world-stocks") ||
-    pathname.startsWith("/israeli-stocks");
 
   const tabs = [
     { name: "Home", href: "/", icon: Home },
-    { name: "Portfolio", href: null, icon: Briefcase },
+    { name: "Portfolio", href: "/portfolio", icon: Briefcase },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
     { name: "Tools", href: "/tools", icon: Wrench },
     { name: "Learn", href: "/education", icon: GraduationCap },
   ];
 
-  const isActive = (href: string | null) => {
-    if (!href) return isPortfolioSection;
+  const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
+    if (href === "/portfolio") return pathname.startsWith("/portfolio") || pathname.startsWith("/world-stocks") || pathname.startsWith("/israeli-stocks");
     return pathname.startsWith(href);
   };
 
-  const handlePortfolioTap = () => {
-    if (portfolioTabRef.current) {
-      const rect = portfolioTabRef.current.getBoundingClientRect();
-      setPopupLeft(rect.left + rect.width / 2 - 96);
-    }
-    setPortfolioOpen((prev) => !prev);
-  };
-
   return (
-    <>
-      {portfolioOpen && (
-        <PortfolioPopup
-          anchorLeft={popupLeft}
-          onNavigate={(href) => router.push(href)}
-          onClose={() => setPortfolioOpen(false)}
-        />
-      )}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-surface-dark-secondary/95 backdrop-blur-lg border-t border-white/5 safe-area-bottom">
-        <div className="flex items-center justify-around h-16 px-2">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const active = isActive(tab.href);
-            const isPortfolioTab = tab.name === "Portfolio";
-            return (
-              <button
-                key={tab.name}
-                ref={isPortfolioTab ? portfolioTabRef : undefined}
-                onClick={
-                  isPortfolioTab
-                    ? handlePortfolioTap
-                    : () => {
-                        setPortfolioOpen(false);
-                        router.push(tab.href!);
-                      }
-                }
-                className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-                  active ? "text-brand-400" : "text-gray-500"
-                }`}
-              >
-                <Icon size={20} />
-                <span className="text-[10px] mt-1 font-medium">{tab.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-    </>
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-surface-dark-secondary/95 backdrop-blur-lg border-t border-white/5 safe-area-bottom">
+      <div className="flex items-center justify-around h-16 px-2">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const active = isActive(tab.href);
+          return (
+            <button
+              key={tab.name}
+              onClick={() => router.push(tab.href)}
+              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+                active ? "text-brand-400" : "text-gray-500"
+              }`}
+            >
+              <Icon size={20} />
+              <span className="text-[10px] mt-1 font-medium">{tab.name}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 };
 

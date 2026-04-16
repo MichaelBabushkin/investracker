@@ -1,10 +1,10 @@
-import PortfolioOverview from "@/components/PortfolioOverview";
+import PortfolioDashboard from "@/components/PortfolioDashboard";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function PortfolioPage() {
   return (
     <ProtectedRoute>
-      <PortfolioOverview />
+      <PortfolioDashboard />
     </ProtectedRoute>
   );
 }
