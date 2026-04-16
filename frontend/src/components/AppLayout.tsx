@@ -23,6 +23,7 @@ import {
   X,
   LogOut,
   FileText,
+  Wrench,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -92,8 +93,8 @@ const MobileBottomBar: React.FC = () => {
     { name: "Home", href: "/", icon: Home },
     { name: "Portfolio", href: null, icon: Briefcase },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
+    { name: "Tools", href: "/tools", icon: Wrench },
     { name: "Learn", href: "/education", icon: GraduationCap },
-    { name: "Settings", href: "/settings", icon: Settings },
   ];
 
   const isActive = (href: string | null) => {
@@ -162,6 +163,7 @@ const MobileDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ open, 
   const drawerItems = [
     { name: "Calendar", href: "/calendar", icon: Calendar },
     { name: "Reports", href: "/reports", icon: FileText },
+    { name: "Settings", href: "/settings", icon: Settings },
     ...(user?.role?.toLowerCase() === "admin"
       ? [{ name: "Admin", href: "/admin", icon: Shield }]
       : []),
