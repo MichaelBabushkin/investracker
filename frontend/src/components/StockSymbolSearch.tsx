@@ -144,7 +144,7 @@ export default function StockSymbolSearch({
     } else {
       clearTimeout(debounceRef.current);
       if (q.length < 2) { setOptions([]); return; }
-      debounceRef.current = setTimeout(() => searchWorld(q), 250);
+      debounceRef.current = setTimeout(() => searchWorld(q), 350);
     }
   };
 

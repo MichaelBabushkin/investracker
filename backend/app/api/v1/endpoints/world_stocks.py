@@ -30,6 +30,29 @@ from app.schemas.world_stock_schemas import (
 
 router = APIRouter()
 
+# ── yfinance company-name cache (persists for server session) ────────────────
+_yf_name_cache: dict[str, dict | None] = {}
+
+def _yfinance_lookup(ticker: str) -> dict | None:
+    """Validate a ticker via yfinance and return {symbol, company_name} or None.
+    Results are cached in-memory so each ticker is only fetched once per server session."""
+    key = ticker.upper()
+    if key in _yf_name_cache:
+        return _yf_name_cache[key]
+    result = None
+    try:
+        import yfinance as yf
+        info = yf.Ticker(key).info
+        name = info.get("longName") or info.get("shortName")
+        quote_type = info.get("quoteType", "")
+        if name and quote_type in ("EQUITY", "ETF", "MUTUALFUND", "INDEX"):
+            result = {"symbol": key, "company_name": name}
+    except Exception:
+        pass
+    _yf_name_cache[key] = result
+    return result
+# ────────────────────────────────────────────────────────────────────────────
+
 @router.post("/upload-pdf", response_model=WorldStockUploadResponse)
 async def upload_and_analyze_world_stock_pdf(
     file: UploadFile = File(...),
@@ -367,6 +390,24 @@ async def create_world_stock_transaction(
                 "currency": transaction_data.get("currency", "USD"),
             })
             transaction_id = result.fetchone()[0]
+
+            # Auto-add to catalog if not already there, so future searches find it from DB
+            company_name = transaction_data.get("company_name", "").strip()
+            existing = conn.execute(text(
+                'SELECT id FROM "world_stocks" WHERE ticker = :ticker LIMIT 1'
+            ), {"ticker": symbol}).fetchone()
+            if not existing:
+                # Try to get company name from yfinance cache if not provided
+                if not company_name:
+                    yf_data = _yf_name_cache.get(symbol)
+                    if yf_data:
+                        company_name = yf_data.get("company_name", "")
+                conn.execute(text("""
+                    INSERT INTO "world_stocks" (ticker, company_name)
+                    VALUES (:ticker, :company_name)
+                    ON CONFLICT (ticker) DO NOTHING
+                """), {"ticker": symbol, "company_name": company_name})
+
             conn.commit()
 
         return {"success": True, "transaction_id": transaction_id, "message": "Transaction created successfully"}

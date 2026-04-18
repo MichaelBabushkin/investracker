@@ -275,11 +275,10 @@ body {
   }
 }
 
-/* ─── Fix native select arrow overlap ─── */
-@layer base {
-  select {
-    padding-right: 2.25rem;
-  }
+/* ─── Fix native select arrow overlap ───────────────────────────────────────
+   Must be outside any @layer so it outranks Tailwind's @layer utilities      */
+select {
+  padding-right: 2.25rem !important;
 }
 
 /* ─── Tab/content transition ─── */
