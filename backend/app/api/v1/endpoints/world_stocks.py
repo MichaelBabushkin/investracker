@@ -271,6 +271,57 @@ async def get_world_stock_transactions(
         raise HTTPException(status_code=500, detail=f"Error retrieving transactions: {str(e)}")
 
 
+@router.post("/transactions")
+async def create_world_stock_transaction(
+    transaction_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new world stock transaction manually"""
+    try:
+        from sqlalchemy import text
+        from app.core.database import engine
+
+        symbol = (transaction_data.get("symbol") or "").strip().upper()
+        if not symbol:
+            raise HTTPException(status_code=422, detail="Symbol is required")
+
+        with engine.connect() as conn:
+            query = text("""
+                INSERT INTO "world_stock_transactions"
+                    (user_id, account_id, symbol, ticker, company_name,
+                     transaction_type, transaction_date, quantity, price,
+                     total_value, commission, currency, source_pdf)
+                VALUES
+                    (:user_id, :account_id, :symbol, :ticker, :company_name,
+                     :transaction_type, :transaction_date, :quantity, :price,
+                     :total_value, :commission, :currency, 'Manual Entry')
+                RETURNING id
+            """)
+            result = conn.execute(query, {
+                "user_id": current_user.id,
+                "account_id": transaction_data.get("account_id"),
+                "symbol": symbol,
+                "ticker": symbol,
+                "company_name": transaction_data.get("company_name", ""),
+                "transaction_type": transaction_data.get("transaction_type", "BUY"),
+                "transaction_date": transaction_data.get("transaction_date"),
+                "quantity": transaction_data.get("quantity", 0),
+                "price": transaction_data.get("price", 0),
+                "total_value": transaction_data.get("total_value", 0),
+                "commission": transaction_data.get("commission", 0),
+                "currency": transaction_data.get("currency", "USD"),
+            })
+            transaction_id = result.fetchone()[0]
+            conn.commit()
+
+        return {"success": True, "transaction_id": transaction_id, "message": "Transaction created successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating transaction: {str(e)}")
+
+
 @router.get("/dividends", response_model=List[WorldStockDividendResponse])
 async def get_world_stock_dividends(
     user_id: Optional[str] = None,

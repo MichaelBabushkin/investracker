@@ -651,6 +651,11 @@ export const worldStocksAPI = {
     return response.data;
   },
 
+  createTransaction: async (transactionData: any) => {
+    const response = await api.post("/world-stocks/transactions", transactionData);
+    return response.data;
+  },
+
   deleteHolding: async (holdingId: number) => {
     const response = await api.delete(`/world-stocks/holdings/${holdingId}`);
     return response.data;
