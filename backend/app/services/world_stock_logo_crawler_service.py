@@ -449,41 +449,48 @@ class WorldStockLogoCrawlerService:
             logger.error(f"Error processing SVG from URL for stock {stock}: {str(e)}")
             return False
 
+    # TradingView exchange name, ordered from most-likely to least-likely for US stocks
+    _TV_EXCHANGE_FALLBACK_ORDER = ['NASDAQ', 'NYSE', 'AMEX', 'ARCA']
+
+    # Map stored exchange codes → preferred TradingView exchange name (head of fallback list)
+    _EXCHANGE_TO_TV = {
+        'NASDAQ': 'NASDAQ',
+        'NMS': 'NASDAQ',
+        'NGM': 'NASDAQ',
+        'NCM': 'NASDAQ',
+        'NYSE': 'NYSE',
+        'NYQ': 'NYSE',
+        'AMEX': 'AMEX',
+        'ASE': 'AMEX',
+        'NYSE ARCA': 'ARCA',
+        'ARCA': 'ARCA',
+        'PCX': 'ARCA',
+        'BATS': 'BATS',
+        'BTS': 'BATS',
+        # 'US' and unknown → start with NASDAQ (most common US listing)
+    }
+
     async def _process_tradingview_logo_url(self, stock: Dict) -> bool:
-        """Fetch and update logo_url for a single stock using its ticker."""
+        """Fetch and update logo_url for a single stock, trying all exchanges."""
         try:
             ticker = (stock.get('ticker') or '').strip()
-            exchange = (stock.get('exchange') or 'US').strip()
-            
+            exchange = (stock.get('exchange') or 'US').strip().upper()
+
             if not ticker:
                 logger.warning(f"Stock has no ticker, id={stock.get('id')}")
                 return False
-            
-            # Map exchange codes to TradingView exchange names
-            exchange_map = {
-                'US': 'NASDAQ',  # Default for US stocks
-                'NYSE': 'NYSE',
-                'NASDAQ': 'NASDAQ',
-                'AMEX': 'AMEX',
-                'NYSE ARCA': 'ARCA',
-                'BATS': 'BATS',
-            }
-            
-            tv_exchange = exchange_map.get(exchange.upper(), 'NASDAQ')
-            
-            # Try the stock's exchange first
-            url = await self.fetch_tradingview_logo_url(ticker, tv_exchange)
-            
-            # If failed and exchange wasn't NASDAQ, try NASDAQ as fallback
-            if not url and tv_exchange != 'NASDAQ':
-                logger.info(f"Trying NASDAQ fallback for {ticker} (original: {tv_exchange})")
-                url = await self.fetch_tradingview_logo_url(ticker, 'NASDAQ')
-            
-            # If still failed and exchange wasn't NYSE, try NYSE as second fallback
-            if not url and tv_exchange not in ['NYSE', 'NASDAQ']:
-                logger.info(f"Trying NYSE fallback for {ticker} (original: {tv_exchange})")
-                url = await self.fetch_tradingview_logo_url(ticker, 'NYSE')
-            
+
+            # Build ordered exchange list: preferred first, then all fallbacks
+            preferred = self._EXCHANGE_TO_TV.get(exchange, 'NASDAQ')
+            ordered = [preferred] + [e for e in self._TV_EXCHANGE_FALLBACK_ORDER if e != preferred]
+
+            url = None
+            for tv_exchange in ordered:
+                url = await self.fetch_tradingview_logo_url(ticker, tv_exchange)
+                if url:
+                    break
+                logger.info(f"No logo found for {ticker} on {tv_exchange}, trying next exchange")
+
             if not url:
                 return False
             return self.update_stock_logo_url(stock['id'], url)
@@ -606,6 +613,74 @@ class WorldStockLogoCrawlerService:
         except Exception as e:
             logger.error(f"Error processing {stock['ticker']}: {str(e)}")
             return False
+
+
+    def sync_exchange_from_yfinance(self, batch_size: int = 50) -> Dict[str, int]:
+        """
+        Update the exchange field for all world stocks using yfinance data.
+        yfinance returns short codes (NMS, NYQ, ASE, PCX…) which we map to
+        canonical names (NASDAQ, NYSE, AMEX, ARCA).
+
+        Returns dict with updated / skipped / failed counts.
+        """
+        import yfinance as yf
+
+        yf_to_exchange = {
+            'NMS': 'NASDAQ', 'NGM': 'NASDAQ', 'NCM': 'NASDAQ', 'NIM': 'NASDAQ',
+            'NYQ': 'NYSE',
+            'ASE': 'AMEX',
+            'PCX': 'ARCA', 'NYA': 'ARCA',
+            'BTS': 'BATS',
+        }
+
+        try:
+            Session = sessionmaker(bind=engine)
+            with Session() as session:
+                rows = session.execute(
+                    text('SELECT id, ticker FROM "world_stocks" ORDER BY ticker')
+                ).fetchall()
+        except Exception as e:
+            logger.error(f"Error fetching world stocks for exchange sync: {e}")
+            return {"updated": 0, "skipped": 0, "failed": 0}
+
+        updated = skipped = failed = 0
+
+        for i in range(0, len(rows), batch_size):
+            batch = rows[i:i + batch_size]
+            tickers = [r[1] for r in batch]
+
+            try:
+                data = yf.download(
+                    tickers, period="1d", auto_adjust=True,
+                    progress=False, threads=True
+                )
+                # yf.Tickers gives us info per ticker
+                t_obj = yf.Tickers(" ".join(tickers))
+                for stock_id, ticker in batch:
+                    try:
+                        info = t_obj.tickers[ticker].info or {}
+                        yf_exchange = info.get('exchange', '')
+                        if not yf_exchange:
+                            skipped += 1
+                            continue
+                        canonical = yf_to_exchange.get(yf_exchange.upper(), yf_exchange.upper())
+                        Session2 = sessionmaker(bind=engine)
+                        with Session2() as session2:
+                            session2.execute(
+                                text('UPDATE "world_stocks" SET exchange = :ex WHERE id = :id'),
+                                {"ex": canonical, "id": stock_id}
+                            )
+                            session2.commit()
+                        updated += 1
+                    except Exception as e2:
+                        logger.warning(f"Exchange sync failed for {ticker}: {e2}")
+                        failed += 1
+            except Exception as e:
+                logger.error(f"Batch exchange sync error: {e}")
+                failed += len(batch)
+
+        logger.info(f"Exchange sync complete: {updated} updated, {skipped} skipped, {failed} failed")
+        return {"updated": updated, "skipped": skipped, "failed": failed}
 
 
 # Convenience functions for easy usage

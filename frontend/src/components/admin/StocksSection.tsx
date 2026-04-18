@@ -22,6 +22,7 @@ const StocksSection: React.FC = () => {
   const [batchSize, setBatchSize] = useState(10);
   const [worldBatchSize, setWorldBatchSize] = useState(5);
   const [isCrawling, setIsCrawling] = useState(false);
+  const [isSyncingExchange, setIsSyncingExchange] = useState(false);
   const [singleTicker, setSingleTicker] = useState("");
 
   const { confirm, ConfirmDialogElement } = useConfirmDialog();
@@ -376,6 +377,50 @@ const StocksSection: React.FC = () => {
             {/* World Stocks Logo Crawler */}
             {logoCrawlerTab === "world" && (
               <>
+                {/* Exchange Data Sync */}
+                <div className="bg-warn/10 border border-warn/20 rounded-xl p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-100">
+                        Sync Exchange Data from yfinance
+                      </h3>
+                      <p className="text-sm text-gray-400 mt-1">
+                        Fixes stocks stored as NYSE that are actually on NASDAQ / AMEX / ARCA.
+                        Run this <strong className="text-warn">before</strong> crawling logos — correct exchange = better logo URL hit rate.
+                      </p>
+                    </div>
+                    <RefreshCw className={`w-5 h-5 ${isSyncingExchange ? 'animate-spin text-warn' : 'text-warn/60'}`} />
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: "Sync exchange data?",
+                        message: "This will query yfinance for every world stock (~2900) to update the exchange field. It may take several minutes.",
+                        confirmLabel: "Start Sync",
+                        variant: "info",
+                      });
+                      if (!ok) return;
+                      setIsSyncingExchange(true);
+                      const loadingToast = toast.loading("Syncing exchange data from yfinance…");
+                      try {
+                        const result = await worldStocksAPI.syncExchangeData();
+                        toast.success(
+                          `Exchange sync done — updated: ${result.results?.updated ?? 0}, skipped: ${result.results?.skipped ?? 0}, failed: ${result.results?.failed ?? 0}`,
+                          { id: loadingToast, duration: 6000 }
+                        );
+                      } catch (error: any) {
+                        toast.error(error.response?.data?.detail || "Exchange sync failed", { id: loadingToast });
+                      } finally {
+                        setIsSyncingExchange(false);
+                      }
+                    }}
+                    disabled={isSyncingExchange || isCrawling}
+                    className="px-6 py-2.5 bg-warn text-surface-dark rounded-xl hover:bg-warn/80 transition-colors font-medium disabled:bg-gray-600 disabled:cursor-not-allowed"
+                  >
+                    {isSyncingExchange ? "Syncing…" : "Sync Exchange Data"}
+                  </button>
+                </div>
+
                 {/* Batch Logo Crawler for World Stocks */}
                 <div className="bg-brand-400/10 border border-brand-400/20 rounded-xl p-6">
                   <div className="flex items-start justify-between mb-4">

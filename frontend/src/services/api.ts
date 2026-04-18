@@ -766,6 +766,11 @@ export const worldStocksAPI = {
     const response = await api.get("/world-stocks/logo-stats");
     return response.data;
   },
+
+  syncExchangeData: async () => {
+    const response = await api.post("/world-stocks/sync-exchange-data");
+    return response.data;
+  },
 };
 
 // Admin API
