@@ -175,7 +175,9 @@ const authSlice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
-        state.isAuthenticated = false;
+        // Don't touch isAuthenticated/user/token here — if a Google session was
+        // already active, clearing those would corrupt it. The failed login
+        // attempt simply shows an error; the existing session remains intact.
       })
 
       // Google SSO login
