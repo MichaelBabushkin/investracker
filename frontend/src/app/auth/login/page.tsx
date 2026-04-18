@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useDispatch } from "react-redux";
-import { AppDispatch } from "@/store";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store";
 import { login, getCurrentUser } from "@/store/slices/authSlice";
 import { parseBackendError } from "@/utils/errorHandling";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
@@ -23,6 +23,14 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useDispatch<AppDispatch>();
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+
+  // Already logged in — go home
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      router.replace("/");
+    }
+  }, [isAuthenticated, user, router]);
 
   useEffect(() => {
     if (searchParams.get("session_expired") === "true") {

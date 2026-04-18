@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store";
 import { authAPI } from "@/services/api";
 import { parseBackendError } from "@/utils/errorHandling";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
@@ -24,6 +26,13 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState("");
 
   const router = useRouter();
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      router.replace("/");
+    }
+  }, [isAuthenticated, user, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
