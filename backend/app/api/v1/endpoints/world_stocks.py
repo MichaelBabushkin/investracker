@@ -271,6 +271,61 @@ async def get_world_stock_transactions(
         raise HTTPException(status_code=500, detail=f"Error retrieving transactions: {str(e)}")
 
 
+@router.get("/search")
+async def search_world_stocks_catalog(
+    q: str = "",
+    limit: int = 20,
+    current_user: User = Depends(get_current_user)
+):
+    """Search world stocks catalog by ticker or company name (debounced, min 2 chars)."""
+    try:
+        from sqlalchemy import text
+        from app.core.database import engine
+
+        if len(q.strip()) < 2:
+            return []
+
+        with engine.connect() as conn:
+            # Search the catalog first
+            catalog = conn.execute(text("""
+                SELECT ticker AS symbol, company_name
+                FROM "world_stocks"
+                WHERE ticker ILIKE :q OR company_name ILIKE :q
+                ORDER BY
+                    CASE WHEN ticker ILIKE :exact THEN 0 ELSE 1 END,
+                    ticker
+                LIMIT :limit
+            """), {"q": f"%{q}%", "exact": f"{q}%", "limit": limit})
+
+            seen: set = set()
+            results = []
+            for row in catalog.fetchall():
+                if row[0] and row[0] not in seen:
+                    seen.add(row[0])
+                    results.append({"symbol": row[0], "company_name": row[1] or ""})
+
+            # Fill remainder from user's own transaction history
+            remaining = limit - len(results)
+            if remaining > 0:
+                history = conn.execute(text("""
+                    SELECT DISTINCT ON (symbol) symbol, company_name
+                    FROM "world_stock_transactions"
+                    WHERE user_id = :user_id
+                      AND (symbol ILIKE :q OR company_name ILIKE :q)
+                    ORDER BY symbol
+                    LIMIT :remaining
+                """), {"user_id": current_user.id, "q": f"%{q}%", "remaining": remaining})
+                for row in history.fetchall():
+                    if row[0] and row[0] not in seen:
+                        seen.add(row[0])
+                        results.append({"symbol": row[0], "company_name": row[1] or ""})
+
+        return results
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error searching stocks: {str(e)}")
+
+
 @router.post("/transactions")
 async def create_world_stock_transaction(
     transaction_data: dict,

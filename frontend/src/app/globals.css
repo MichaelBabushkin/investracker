@@ -275,6 +275,13 @@ body {
   }
 }
 
+/* ─── Fix native select arrow overlap ─── */
+@layer base {
+  select {
+    padding-right: 2.25rem;
+  }
+}
+
 /* ─── Tab/content transition ─── */
 @keyframes fadeSlideIn {
   from {

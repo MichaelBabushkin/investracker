@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Upload, Clock, Landmark, Globe2, Building2, ArrowRight, DollarSign, X, Plus } from "lucide-react";
+import StockSymbolSearch from "./StockSymbolSearch";
 import WorldStockHoldings from "./WorldStockHoldings";
 import WorldStockTransactions from "./WorldStockTransactions";
 import WorldStockDividends from "./WorldStockDividends";
@@ -440,6 +441,8 @@ export default function PortfolioDashboard() {
                       ...prev,
                       market: id as Market,
                       currency: id === "israeli" ? "ILS" : "USD",
+                      symbol: "",
+                      company_name: "",
                     }))}
                     className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
                       manualForm.market === id
@@ -488,18 +491,18 @@ export default function PortfolioDashboard() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-400 mb-1">Symbol</label>
-                      <input
-                        type="text"
+                      <StockSymbolSearch
+                        market={manualForm.market}
                         value={manualForm.symbol}
-                        onChange={(e) => handleManualField("symbol", e.target.value)}
-                        placeholder={manualForm.market === "israeli" ? "e.g. TEVA" : "e.g. AAPL"}
-                        className="w-full px-3 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-400/40 uppercase"
+                        onChange={(symbol, companyName) =>
+                          setManualForm((prev) => ({ ...prev, symbol, company_name: companyName }))
+                        }
                         required
                       />
                     </div>
                   </div>
 
-                  {/* Company name */}
+                  {/* Company name — auto-filled, still editable */}
                   <div>
                     <label className="block text-xs font-medium text-gray-400 mb-1">Company Name <span className="text-gray-600">(optional)</span></label>
                     <input
