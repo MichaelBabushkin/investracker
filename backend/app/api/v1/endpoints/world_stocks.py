@@ -1271,6 +1271,30 @@ async def get_logo_statistics(
         raise HTTPException(status_code=500, detail=f"Error retrieving statistics: {str(e)}")
 
 
+@router.post("/sync-exchange-data")
+async def sync_exchange_data_from_yfinance(
+    current_user: User = Depends(get_admin_user),
+):
+    """
+    Update the exchange field for all world stocks from yfinance (Admin only).
+    Fixes stocks incorrectly stored as NYSE that are actually on NASDAQ/AMEX/ARCA.
+    This is a synchronous, potentially slow operation — runs in a background thread.
+    """
+    import asyncio
+    from app.services.world_stock_logo_crawler_service import WorldStockLogoCrawlerService
+    try:
+        crawler = WorldStockLogoCrawlerService()
+        result = await asyncio.get_event_loop().run_in_executor(
+            None, crawler.sync_exchange_from_yfinance
+        )
+        return {
+            "message": "Exchange data sync completed",
+            "results": result,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Exchange sync failed: {str(e)}")
+
+
 # ===== PENDING TRANSACTIONS ENDPOINTS =====
 
 def _extract_ticker(ticker_field: str, stock_name: str):
