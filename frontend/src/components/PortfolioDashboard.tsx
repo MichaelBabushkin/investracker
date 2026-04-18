@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Upload, Clock, Landmark, Globe2, Building2, ArrowRight, DollarSign, X, Plus } from "lucide-react";
+import StockSymbolSearch from "./StockSymbolSearch";
 import WorldStockHoldings from "./WorldStockHoldings";
 import WorldStockTransactions from "./WorldStockTransactions";
 import WorldStockDividends from "./WorldStockDividends";
@@ -182,7 +183,22 @@ export default function PortfolioDashboard() {
         setManualForm(emptyManualForm());
         setRefreshTrigger((t) => t + 1);
       } else {
-        toast.error("Manual entry for International stocks is coming soon");
+        await worldStocksAPI.createTransaction({
+          symbol: manualForm.symbol.trim().toUpperCase(),
+          company_name: manualForm.company_name.trim(),
+          transaction_type: manualForm.transaction_type,
+          transaction_date: manualForm.transaction_date,
+          quantity: parseFloat(manualForm.quantity) || 0,
+          price: parseFloat(manualForm.price) || 0,
+          total_value: parseFloat(manualForm.total_value) || 0,
+          commission: parseFloat(manualForm.commission) || 0,
+          currency: manualForm.currency,
+          account_id: selectedAccountId || null,
+        });
+        toast.success("Transaction added successfully");
+        setManualOpen(false);
+        setManualForm(emptyManualForm());
+        setRefreshTrigger((t) => t + 1);
       }
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Failed to add transaction");
@@ -421,7 +437,13 @@ export default function PortfolioDashboard() {
                   <button
                     key={id}
                     type="button"
-                    onClick={() => handleManualField("market", id)}
+                    onClick={() => setManualForm((prev) => ({
+                      ...prev,
+                      market: id as Market,
+                      currency: id === "israeli" ? "ILS" : "USD",
+                      symbol: "",
+                      company_name: "",
+                    }))}
                     className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
                       manualForm.market === id
                         ? "bg-brand-400/10 text-brand-400"
@@ -433,12 +455,26 @@ export default function PortfolioDashboard() {
                 ))}
               </div>
 
-              {manualForm.market === "international" ? (
-                <div className="py-8 text-center text-gray-500 text-sm">
-                  Manual entry for International stocks is coming soon.
-                </div>
-              ) : (
-                <>
+              <>
+                  {/* Account selector — International only */}
+                  {manualForm.market === "international" && accounts.length > 0 && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">Account <span className="text-gray-600">(optional)</span></label>
+                      <select
+                        value={selectedAccountId || ""}
+                        onChange={(e) => setSelectedAccountId(e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-3 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-400/40"
+                      >
+                        <option value="">No specific account</option>
+                        {accounts.map((acc) => (
+                          <option key={acc.id} value={acc.id}>
+                            {acc.account_number} — {acc.account_alias || acc.broker_name || "Unknown"}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   {/* Type + Symbol row */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -455,25 +491,25 @@ export default function PortfolioDashboard() {
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-400 mb-1">Symbol</label>
-                      <input
-                        type="text"
+                      <StockSymbolSearch
+                        market={manualForm.market}
                         value={manualForm.symbol}
-                        onChange={(e) => handleManualField("symbol", e.target.value)}
-                        placeholder="e.g. TEVA"
-                        className="w-full px-3 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-400/40 uppercase"
+                        onChange={(symbol, companyName) =>
+                          setManualForm((prev) => ({ ...prev, symbol, company_name: companyName }))
+                        }
                         required
                       />
                     </div>
                   </div>
 
-                  {/* Company name */}
+                  {/* Company name — auto-filled, still editable */}
                   <div>
                     <label className="block text-xs font-medium text-gray-400 mb-1">Company Name <span className="text-gray-600">(optional)</span></label>
                     <input
                       type="text"
                       value={manualForm.company_name}
                       onChange={(e) => handleManualField("company_name", e.target.value)}
-                      placeholder="e.g. Teva Pharmaceutical"
+                      placeholder={manualForm.market === "israeli" ? "e.g. Teva Pharmaceutical" : "e.g. Apple Inc."}
                       className="w-full px-3 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-400/40"
                     />
                   </div>
@@ -497,9 +533,18 @@ export default function PortfolioDashboard() {
                         onChange={(e) => handleManualField("currency", e.target.value)}
                         className="w-full px-3 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-400/40"
                       >
-                        <option value="ILS">ILS (₪)</option>
-                        <option value="USD">USD ($)</option>
-                        <option value="EUR">EUR (€)</option>
+                        {manualForm.market === "israeli" ? (
+                          <>
+                            <option value="ILS">ILS (₪)</option>
+                            <option value="USD">USD ($)</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="USD">USD ($)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="ILS">ILS (₪)</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   </div>
@@ -578,7 +623,6 @@ export default function PortfolioDashboard() {
                     </button>
                   </div>
                 </>
-              )}
             </form>
           </div>
         </div>

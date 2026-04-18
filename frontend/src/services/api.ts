@@ -349,6 +349,12 @@ export const israeliStocksAPI = {
     return response.data.holdings || [];
   },
 
+  searchStocks: async (q: string, limit = 500): Promise<{ symbol: string; company_name: string }[]> => {
+    const params = new URLSearchParams({ q, limit: String(limit) });
+    const response = await api.get(`/israeli-stocks/search?${params}`);
+    return response.data || [];
+  },
+
   getTransactions: async (limit?: number) => {
     const params = limit ? `?limit=${limit}` : "";
     const response = await api.get(`/israeli-stocks/transactions${params}`);
@@ -649,6 +655,17 @@ export const worldStocksAPI = {
   getPortfolioDashboard: async () => {
     const response = await api.get("/world-stocks/portfolio-dashboard");
     return response.data;
+  },
+
+  createTransaction: async (transactionData: any) => {
+    const response = await api.post("/world-stocks/transactions", transactionData);
+    return response.data;
+  },
+
+  searchStocks: async (q: string, limit = 20): Promise<{ symbol: string; company_name: string }[]> => {
+    const params = new URLSearchParams({ q, limit: String(limit) });
+    const response = await api.get(`/world-stocks/search?${params}`);
+    return response.data || [];
   },
 
   deleteHolding: async (holdingId: number) => {

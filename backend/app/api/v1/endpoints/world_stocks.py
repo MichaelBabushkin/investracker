@@ -30,6 +30,29 @@ from app.schemas.world_stock_schemas import (
 
 router = APIRouter()
 
+# ── yfinance company-name cache (persists for server session) ────────────────
+_yf_name_cache: dict[str, dict | None] = {}
+
+def _yfinance_lookup(ticker: str) -> dict | None:
+    """Validate a ticker via yfinance and return {symbol, company_name} or None.
+    Results are cached in-memory so each ticker is only fetched once per server session."""
+    key = ticker.upper()
+    if key in _yf_name_cache:
+        return _yf_name_cache[key]
+    result = None
+    try:
+        import yfinance as yf
+        info = yf.Ticker(key).info
+        name = info.get("longName") or info.get("shortName")
+        quote_type = info.get("quoteType", "")
+        if name and quote_type in ("EQUITY", "ETF", "MUTUALFUND", "INDEX"):
+            result = {"symbol": key, "company_name": name}
+    except Exception:
+        pass
+    _yf_name_cache[key] = result
+    return result
+# ────────────────────────────────────────────────────────────────────────────
+
 @router.post("/upload-pdf", response_model=WorldStockUploadResponse)
 async def upload_and_analyze_world_stock_pdf(
     file: UploadFile = File(...),
@@ -269,6 +292,130 @@ async def get_world_stock_transactions(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving transactions: {str(e)}")
+
+
+@router.get("/search")
+async def search_world_stocks_catalog(
+    q: str = "",
+    limit: int = 20,
+    current_user: User = Depends(get_current_user)
+):
+    """Search world stocks catalog by ticker or company name (debounced, min 2 chars)."""
+    try:
+        from sqlalchemy import text
+        from app.core.database import engine
+
+        if len(q.strip()) < 2:
+            return []
+
+        with engine.connect() as conn:
+            # Search the catalog first
+            catalog = conn.execute(text("""
+                SELECT ticker AS symbol, company_name
+                FROM "world_stocks"
+                WHERE ticker ILIKE :q OR company_name ILIKE :q
+                ORDER BY
+                    CASE WHEN ticker ILIKE :exact THEN 0 ELSE 1 END,
+                    ticker
+                LIMIT :limit
+            """), {"q": f"%{q}%", "exact": f"{q}%", "limit": limit})
+
+            seen: set = set()
+            results = []
+            for row in catalog.fetchall():
+                if row[0] and row[0] not in seen:
+                    seen.add(row[0])
+                    results.append({"symbol": row[0], "company_name": row[1] or ""})
+
+            # Fill remainder from user's own transaction history
+            remaining = limit - len(results)
+            if remaining > 0:
+                history = conn.execute(text("""
+                    SELECT DISTINCT ON (symbol) symbol, company_name
+                    FROM "world_stock_transactions"
+                    WHERE user_id = :user_id
+                      AND (symbol ILIKE :q OR company_name ILIKE :q)
+                    ORDER BY symbol
+                    LIMIT :remaining
+                """), {"user_id": current_user.id, "q": f"%{q}%", "remaining": remaining})
+                for row in history.fetchall():
+                    if row[0] and row[0] not in seen:
+                        seen.add(row[0])
+                        results.append({"symbol": row[0], "company_name": row[1] or ""})
+
+        return results
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error searching stocks: {str(e)}")
+
+
+@router.post("/transactions")
+async def create_world_stock_transaction(
+    transaction_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new world stock transaction manually"""
+    try:
+        from sqlalchemy import text
+        from app.core.database import engine
+
+        symbol = (transaction_data.get("symbol") or "").strip().upper()
+        if not symbol:
+            raise HTTPException(status_code=422, detail="Symbol is required")
+
+        with engine.connect() as conn:
+            query = text("""
+                INSERT INTO "world_stock_transactions"
+                    (user_id, account_id, symbol, ticker, company_name,
+                     transaction_type, transaction_date, quantity, price,
+                     total_value, commission, currency, source_pdf)
+                VALUES
+                    (:user_id, :account_id, :symbol, :ticker, :company_name,
+                     :transaction_type, :transaction_date, :quantity, :price,
+                     :total_value, :commission, :currency, 'Manual Entry')
+                RETURNING id
+            """)
+            result = conn.execute(query, {
+                "user_id": current_user.id,
+                "account_id": transaction_data.get("account_id"),
+                "symbol": symbol,
+                "ticker": symbol,
+                "company_name": transaction_data.get("company_name", ""),
+                "transaction_type": transaction_data.get("transaction_type", "BUY"),
+                "transaction_date": transaction_data.get("transaction_date"),
+                "quantity": transaction_data.get("quantity", 0),
+                "price": transaction_data.get("price", 0),
+                "total_value": transaction_data.get("total_value", 0),
+                "commission": transaction_data.get("commission", 0),
+                "currency": transaction_data.get("currency", "USD"),
+            })
+            transaction_id = result.fetchone()[0]
+
+            # Auto-add to catalog if not already there, so future searches find it from DB
+            company_name = transaction_data.get("company_name", "").strip()
+            existing = conn.execute(text(
+                'SELECT id FROM "world_stocks" WHERE ticker = :ticker LIMIT 1'
+            ), {"ticker": symbol}).fetchone()
+            if not existing:
+                # Try to get company name from yfinance cache if not provided
+                if not company_name:
+                    yf_data = _yf_name_cache.get(symbol)
+                    if yf_data:
+                        company_name = yf_data.get("company_name", "")
+                conn.execute(text("""
+                    INSERT INTO "world_stocks" (ticker, company_name)
+                    VALUES (:ticker, :company_name)
+                    ON CONFLICT (ticker) DO NOTHING
+                """), {"ticker": symbol, "company_name": company_name})
+
+            conn.commit()
+
+        return {"success": True, "transaction_id": transaction_id, "message": "Transaction created successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating transaction: {str(e)}")
 
 
 @router.get("/dividends", response_model=List[WorldStockDividendResponse])

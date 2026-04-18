@@ -275,6 +275,12 @@ body {
   }
 }
 
+/* ─── Fix native select arrow overlap ───────────────────────────────────────
+   Must be outside any @layer so it outranks Tailwind's @layer utilities      */
+select {
+  padding-right: 2.25rem !important;
+}
+
 /* ─── Tab/content transition ─── */
 @keyframes fadeSlideIn {
   from {

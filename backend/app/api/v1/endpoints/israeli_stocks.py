@@ -340,6 +340,43 @@ async def get_israeli_stocks(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving stocks: {str(e)}")
 
+@router.get("/search")
+async def search_israeli_stocks_catalog(
+    q: str = "",
+    limit: int = 500,
+    current_user: User = Depends(get_current_user)
+):
+    """Search Israeli stocks catalog by symbol or company name. Empty q returns all."""
+    try:
+        from sqlalchemy import text
+        from app.core.database import engine
+
+        with engine.connect() as conn:
+            if q.strip():
+                result = conn.execute(text("""
+                    SELECT symbol, name as company_name
+                    FROM "israeli_stocks"
+                    WHERE symbol ILIKE :q OR name ILIKE :q
+                    ORDER BY
+                        CASE WHEN symbol ILIKE :exact THEN 0 ELSE 1 END,
+                        symbol
+                    LIMIT :limit
+                """), {"q": f"%{q}%", "exact": f"{q}%", "limit": limit})
+            else:
+                result = conn.execute(text("""
+                    SELECT symbol, name as company_name
+                    FROM "israeli_stocks"
+                    ORDER BY symbol
+                    LIMIT :limit
+                """), {"limit": limit})
+
+            rows = result.fetchall()
+        return [{"symbol": row[0], "company_name": row[1] or ""} for row in rows if row[0]]
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error searching stocks: {str(e)}")
+
+
 @router.get("/summary")
 async def get_user_summary(
     user_id: Optional[str] = None,
