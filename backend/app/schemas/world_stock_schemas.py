@@ -28,7 +28,7 @@ class WorldStockAccountResponse(BaseModel):
 # Holding schemas
 class WorldStockHoldingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     user_id: str
     ticker: str
@@ -45,7 +45,8 @@ class WorldStockHoldingResponse(BaseModel):
     source_pdf: str
     created_at: datetime
     updated_at: datetime
-    
+    logo_url: Optional[str] = None
+
     # Return metrics
     unrealized_gain: Optional[Decimal] = None
     unrealized_gain_pct: Optional[Decimal] = None
@@ -63,7 +64,7 @@ class WorldStockHoldingResponse(BaseModel):
 # Transaction schemas
 class WorldStockTransactionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     user_id: str
     ticker: str
@@ -84,6 +85,7 @@ class WorldStockTransactionResponse(BaseModel):
     source_pdf: str
     created_at: datetime
     updated_at: datetime
+    logo_url: Optional[str] = None
     
     @field_serializer('quantity', 'price', 'total_value', 'commission', 'tax', 'exchange_rate', 'realized_pl', 'cost_basis')
     def serialize_decimal(self, value: Optional[Decimal], _info):
@@ -93,7 +95,7 @@ class WorldStockTransactionResponse(BaseModel):
 # Dividend schemas
 class WorldStockDividendResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     user_id: str
     ticker: str
@@ -112,6 +114,7 @@ class WorldStockDividendResponse(BaseModel):
     source_pdf: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    logo_url: Optional[str] = None
     
     @field_serializer('amount_per_share', 'total_amount', 'amount', 'withholding_tax', 'net_amount', 'exchange_rate')
     def serialize_decimal(self, value: Optional[Decimal], _info):
@@ -187,7 +190,7 @@ class PendingWorldTransactionResponse(BaseModel):
 # WorldStock (reference data) schemas
 class WorldStockResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     ticker: str
     exchange: str
@@ -196,7 +199,9 @@ class WorldStockResponse(BaseModel):
     industry: Optional[str] = None
     country: str
     currency: str
+    logo_url: Optional[str] = None
     logo_svg: Optional[str] = None
+    indices: Optional[List[str]] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime

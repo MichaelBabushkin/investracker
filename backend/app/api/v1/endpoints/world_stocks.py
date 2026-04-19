@@ -157,32 +157,34 @@ async def get_world_stock_holdings(
         with engine.connect() as conn:
             query = text("""
                 SELECT h.id, h.user_id, h.ticker, h.symbol, h.company_name, h.quantity,
-                       COALESCE(sp.current_price, h.last_price) as last_price, 
-                       h.purchase_cost, 
-                       CASE 
+                       COALESCE(sp.current_price, h.last_price) as last_price,
+                       h.purchase_cost,
+                       CASE
                            WHEN sp.current_price IS NOT NULL THEN h.quantity * sp.current_price
                            ELSE h.current_value
                        END as current_value,
                        h.portfolio_percentage,
-                       h.currency, h.exchange_rate, 
-                       (SELECT MIN(transaction_date) 
-                        FROM "world_stock_transactions" 
-                        WHERE ticker = h.ticker AND user_id = h.user_id 
+                       h.currency, h.exchange_rate,
+                       (SELECT MIN(transaction_date)
+                        FROM "world_stock_transactions"
+                        WHERE ticker = h.ticker AND user_id = h.user_id
                         AND transaction_type IN ('BUY', 'PURCHASE')) as first_purchase_date,
                        h.source_pdf,
                        h.created_at, h.updated_at,
-                       CASE 
+                       CASE
                            WHEN sp.current_price IS NOT NULL THEN (h.quantity * sp.current_price) - h.purchase_cost
                            ELSE h.unrealized_gain
                        END as unrealized_gain,
-                       CASE 
-                           WHEN sp.current_price IS NOT NULL AND h.purchase_cost > 0 
+                       CASE
+                           WHEN sp.current_price IS NOT NULL AND h.purchase_cost > 0
                            THEN (((h.quantity * sp.current_price) - h.purchase_cost) / h.purchase_cost) * 100
                            ELSE h.unrealized_gain_pct
                        END as unrealized_gain_pct,
-                       h.twr, h.mwr
+                       h.twr, h.mwr,
+                       ws.logo_url
                 FROM "world_stock_holdings" h
                 LEFT JOIN "stock_prices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
+                LEFT JOIN "world_stocks" ws ON h.ticker = ws.ticker
                 WHERE h.user_id = :user_id
                 ORDER BY current_value DESC NULLS LAST
                 LIMIT :limit
@@ -216,7 +218,8 @@ async def get_world_stock_holdings(
                     unrealized_gain=row[16],
                     unrealized_gain_pct=row[17],
                     twr=row[18],
-                    mwr=row[19]
+                    mwr=row[19],
+                    logo_url=row[20]
                 ))
             
             return holdings
@@ -240,29 +243,31 @@ async def get_world_stock_transactions(
         target_user_id = user_id or current_user.id
         
         with engine.connect() as conn:
-            filters = ["user_id = :user_id"]
+            filters = ["t.user_id = :user_id"]
             params = {"user_id": target_user_id, "limit": limit}
-            
+
             if symbol:
-                filters.append("symbol = :symbol")
+                filters.append("t.symbol = :symbol")
                 params["symbol"] = symbol
-            
+
             where_clause = " AND ".join(filters)
-            
+
             query = text(f"""
-                SELECT id, user_id, ticker, symbol, company_name, transaction_type,
-                       transaction_date, transaction_time, quantity, price, total_value,
-                       commission, tax, currency, exchange_rate, source_pdf, created_at, updated_at,
-                       realized_pl, cost_basis
-                FROM "world_stock_transactions"
+                SELECT t.id, t.user_id, t.ticker, t.symbol, t.company_name, t.transaction_type,
+                       t.transaction_date, t.transaction_time, t.quantity, t.price, t.total_value,
+                       t.commission, t.tax, t.currency, t.exchange_rate, t.source_pdf,
+                       t.created_at, t.updated_at, t.realized_pl, t.cost_basis,
+                       ws.logo_url
+                FROM "world_stock_transactions" t
+                LEFT JOIN "world_stocks" ws ON t.ticker = ws.ticker
                 WHERE {where_clause}
-                ORDER BY transaction_date DESC NULLS LAST, created_at DESC
+                ORDER BY t.transaction_date DESC NULLS LAST, t.created_at DESC
                 LIMIT :limit
             """)
-            
+
             result = conn.execute(query, params)
             rows = result.fetchall()
-            
+
             transactions = []
             for row in rows:
                 transactions.append(WorldStockTransactionResponse(
@@ -285,7 +290,8 @@ async def get_world_stock_transactions(
                     created_at=row[16],
                     updated_at=row[17],
                     realized_pl=row[18],
-                    cost_basis=row[19]
+                    cost_basis=row[19],
+                    logo_url=row[20]
                 ))
             
             return transactions
@@ -311,7 +317,7 @@ async def search_world_stocks_catalog(
         with engine.connect() as conn:
             # Search the catalog first
             catalog = conn.execute(text("""
-                SELECT ticker AS symbol, company_name
+                SELECT ticker AS symbol, company_name, logo_url
                 FROM "world_stocks"
                 WHERE ticker ILIKE :q OR company_name ILIKE :q
                 ORDER BY
@@ -325,23 +331,24 @@ async def search_world_stocks_catalog(
             for row in catalog.fetchall():
                 if row[0] and row[0] not in seen:
                     seen.add(row[0])
-                    results.append({"symbol": row[0], "company_name": row[1] or ""})
+                    results.append({"symbol": row[0], "company_name": row[1] or "", "logo_url": row[2]})
 
             # Fill remainder from user's own transaction history
             remaining = limit - len(results)
             if remaining > 0:
                 history = conn.execute(text("""
-                    SELECT DISTINCT ON (symbol) symbol, company_name
-                    FROM "world_stock_transactions"
-                    WHERE user_id = :user_id
-                      AND (symbol ILIKE :q OR company_name ILIKE :q)
-                    ORDER BY symbol
+                    SELECT DISTINCT ON (t.symbol) t.symbol, t.company_name, ws.logo_url
+                    FROM "world_stock_transactions" t
+                    LEFT JOIN "world_stocks" ws ON t.ticker = ws.ticker
+                    WHERE t.user_id = :user_id
+                      AND (t.symbol ILIKE :q OR t.company_name ILIKE :q)
+                    ORDER BY t.symbol
                     LIMIT :remaining
                 """), {"user_id": current_user.id, "q": f"%{q}%", "remaining": remaining})
                 for row in history.fetchall():
                     if row[0] and row[0] not in seen:
                         seen.add(row[0])
-                        results.append({"symbol": row[0], "company_name": row[1] or ""})
+                        results.append({"symbol": row[0], "company_name": row[1] or "", "logo_url": row[2]})
 
         return results
 
@@ -433,28 +440,30 @@ async def get_world_stock_dividends(
         target_user_id = user_id or current_user.id
         
         with engine.connect() as conn:
-            filters = ["user_id = :user_id"]
+            filters = ["d.user_id = :user_id"]
             params = {"user_id": target_user_id, "limit": limit}
-            
+
             if symbol:
-                filters.append("symbol = :symbol")
+                filters.append("d.symbol = :symbol")
                 params["symbol"] = symbol
-            
+
             where_clause = " AND ".join(filters)
-            
+
             query = text(f"""
-                SELECT id, user_id, ticker, symbol, company_name, payment_date,
-                       amount, tax, net_amount, currency, exchange_rate,
-                       source_pdf, created_at, updated_at
-                FROM "world_dividends"
+                SELECT d.id, d.user_id, d.ticker, d.symbol, d.company_name, d.payment_date,
+                       d.amount, d.tax, d.net_amount, d.currency, d.exchange_rate,
+                       d.source_pdf, d.created_at, d.updated_at,
+                       ws.logo_url
+                FROM "world_dividends" d
+                LEFT JOIN "world_stocks" ws ON d.ticker = ws.ticker
                 WHERE {where_clause}
-                ORDER BY payment_date DESC NULLS LAST, created_at DESC
+                ORDER BY d.payment_date DESC NULLS LAST, d.created_at DESC
                 LIMIT :limit
             """)
-            
+
             result = conn.execute(query, params)
             rows = result.fetchall()
-            
+
             dividends = []
             for row in rows:
                 dividends.append(WorldStockDividendResponse(
@@ -475,7 +484,8 @@ async def get_world_stock_dividends(
                     dividend_type=None,  # Not in model
                     source_pdf=row[11],
                     created_at=row[12],
-                    updated_at=row[13]
+                    updated_at=row[13],
+                    logo_url=row[14]
                 ))
             
             return dividends
@@ -1050,6 +1060,35 @@ async def fetch_logo_svg_from_url_bulk(
         raise HTTPException(status_code=500, detail=f"Error populating logo_svg from logo_url: {str(e)}")
 
 
+@router.post("/sync-all-logos")
+async def sync_all_world_logos(
+    batch_size: int = Query(5, description="Concurrent requests per batch"),
+    current_admin: User = Depends(get_admin_user)
+):
+    """
+    Single-click logo sync for world stocks (Admin only).
+    Runs Phase 1 (crawl TradingView → logo_url) then Phase 2 (download SVG) in sequence.
+    Only processes stocks that are still missing data, so safe to re-run.
+    """
+    from app.services.world_stock_logo_crawler_service import WorldStockLogoCrawlerService
+    try:
+        async with WorldStockLogoCrawlerService() as crawler:
+            phase1 = await crawler.crawl_tradingview_logo_urls_for_all(
+                batch_size=batch_size, missing_only=True
+            )
+            phase2 = await crawler.populate_logo_svg_from_logo_urls_for_all(
+                batch_size=batch_size, only_missing=True
+            )
+        return {
+            "success": True,
+            "message": "Logo sync completed",
+            "phase1_url_crawl": phase1,
+            "phase2_svg_download": phase2,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Logo sync failed: {str(e)}")
+
+
 @router.put("/stocks/{stock_id}/logo")
 async def update_stock_logo_manual(
     stock_id: int,
@@ -1239,6 +1278,7 @@ async def get_logo_statistics(
     """
     Get statistics about world stock logo coverage
     """
+    from app.services.world_stock_logo_crawler_service import WorldStockLogoCrawlerService
     try:
         async with WorldStockLogoCrawlerService() as crawler:
             all_stocks = crawler.get_all_stocks()

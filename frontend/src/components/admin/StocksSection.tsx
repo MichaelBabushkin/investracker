@@ -377,291 +377,159 @@ const StocksSection: React.FC = () => {
             {/* World Stocks Logo Crawler */}
             {logoCrawlerTab === "world" && (
               <>
-                {/* Exchange Data Sync */}
-                <div className="bg-warn/10 border border-warn/20 rounded-xl p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-100">
-                        Sync Exchange Data from yfinance
-                      </h3>
-                      <p className="text-sm text-gray-400 mt-1">
-                        Fixes stocks stored as NYSE that are actually on NASDAQ / AMEX / ARCA.
-                        Run this <strong className="text-warn">before</strong> crawling logos — correct exchange = better logo URL hit rate.
-                      </p>
-                    </div>
-                    <RefreshCw className={`w-5 h-5 ${isSyncingExchange ? 'animate-spin text-warn' : 'text-warn/60'}`} />
-                  </div>
-                  <button
-                    onClick={async () => {
-                      const ok = await confirm({
-                        title: "Sync exchange data?",
-                        message: "This will query yfinance for every world stock (~2900) to update the exchange field. It may take several minutes.",
-                        confirmLabel: "Start Sync",
-                        variant: "info",
-                      });
-                      if (!ok) return;
-                      setIsSyncingExchange(true);
-                      const loadingToast = toast.loading("Syncing exchange data from yfinance…");
-                      try {
-                        const result = await worldStocksAPI.syncExchangeData();
-                        toast.success(
-                          `Exchange sync done — updated: ${result.results?.updated ?? 0}, skipped: ${result.results?.skipped ?? 0}, failed: ${result.results?.failed ?? 0}`,
-                          { id: loadingToast, duration: 6000 }
-                        );
-                      } catch (error: any) {
-                        toast.error(error.response?.data?.detail || "Exchange sync failed", { id: loadingToast });
-                      } finally {
-                        setIsSyncingExchange(false);
-                      }
-                    }}
-                    disabled={isSyncingExchange || isCrawling}
-                    className="px-6 py-2.5 bg-warn text-surface-dark rounded-xl hover:bg-warn/80 transition-colors font-medium disabled:bg-gray-600 disabled:cursor-not-allowed"
-                  >
-                    {isSyncingExchange ? "Syncing…" : "Sync Exchange Data"}
-                  </button>
-                </div>
-
-                {/* Batch Logo Crawler for World Stocks */}
+                {/* Main: single-click sync */}
                 <div className="bg-brand-400/10 border border-brand-400/20 rounded-xl p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-100">
-                        Batch Logo Crawler
-                      </h3>
+                      <h3 className="text-lg font-semibold text-gray-100">Sync World Stock Logos</h3>
                       <p className="text-sm text-gray-400 mt-1">
-                        Fetch and store SVG logos for World stocks
+                        Fetches logo URLs from TradingView then downloads the SVGs — all in one shot.
+                        Only processes stocks that are still missing logos, so safe to re-run.
                       </p>
                     </div>
                     <RefreshCw className={`w-5 h-5 ${isCrawling ? 'animate-spin text-brand-400' : 'text-brand-400/60'}`} />
                   </div>
-
-                  <div className="space-y-4">
+                  <div className="flex flex-wrap items-end gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Batch size
-                      </label>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">Batch size</label>
                       <input
                         type="number"
                         value={worldBatchSize}
                         onChange={(e) => setWorldBatchSize(parseInt(e.target.value) || 5)}
-                        className="w-32 px-3 py-2 bg-surface-dark border border-white/10 rounded-xl text-gray-100 focus:ring-2 focus:ring-brand-400/40 focus:border-transparent"
                         disabled={isCrawling}
+                        className="w-24 px-3 py-2 bg-surface-dark border border-white/10 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-brand-400/40"
                       />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Runs concurrent requests in batches
-                      </p>
                     </div>
-
                     <button
                       onClick={async () => {
-                        const ok = await confirm({ title: "Crawl world stock logos?", message: "This will crawl logos for all world stocks that don\u2019t have them yet.", confirmLabel: "Start Crawl", variant: "info" });
+                        const ok = await confirm({
+                          title: "Sync all world stock logos?",
+                          message: "Will crawl TradingView for logo URLs then download SVGs for all stocks that don't have them yet. This may take several minutes.",
+                          confirmLabel: "Start Sync",
+                          variant: "info",
+                        });
                         if (!ok) return;
-                        
                         setIsCrawling(true);
-                        const loadingToast = toast.loading("Crawling world stock logos...");
-                        
+                        const loadingToast = toast.loading("Syncing logos — Phase 1: crawling TradingView…");
                         try {
-                          const result = await worldStocksAPI.crawlAllLogos(worldBatchSize);
+                          const result = await worldStocksAPI.syncAllLogos(worldBatchSize);
+                          const p1 = result.phase1_url_crawl ?? {};
+                          const p2 = result.phase2_svg_download ?? {};
                           toast.success(
-                            `Successfully crawled ${result.results?.success || 0} logos! (${result.results?.failed || 0} failed)`,
-                            { id: loadingToast }
+                            `Done! URLs found: ${p1.success ?? 0} · SVGs saved: ${p2.success ?? 0} · Failed: ${(p1.failed ?? 0) + (p2.failed ?? 0)}`,
+                            { id: loadingToast, duration: 8000 }
                           );
                         } catch (error: any) {
-                          toast.error(
-                            error.response?.data?.detail || "Failed to crawl logos",
-                            { id: loadingToast }
-                          );
+                          toast.error(error.response?.data?.detail || "Sync failed", { id: loadingToast });
                         } finally {
                           setIsCrawling(false);
                         }
                       }}
-                      disabled={isCrawling}
-                      className="w-full sm:w-auto px-6 py-2.5 bg-gain text-surface-dark rounded-xl hover:bg-gain/80 transition-colors font-medium disabled:bg-gray-600 disabled:cursor-not-allowed"
+                      disabled={isCrawling || isSyncingExchange}
+                      className="px-6 py-2.5 bg-gain text-surface-dark rounded-xl hover:bg-gain/80 transition-colors font-semibold disabled:bg-gray-600 disabled:cursor-not-allowed"
                     >
-                      {isCrawling ? "Crawling..." : "Crawl Missing Logos"}
+                      {isCrawling ? "Syncing…" : "Sync All Logos"}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const loadingToast = toast.loading("Fetching logo stats…");
+                        try {
+                          const stats = await worldStocksAPI.getLogoStats();
+                          const svgPct = stats.logo_svgs?.percentage ?? 0;
+                          const urlPct = stats.logo_urls?.percentage ?? 0;
+                          toast.success(
+                            `SVGs: ${stats.logo_svgs?.with_svg ?? 0}/${stats.total_stocks} (${svgPct}%) · URLs: ${stats.logo_urls?.with_url ?? 0} (${urlPct}%)`,
+                            { id: loadingToast, duration: 6000 }
+                          );
+                        } catch (error: any) {
+                          toast.error(error.response?.data?.detail || "Failed to fetch stats", { id: loadingToast });
+                        }
+                      }}
+                      disabled={isCrawling}
+                      className="px-4 py-2.5 bg-surface-dark border border-white/10 text-gray-300 rounded-xl hover:bg-white/5 transition-colors text-sm"
+                    >
+                      View Stats
                     </button>
                   </div>
                 </div>
 
-                {/* TradingView Logo URL Crawler for World Stocks */}
-                <div className="bg-brand-400/10 border border-brand-400/20 rounded-xl p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-100">
-                        TradingView Logo URL Crawler
-                      </h3>
-                      <p className="text-sm text-gray-400 mt-1">
-                        Extract logo URLs from TradingView symbol pages
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-300 mb-3">
-                        Batch crawl
-                      </h4>
-                      <button
-                        onClick={async () => {
-                          setIsCrawling(true);
-                          const loadingToast = toast.loading("Crawling TradingView logo URLs...");
-                          
-                          try {
-                            const result = await worldStocksAPI.crawlTradingViewLogoUrls(worldBatchSize, true);
-                            toast.success(
-                              `Successfully crawled ${result.results?.success || 0} URLs!`,
-                              { id: loadingToast }
-                            );
-                          } catch (error: any) {
-                            toast.error(
-                              error.response?.data?.detail || "Failed to crawl URLs",
-                              { id: loadingToast }
-                            );
-                          } finally {
-                            setIsCrawling(false);
-                          }
-                        }}
-                        disabled={isCrawling}
-                        className="w-full px-4 py-2.5 bg-gray-700 text-white rounded-xl hover:bg-gray-600 transition-colors disabled:bg-gray-600"
-                      >
-                        Crawl Missing logo_url
-                      </button>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Finds SVG URLs via TradingView page and saves it to logo_url only
-                      </p>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-300 mb-3">
-                        Single symbol
-                      </h4>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="e.g., AAPL"
-                          value={singleTicker}
-                          onChange={(e) => setSingleTicker(e.target.value.toUpperCase())}
-                          className="flex-1 px-3 py-2 bg-surface-dark border border-white/10 rounded-xl text-gray-100 focus:ring-2 focus:ring-brand-400/40 focus:border-transparent"
-                          disabled={isCrawling}
-                        />
-                        <button
-                          onClick={async () => {
-                            if (!singleTicker) {
-                              toast.error("Please enter a ticker symbol");
-                              return;
-                            }
-                            
-                            setIsCrawling(true);
-                            const loadingToast = toast.loading(`Crawling logo URL for ${singleTicker}...`);
-                            
-                            try {
-                              const result = await worldStocksAPI.crawlLogoForTicker(singleTicker);
-                              if (result.success) {
-                                toast.success(result.message, { id: loadingToast });
-                              } else {
-                                toast.error(result.message, { id: loadingToast });
-                              }
-                            } catch (error: any) {
-                              toast.error(
-                                error.response?.data?.detail || "Failed to crawl logo URL",
-                                { id: loadingToast }
-                              );
-                            } finally {
-                              setIsCrawling(false);
-                            }
-                          }}
-                          disabled={isCrawling || !singleTicker}
-                          className="px-4 py-2 bg-gain text-surface-dark rounded-xl hover:bg-gain/80 transition-colors disabled:bg-gray-600"
-                        >
-                          Crawl URL for Symbol
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Uses TradingView page like https://www.tradingview.com/symbols/NASDAQ-AAPL/
-                      </p>
-                    </div>
+                {/* Single ticker override */}
+                <div className="bg-surface-dark-secondary border border-white/8 rounded-xl p-5">
+                  <h4 className="text-sm font-semibold text-gray-300 mb-3">Single ticker override</h4>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. AAPL"
+                      value={singleTicker}
+                      onChange={(e) => setSingleTicker(e.target.value.toUpperCase())}
+                      disabled={isCrawling}
+                      className="w-36 px-3 py-2 bg-surface-dark border border-white/10 rounded-lg text-gray-100 text-sm focus:ring-2 focus:ring-brand-400/40"
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!singleTicker) return;
+                        setIsCrawling(true);
+                        const loadingToast = toast.loading(`Fetching logo for ${singleTicker}…`);
+                        try {
+                          const result = await worldStocksAPI.crawlLogoForTicker(singleTicker);
+                          if (result.success) toast.success(result.message, { id: loadingToast });
+                          else toast.error(result.message, { id: loadingToast });
+                        } catch (error: any) {
+                          toast.error(error.response?.data?.detail || "Failed", { id: loadingToast });
+                        } finally {
+                          setIsCrawling(false);
+                        }
+                      }}
+                      disabled={isCrawling || !singleTicker}
+                      className="px-4 py-2 bg-brand-400 text-surface-dark rounded-lg hover:bg-brand-500 transition-colors text-sm font-medium disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    >
+                      Fetch Logo
+                    </button>
                   </div>
                 </div>
 
-                {/* Populate logo_svg from logo_url for World Stocks */}
-                <div className="bg-brand-400/10 border border-brand-400/20 rounded-xl p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-100">
-                        Populate logo_svg from logo_url
-                      </h3>
-                      <p className="text-sm text-gray-400 mt-1">
-                        Download SVGs using saved logo_url and store them in the database
-                      </p>
-                    </div>
+                {/* Advanced: exchange sync */}
+                <details className="group">
+                  <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-400 transition-colors select-none list-none flex items-center gap-1">
+                    <span className="group-open:rotate-90 transition-transform inline-block">›</span>
+                    Advanced — fix exchange data (run once if logos aren&apos;t being found)
+                  </summary>
+                  <div className="mt-3 bg-warn/5 border border-warn/15 rounded-xl p-5">
+                    <p className="text-xs text-gray-400 mb-3">
+                      Updates the exchange field from yfinance for all ~2900 stocks. Helps when the crawler
+                      can&apos;t find a stock because it&apos;s listed on NASDAQ but stored as NYSE.
+                      Takes several minutes.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: "Sync exchange data?",
+                          message: "Queries yfinance for every world stock to update exchange info. May take several minutes.",
+                          confirmLabel: "Start",
+                          variant: "info",
+                        });
+                        if (!ok) return;
+                        setIsSyncingExchange(true);
+                        const loadingToast = toast.loading("Syncing exchange data…");
+                        try {
+                          const result = await worldStocksAPI.syncExchangeData();
+                          toast.success(
+                            `Exchange sync done — updated: ${result.results?.updated ?? 0}, skipped: ${result.results?.skipped ?? 0}, failed: ${result.results?.failed ?? 0}`,
+                            { id: loadingToast, duration: 6000 }
+                          );
+                        } catch (error: any) {
+                          toast.error(error.response?.data?.detail || "Sync failed", { id: loadingToast });
+                        } finally {
+                          setIsSyncingExchange(false);
+                        }
+                      }}
+                      disabled={isSyncingExchange || isCrawling}
+                      className="px-5 py-2 bg-warn text-surface-dark rounded-lg hover:bg-warn/80 transition-colors text-sm font-medium disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    >
+                      {isSyncingExchange ? "Syncing…" : "Sync Exchange Data"}
+                    </button>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-300 mb-3">
-                        Bulk populate
-                      </h4>
-                      <button
-                        onClick={async () => {
-                          setIsCrawling(true);
-                          const loadingToast = toast.loading("Populating SVGs from URLs...");
-                          
-                          try {
-                            const result = await worldStocksAPI.fetchLogoSvgFromUrl(worldBatchSize, true);
-                            toast.success(
-                              `Successfully populated ${result.results?.success || 0} SVGs!`,
-                              { id: loadingToast }
-                            );
-                          } catch (error: any) {
-                            toast.error(
-                              error.response?.data?.detail || "Failed to populate SVGs",
-                              { id: loadingToast }
-                            );
-                          } finally {
-                            setIsCrawling(false);
-                          }
-                        }}
-                        disabled={isCrawling}
-                        className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors disabled:bg-gray-600"
-                      >
-                        Populate Missing SVGs
-                      </button>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Only processes stocks with a saved logo_url
-                      </p>
-                    </div>
-
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-300 mb-3">
-                        Logo Statistics
-                      </h4>
-                      <button
-                        onClick={async () => {
-                          const loadingToast = toast.loading("Fetching logo stats...");
-                          
-                          try {
-                            const stats = await worldStocksAPI.getLogoStats();
-                            toast.success(
-                              `Total: ${stats.total_stocks} | With Logos: ${stats.with_logos} (${stats.coverage_percentage}%)`,
-                              { id: loadingToast, duration: 5000 }
-                            );
-                          } catch (error: any) {
-                            toast.error(
-                              error.response?.data?.detail || "Failed to fetch stats",
-                              { id: loadingToast }
-                            );
-                          }
-                        }}
-                        className="w-full px-4 py-2.5 bg-brand-400 text-surface-dark rounded-xl hover:bg-brand-500 transition-colors"
-                      >
-                        View Logo Statistics
-                      </button>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Check current logo coverage
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                </details>
               </>
             )}
           </div>

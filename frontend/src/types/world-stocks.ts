@@ -30,7 +30,8 @@ export interface WorldStockHolding {
   holding_date?: string;
   last_updated: string;
   created_at: string;
-  
+  logo_url?: string | null;
+
   // Return metrics
   unrealized_gain?: number;
   unrealized_gain_pct?: number;
@@ -65,6 +66,7 @@ export interface WorldStockTransaction {
   source_pdf: string;
   created_at: string;
   updated_at?: string;
+  logo_url?: string | null;
 }
 
 export interface WorldStockDividend {
@@ -84,6 +86,7 @@ export interface WorldStockDividend {
   currency: string;
   source_pdf: string;
   created_at: string;
+  logo_url?: string | null;
 }
 
 export interface WorldStockPerformance {

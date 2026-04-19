@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { worldStocksAPI } from "@/services/api";
 import { WorldStockDividend } from "@/types/world-stocks";
+import StockLogo from "@/components/StockLogo";
 import {
   ResponsiveContainer,
   BarChart,
@@ -353,8 +354,16 @@ export default function WorldStockDividends({
                     {formatDate(dividend.payment_date)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-semibold text-gray-100">
-                      {dividend.symbol}
+                    <div className="flex items-center">
+                      <StockLogo
+                        symbol={dividend.symbol}
+                        logoUrl={dividend.logo_url}
+                        size="sm"
+                        className="flex-shrink-0 mr-3"
+                      />
+                      <div className="font-semibold text-gray-100">
+                        {dividend.symbol}
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">

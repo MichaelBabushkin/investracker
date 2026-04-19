@@ -22,6 +22,7 @@ import {
 import { worldStocksAPI } from "@/services/api";
 import { WorldStockHolding } from "@/types/world-stocks";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
+import StockLogo from "@/components/StockLogo";
 import Link from "next/link";
 
 interface WorldStockHoldingsProps {
@@ -461,8 +462,21 @@ export default function WorldStockHoldings({
                   return (
                     <tr key={holding.id} className="hover:bg-white/5">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Link href={`/stock/${holding.symbol}`} className="font-semibold text-gray-100 hover:text-brand-400 transition-colors">
-                          {holding.symbol}
+                        <Link href={`/stock/${holding.symbol}`} className="flex items-center group">
+                          <StockLogo
+                            symbol={holding.symbol}
+                            logoUrl={holding.logo_url}
+                            size="sm"
+                            className="flex-shrink-0 mr-3 group-hover:opacity-80 transition-opacity"
+                          />
+                          <div>
+                            <div className="text-sm font-medium text-gray-100 group-hover:text-brand-400 transition-colors">
+                              {holding.symbol}
+                            </div>
+                            <div className="text-sm text-gray-400 max-w-xs truncate group-hover:text-brand-400/70 transition-colors">
+                              {holding.company_name}
+                            </div>
+                          </div>
                         </Link>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">

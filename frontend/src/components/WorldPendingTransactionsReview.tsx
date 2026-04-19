@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { worldStocksAPI } from "@/services/api";
 import { Check, X, Pencil } from "lucide-react";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
+import StockLogo from "@/components/StockLogo";
 
 interface PendingWorldTransaction {
   id: number;
@@ -446,12 +447,19 @@ export default function WorldPendingTransactionsReview({
                         {transaction.transaction_date}
                       </td>
                       <td className="px-6 py-4">
-                        <div>
-                          <div className="text-sm font-medium text-gray-100">
-                            {transaction.stock_name}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {transaction.ticker}
+                        <div className="flex items-center gap-3">
+                          <StockLogo
+                            symbol={transaction.ticker || "?"}
+                            size="xs"
+                            className="flex-shrink-0"
+                          />
+                          <div>
+                            <div className="text-sm font-medium text-gray-100">
+                              {transaction.stock_name}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {transaction.ticker}
+                            </div>
                           </div>
                         </div>
                       </td>

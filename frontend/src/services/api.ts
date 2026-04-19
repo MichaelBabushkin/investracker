@@ -685,7 +685,7 @@ export const worldStocksAPI = {
   },
 
   crawlLogoForTicker: async (ticker: string, exchange: string = "NASDAQ") => {
-    const response = await api.post(`/world-stocks/crawl-logo/${ticker}?exchange=${exchange}`);
+    const response = await api.post(`/world-stocks/crawl-tradingview-logo-url/${ticker}?exchange=${exchange}`);
     return response.data;
   },
 
@@ -769,6 +769,11 @@ export const worldStocksAPI = {
 
   syncExchangeData: async () => {
     const response = await api.post("/world-stocks/sync-exchange-data");
+    return response.data;
+  },
+
+  syncAllLogos: async (batchSize: number = 5) => {
+    const response = await api.post(`/world-stocks/sync-all-logos?batch_size=${batchSize}`);
     return response.data;
   },
 };
