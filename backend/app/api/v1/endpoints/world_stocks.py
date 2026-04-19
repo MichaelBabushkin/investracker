@@ -1050,6 +1050,35 @@ async def fetch_logo_svg_from_url_bulk(
         raise HTTPException(status_code=500, detail=f"Error populating logo_svg from logo_url: {str(e)}")
 
 
+@router.post("/sync-all-logos")
+async def sync_all_world_logos(
+    batch_size: int = Query(5, description="Concurrent requests per batch"),
+    current_admin: User = Depends(get_admin_user)
+):
+    """
+    Single-click logo sync for world stocks (Admin only).
+    Runs Phase 1 (crawl TradingView → logo_url) then Phase 2 (download SVG) in sequence.
+    Only processes stocks that are still missing data, so safe to re-run.
+    """
+    from app.services.world_stock_logo_crawler_service import WorldStockLogoCrawlerService
+    try:
+        async with WorldStockLogoCrawlerService() as crawler:
+            phase1 = await crawler.crawl_tradingview_logo_urls_for_all(
+                batch_size=batch_size, missing_only=True
+            )
+            phase2 = await crawler.populate_logo_svg_from_logo_urls_for_all(
+                batch_size=batch_size, only_missing=True
+            )
+        return {
+            "success": True,
+            "message": "Logo sync completed",
+            "phase1_url_crawl": phase1,
+            "phase2_svg_download": phase2,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Logo sync failed: {str(e)}")
+
+
 @router.put("/stocks/{stock_id}/logo")
 async def update_stock_logo_manual(
     stock_id: int,
@@ -1239,6 +1268,7 @@ async def get_logo_statistics(
     """
     Get statistics about world stock logo coverage
     """
+    from app.services.world_stock_logo_crawler_service import WorldStockLogoCrawlerService
     try:
         async with WorldStockLogoCrawlerService() as crawler:
             all_stocks = crawler.get_all_stocks()
