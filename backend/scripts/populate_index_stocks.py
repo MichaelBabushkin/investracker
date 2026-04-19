@@ -10,11 +10,13 @@ Populate world_stocks with S&P 500 and Nasdaq-100 constituents.
 
 import asyncio
 import sys
+import os
 import re
 import urllib.request
 import aiohttp
 
-sys.path.insert(0, "/Users/michaelbabushkin/Desktop/projects/investracker/backend")
+# Works when run from repo root (python3 backend/scripts/...) or from backend/
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 # ─── Wikipedia scrapers ──────────────────────────────────────────────────────
