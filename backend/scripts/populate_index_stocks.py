@@ -188,6 +188,7 @@ async def main():
         """)).fetchall()
 
     print(f"\n=== Crawling logo URLs for {len(missing_url)} index stocks ===")
+    print(f"  (throttled to 1 request/sec — safe for production)\n")
 
     async with WorldStockLogoCrawlerService() as crawler:
         async with aiohttp.ClientSession() as session:
@@ -205,13 +206,17 @@ async def main():
                 else:
                     print(f"  [{i+1}/{len(missing_url)}] {ticker}: NOT FOUND")
 
+                # Throttle: 1 request/sec — avoids bursting TradingView and
+                # keeps Railway egress minimal (SVGs are ~10-30KB each)
+                await asyncio.sleep(1)
+
             print(f"\n  logo_url crawl: {succeeded}/{len(missing_url)} found")
 
-    # ── Phase 2: download SVGs ────────────────────────────────────────────
+    # ── Phase 2: download SVGs (batch of 3 to stay gentle) ───────────────
     print("\n=== Downloading SVGs (Phase 2) for index stocks ===")
     async with WorldStockLogoCrawlerService() as crawler:
         result = await crawler.populate_logo_svg_from_logo_urls_for_all(
-            batch_size=10, only_missing=True
+            batch_size=3, only_missing=True
         )
     print(f"  SVG download: {result}")
 
