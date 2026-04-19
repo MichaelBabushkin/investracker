@@ -3,6 +3,7 @@ SQLAlchemy models for World Stock Analysis System
 Includes models for world stocks, holdings, transactions, and dividends
 """
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Date, Text, UniqueConstraint, Index, DECIMAL, ForeignKey
+from sqlalchemy.dialects.postgresql import ARRAY
 from app.core.database import Base
 from datetime import datetime
 from decimal import Decimal
@@ -28,11 +29,10 @@ class WorldStock(Base):
     website = Column(String(255), nullable=True)
     full_time_employees = Column(Integer, nullable=True)
     business_summary = Column(Text, nullable=True)
-    phone = Column(String(50), nullable=True)
     address = Column(String(255), nullable=True)
     city = Column(String(100), nullable=True)
     state = Column(String(50), nullable=True)
-    zip_code = Column(String(20), nullable=True)
+    indices = Column(ARRAY(String), nullable=True, default=[])  # e.g. ['sp500', 'nasdaq100']
     logo_url = Column(Text, nullable=True)
     logo_svg = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)

@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { israeliStocksAPI, worldStocksAPI } from "@/services/api";
+import StockLogo from "@/components/StockLogo";
 
 interface StockOption {
   symbol: string;
   company_name: string;
+  logo_url?: string | null;
 }
 
 type Market = "israeli" | "international";
@@ -209,16 +211,22 @@ export default function StockSymbolSearch({
             <li
               key={opt.symbol}
               onMouseDown={() => handleSelect(opt)}
-              className={`flex items-center justify-between px-3 py-2 cursor-pointer transition-colors ${
+              className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${
                 i === activeIdx
                   ? "bg-brand-400/10 text-brand-400"
                   : "text-gray-300 hover:bg-white/5"
               }`}
             >
+              <StockLogo
+                symbol={opt.symbol}
+                logoUrl={opt.logo_url}
+                size="xs"
+                className="flex-shrink-0"
+              />
               <span className="font-semibold text-xs tracking-wide shrink-0">
                 {opt.symbol}
               </span>
-              <span className="text-gray-500 text-xs truncate ml-3 text-right">
+              <span className="text-gray-500 text-xs truncate ml-auto text-right">
                 {opt.company_name}
               </span>
             </li>

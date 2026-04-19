@@ -14,6 +14,7 @@ import {
 import { worldStocksAPI } from "@/services/api";
 import { WorldStockTransaction } from "@/types/world-stocks";
 import TopTradesPanel from "./TopTradesPanel";
+import StockLogo from "@/components/StockLogo";
 import {
   ResponsiveContainer,
   BarChart,
@@ -617,12 +618,20 @@ export default function WorldStockTransactions({
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Link href={`/stock/${transaction.ticker || transaction.symbol}`} className="block group">
-                        <div className="font-semibold text-gray-100 group-hover:text-brand-400 transition-colors">
-                          {transaction.symbol}
-                        </div>
-                        <div className="text-xs text-gray-400 group-hover:text-brand-400/70 transition-colors">
-                          {transaction.ticker || "-"}
+                      <Link href={`/stock/${transaction.ticker || transaction.symbol}`} className="flex items-center group">
+                        <StockLogo
+                          symbol={transaction.symbol}
+                          logoUrl={transaction.logo_url}
+                          size="sm"
+                          className="flex-shrink-0 mr-3 group-hover:opacity-80 transition-opacity"
+                        />
+                        <div>
+                          <div className="font-semibold text-gray-100 group-hover:text-brand-400 transition-colors">
+                            {transaction.symbol}
+                          </div>
+                          <div className="text-xs text-gray-400 group-hover:text-brand-400/70 transition-colors">
+                            {transaction.ticker || "-"}
+                          </div>
                         </div>
                       </Link>
                     </td>

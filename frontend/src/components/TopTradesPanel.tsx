@@ -2,6 +2,7 @@
 
 import React from "react";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import StockLogo from "@/components/StockLogo";
 
 export interface TradeEntry {
   id: number | string;
@@ -10,6 +11,7 @@ export interface TradeEntry {
   transaction_time?: string;
   quantity?: number;
   realized_pl?: number | string | null;
+  logo_url?: string | null;
 }
 
 interface TopTradesPanelProps {
@@ -63,9 +65,15 @@ export default function TopTradesPanel({
                 className="flex items-center justify-between p-3 bg-gain/10 rounded-xl border border-gain/10"
               >
                 <div className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center w-8 h-8 bg-green-600 text-white rounded-full text-sm font-bold">
+                  <div className="flex items-center justify-center w-8 h-8 bg-green-600 text-white rounded-full text-sm font-bold flex-shrink-0">
                     {idx + 1}
                   </div>
+                  <StockLogo
+                    symbol={trade.symbol}
+                    logoUrl={trade.logo_url}
+                    size="sm"
+                    className="flex-shrink-0"
+                  />
                   <div>
                     <p className="font-semibold text-gray-100">{trade.symbol}</p>
                     <p className="text-xs text-gray-400">
@@ -104,9 +112,15 @@ export default function TopTradesPanel({
                 className="flex items-center justify-between p-3 bg-loss/10 rounded-xl border border-loss/10"
               >
                 <div className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center w-8 h-8 bg-red-600 text-white rounded-full text-sm font-bold">
+                  <div className="flex items-center justify-center w-8 h-8 bg-red-600 text-white rounded-full text-sm font-bold flex-shrink-0">
                     {idx + 1}
                   </div>
+                  <StockLogo
+                    symbol={trade.symbol}
+                    logoUrl={trade.logo_url}
+                    size="sm"
+                    className="flex-shrink-0"
+                  />
                   <div>
                     <p className="font-semibold text-gray-100">{trade.symbol}</p>
                     <p className="text-xs text-gray-400">

@@ -5,26 +5,37 @@ import React from 'react'
 interface StockLogoProps {
   symbol: string
   logoSvg?: string | null
-  size?: 'sm' | 'md' | 'lg'
+  logoUrl?: string | null
+  size?: 'xs' | 'sm' | 'md' | 'lg'
   className?: string
 }
 
-export default function StockLogo({ symbol, logoSvg, size = 'md', className = '' }: StockLogoProps) {
+export default function StockLogo({ symbol, logoSvg, logoUrl, size = 'md', className = '' }: StockLogoProps) {
   const sizeClasses = {
+    xs: 'w-7 h-7',
     sm: 'w-[3.5rem] h-[3.5rem]',
     md: 'w-[3.5rem] h-[3.5rem]',
     lg: 'w-[3.5rem] h-[3.5rem]'
   }
 
   const textSizes = {
+    xs: 'text-xs',
     sm: 'text-sm',
     md: 'text-base',
     lg: 'text-lg'
   }
 
+  if (logoUrl) {
+    return (
+      <div className={`${sizeClasses[size]} ${className} rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center`}>
+        <img src={logoUrl} alt={symbol} className="w-full h-full object-contain p-1" />
+      </div>
+    )
+  }
+
   if (logoSvg) {
     return (
-      <div 
+      <div
         className={`${sizeClasses[size]} ${className} rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center`}
         dangerouslySetInnerHTML={{ __html: logoSvg }}
       />
