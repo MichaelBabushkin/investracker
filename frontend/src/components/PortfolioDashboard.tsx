@@ -292,7 +292,7 @@ export default function PortfolioDashboard() {
             onChange={(e) =>
               setSelectedAccountId(e.target.value ? Number(e.target.value) : undefined)
             }
-            className="mb-1 px-3 py-1.5 border border-white/10 rounded-lg text-xs bg-surface-dark-secondary text-gray-300 focus:ring-1 focus:ring-brand-400/40"
+            className="mb-1 pl-3 pr-10 py-1.5 border border-white/10 rounded-lg text-xs bg-surface-dark-secondary text-gray-300 focus:ring-1 focus:ring-brand-400/40"
           >
             <option value="">All Accounts</option>
             {accounts.map((account) => (
@@ -463,7 +463,7 @@ export default function PortfolioDashboard() {
                       <select
                         value={selectedAccountId || ""}
                         onChange={(e) => setSelectedAccountId(e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-3 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-400/40"
+                        className="w-full pl-3 pr-10 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-400/40"
                       >
                         <option value="">No specific account</option>
                         {accounts.map((acc) => (
@@ -482,7 +482,7 @@ export default function PortfolioDashboard() {
                       <select
                         value={manualForm.transaction_type}
                         onChange={(e) => handleManualField("transaction_type", e.target.value)}
-                        className="w-full px-3 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-400/40"
+                        className="w-full pl-3 pr-10 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-400/40"
                       >
                         {TRANSACTION_TYPES.map((t) => (
                           <option key={t} value={t}>{t}</option>
@@ -522,7 +522,7 @@ export default function PortfolioDashboard() {
                         type="date"
                         value={manualForm.transaction_date}
                         onChange={(e) => handleManualField("transaction_date", e.target.value)}
-                        className="w-full px-3 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-400/40"
+                        className="w-full pl-3 pr-10 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-400/40"
                         required
                       />
                     </div>
@@ -531,7 +531,7 @@ export default function PortfolioDashboard() {
                       <select
                         value={manualForm.currency}
                         onChange={(e) => handleManualField("currency", e.target.value)}
-                        className="w-full px-3 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-400/40"
+                        className="w-full pl-3 pr-10 py-2 bg-surface-dark border border-white/10 rounded-lg text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-brand-400/40"
                       >
                         {manualForm.market === "israeli" ? (
                           <>

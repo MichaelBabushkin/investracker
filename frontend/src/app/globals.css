@@ -278,7 +278,12 @@ body {
 /* ─── Fix native select arrow overlap ───────────────────────────────────────
    Must be outside any @layer so it outranks Tailwind's @layer utilities      */
 select {
-  padding-right: 2.25rem !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='m6 9 6 6 6-6'/%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 1rem center !important;
+  background-size: 1.25em !important;
+  padding-right: 2.5rem !important;
 }
 
 /* ─── Tab/content transition ─── */

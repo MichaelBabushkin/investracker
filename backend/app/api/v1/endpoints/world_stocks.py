@@ -184,7 +184,9 @@ async def get_world_stock_holdings(
                        ws.logo_url
                 FROM "world_stock_holdings" h
                 LEFT JOIN "stock_prices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
-                LEFT JOIN "world_stocks" ws ON h.ticker = ws.ticker
+                LEFT JOIN LATERAL (
+                    SELECT logo_url FROM "world_stocks" WHERE ticker = h.ticker LIMIT 1
+                ) ws ON true
                 WHERE h.user_id = :user_id
                 ORDER BY current_value DESC NULLS LAST
                 LIMIT :limit
@@ -259,7 +261,9 @@ async def get_world_stock_transactions(
                        t.created_at, t.updated_at, t.realized_pl, t.cost_basis,
                        ws.logo_url
                 FROM "world_stock_transactions" t
-                LEFT JOIN "world_stocks" ws ON t.ticker = ws.ticker
+                LEFT JOIN LATERAL (
+                    SELECT logo_url FROM "world_stocks" WHERE ticker = t.ticker LIMIT 1
+                ) ws ON true
                 WHERE {where_clause}
                 ORDER BY t.transaction_date DESC NULLS LAST, t.created_at DESC
                 LIMIT :limit
@@ -339,7 +343,9 @@ async def search_world_stocks_catalog(
                 history = conn.execute(text("""
                     SELECT DISTINCT ON (t.symbol) t.symbol, t.company_name, ws.logo_url
                     FROM "world_stock_transactions" t
-                    LEFT JOIN "world_stocks" ws ON t.ticker = ws.ticker
+                    LEFT JOIN LATERAL (
+                        SELECT logo_url FROM "world_stocks" WHERE ticker = t.ticker LIMIT 1
+                    ) ws ON true
                     WHERE t.user_id = :user_id
                       AND (t.symbol ILIKE :q OR t.company_name ILIKE :q)
                     ORDER BY t.symbol
@@ -373,18 +379,17 @@ async def create_world_stock_transaction(
         with engine.connect() as conn:
             query = text("""
                 INSERT INTO "world_stock_transactions"
-                    (user_id, account_id, symbol, ticker, company_name,
+                    (user_id, symbol, ticker, company_name,
                      transaction_type, transaction_date, quantity, price,
                      total_value, commission, currency, source_pdf)
                 VALUES
-                    (:user_id, :account_id, :symbol, :ticker, :company_name,
+                    (:user_id, :symbol, :ticker, :company_name,
                      :transaction_type, :transaction_date, :quantity, :price,
                      :total_value, :commission, :currency, 'Manual Entry')
                 RETURNING id
             """)
             result = conn.execute(query, {
                 "user_id": current_user.id,
-                "account_id": transaction_data.get("account_id"),
                 "symbol": symbol,
                 "ticker": symbol,
                 "company_name": transaction_data.get("company_name", ""),
@@ -412,7 +417,7 @@ async def create_world_stock_transaction(
                 conn.execute(text("""
                     INSERT INTO "world_stocks" (ticker, company_name)
                     VALUES (:ticker, :company_name)
-                    ON CONFLICT (ticker) DO NOTHING
+                    ON CONFLICT DO NOTHING
                 """), {"ticker": symbol, "company_name": company_name})
 
             conn.commit()
@@ -455,7 +460,9 @@ async def get_world_stock_dividends(
                        d.source_pdf, d.created_at, d.updated_at,
                        ws.logo_url
                 FROM "world_dividends" d
-                LEFT JOIN "world_stocks" ws ON d.ticker = ws.ticker
+                LEFT JOIN LATERAL (
+                    SELECT logo_url FROM "world_stocks" WHERE ticker = d.ticker LIMIT 1
+                ) ws ON true
                 WHERE {where_clause}
                 ORDER BY d.payment_date DESC NULLS LAST, d.created_at DESC
                 LIMIT :limit
@@ -654,7 +661,9 @@ async def get_portfolio_dashboard(
                        ws.sector
                 FROM "world_stock_holdings" h
                 LEFT JOIN "stock_prices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
-                LEFT JOIN "world_stocks" ws ON h.ticker = ws.ticker
+                LEFT JOIN LATERAL (
+                    SELECT sector FROM "world_stocks" WHERE ticker = h.ticker LIMIT 1
+                ) ws ON true
                 WHERE h.user_id = :user_id AND h.quantity > 0
                 ORDER BY 
                     CASE WHEN sp.current_price IS NOT NULL THEN h.quantity * sp.current_price ELSE h.current_value END DESC NULLS LAST
@@ -2161,7 +2170,9 @@ async def get_world_stock_detail(
                 SELECT h.quantity, h.purchase_cost, h.current_value, h.last_price,
                        ws.logo_url, ws.logo_svg
                 FROM world_stock_holdings h
-                LEFT JOIN world_stocks ws ON h.ticker = ws.ticker
+                LEFT JOIN LATERAL (
+                    SELECT logo_url, logo_svg FROM world_stocks WHERE ticker = h.ticker LIMIT 1
+                ) ws ON true
                 WHERE h.user_id = :user_id AND h.ticker = :ticker AND h.quantity > 0
                 LIMIT 1
             """), params).fetchone()
