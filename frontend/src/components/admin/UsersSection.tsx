@@ -62,7 +62,7 @@ const UsersSection: React.FC = () => {
       const result = await adminAPI.resetUserStockData(resetEmail);
       setResetResult({
         success: true,
-        message: `Successfully deleted ${result.deleted.total} records (${result.deleted.holdings} holdings, ${result.deleted.transactions} transactions, ${result.deleted.dividends} dividends)`,
+        message: `Successfully deleted ${result.deleted.total} records — Israeli: ${result.deleted.israeli.holdings} holdings, ${result.deleted.israeli.transactions} transactions, ${result.deleted.israeli.dividends} dividends | World: ${result.deleted.world.holdings} holdings, ${result.deleted.world.transactions} transactions, ${result.deleted.world.dividends} dividends`,
       });
     } catch (error: any) {
       setResetResult({

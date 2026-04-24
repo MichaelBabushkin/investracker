@@ -63,6 +63,16 @@ export default function WorldStockTransactions({
     fetchTransactions();
   }, [fetchTransactions, refreshTrigger]);
 
+  const handleDeleteTransaction = async (id: number, symbol: string) => {
+    if (!confirm(`Delete the ${symbol} transaction? This cannot be undone.`)) return;
+    try {
+      await worldStocksAPI.deleteTransaction(id);
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Failed to delete transaction");
+    }
+  };
+
   const formatCurrency = (amount?: number | string) => {
     if (amount === null || amount === undefined) return "$0.00";
     const num = typeof amount === "string" ? parseFloat(amount) : amount;
@@ -577,6 +587,7 @@ export default function WorldStockTransactions({
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   MTM P/L
                 </th>
+                <th className="px-6 py-3 w-10" />
               </tr>
             </thead>
             <tbody className="bg-surface-dark-secondary divide-y divide-white/5">
@@ -694,6 +705,15 @@ export default function WorldStockTransactions({
                     >
                       {formatCurrency(mtmPL)}
                     </td>
+                    <td className="px-3 py-4">
+                      <button
+                        onClick={() => handleDeleteTransaction(transaction.id, transaction.symbol)}
+                        className="text-gray-600 hover:text-loss transition-colors"
+                        title="Delete transaction"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -725,6 +745,7 @@ export default function WorldStockTransactions({
                 >
                   {formatCurrency(metrics.totalMTMPL)}
                 </td>
+                <td />
               </tr>
             </tfoot>
           </table>

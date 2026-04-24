@@ -184,7 +184,9 @@ async def get_world_stock_holdings(
                        ws.logo_url
                 FROM "world_stock_holdings" h
                 LEFT JOIN "stock_prices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
-                LEFT JOIN "world_stocks" ws ON h.ticker = ws.ticker
+                LEFT JOIN LATERAL (
+                    SELECT logo_url FROM "world_stocks" WHERE ticker = h.ticker LIMIT 1
+                ) ws ON true
                 WHERE h.user_id = :user_id
                 ORDER BY current_value DESC NULLS LAST
                 LIMIT :limit
@@ -259,7 +261,9 @@ async def get_world_stock_transactions(
                        t.created_at, t.updated_at, t.realized_pl, t.cost_basis,
                        ws.logo_url
                 FROM "world_stock_transactions" t
-                LEFT JOIN "world_stocks" ws ON t.ticker = ws.ticker
+                LEFT JOIN LATERAL (
+                    SELECT logo_url FROM "world_stocks" WHERE ticker = t.ticker LIMIT 1
+                ) ws ON true
                 WHERE {where_clause}
                 ORDER BY t.transaction_date DESC NULLS LAST, t.created_at DESC
                 LIMIT :limit
@@ -339,7 +343,9 @@ async def search_world_stocks_catalog(
                 history = conn.execute(text("""
                     SELECT DISTINCT ON (t.symbol) t.symbol, t.company_name, ws.logo_url
                     FROM "world_stock_transactions" t
-                    LEFT JOIN "world_stocks" ws ON t.ticker = ws.ticker
+                    LEFT JOIN LATERAL (
+                        SELECT logo_url FROM "world_stocks" WHERE ticker = t.ticker LIMIT 1
+                    ) ws ON true
                     WHERE t.user_id = :user_id
                       AND (t.symbol ILIKE :q OR t.company_name ILIKE :q)
                     ORDER BY t.symbol
@@ -361,68 +367,96 @@ async def create_world_stock_transaction(
     transaction_data: dict,
     current_user: User = Depends(get_current_user)
 ):
-    """Create a new world stock transaction manually"""
+    """Create a new world stock transaction manually — updates holdings exactly like an approved PDF transaction."""
     try:
         from sqlalchemy import text
         from app.core.database import engine
+        from datetime import datetime
+        import types
 
         symbol = (transaction_data.get("symbol") or "").strip().upper()
         if not symbol:
             raise HTTPException(status_code=422, detail="Symbol is required")
 
-        with engine.connect() as conn:
-            query = text("""
-                INSERT INTO "world_stock_transactions"
-                    (user_id, account_id, symbol, ticker, company_name,
-                     transaction_type, transaction_date, quantity, price,
-                     total_value, commission, currency, source_pdf)
-                VALUES
-                    (:user_id, :account_id, :symbol, :ticker, :company_name,
-                     :transaction_type, :transaction_date, :quantity, :price,
-                     :total_value, :commission, :currency, 'Manual Entry')
-                RETURNING id
-            """)
-            result = conn.execute(query, {
-                "user_id": current_user.id,
-                "account_id": transaction_data.get("account_id"),
-                "symbol": symbol,
-                "ticker": symbol,
-                "company_name": transaction_data.get("company_name", ""),
-                "transaction_type": transaction_data.get("transaction_type", "BUY"),
-                "transaction_date": transaction_data.get("transaction_date"),
-                "quantity": transaction_data.get("quantity", 0),
-                "price": transaction_data.get("price", 0),
-                "total_value": transaction_data.get("total_value", 0),
-                "commission": transaction_data.get("commission", 0),
-                "currency": transaction_data.get("currency", "USD"),
-            })
-            transaction_id = result.fetchone()[0]
+        transaction_type = (transaction_data.get("transaction_type") or "BUY").strip().upper()
+        company_name = (transaction_data.get("company_name") or "").strip()
 
-            # Auto-add to catalog if not already there, so future searches find it from DB
-            company_name = transaction_data.get("company_name", "").strip()
+        # Wrap form data into a namespace that _process_approved_transaction understands
+        t = types.SimpleNamespace(
+            ticker=symbol,
+            stock_name=company_name or symbol,   # extraction logic is a no-op for plain tickers
+            transaction_type=transaction_type,
+            quantity=transaction_data.get("quantity", 0),
+            price=transaction_data.get("price", 0),
+            commission=transaction_data.get("commission", 0),
+            tax=transaction_data.get("tax", 0),
+            amount=transaction_data.get("total_value", 0),
+            currency=transaction_data.get("currency") or "USD",
+            transaction_date=transaction_data.get("transaction_date"),
+            transaction_time=None,
+            pdf_filename="Manual Entry",
+        )
+
+        now = datetime.now()
+        with engine.connect() as conn:
+            # Auto-add to catalog so future searches find it
             existing = conn.execute(text(
                 'SELECT id FROM "world_stocks" WHERE ticker = :ticker LIMIT 1'
             ), {"ticker": symbol}).fetchone()
             if not existing:
-                # Try to get company name from yfinance cache if not provided
-                if not company_name:
+                resolved_name = company_name
+                if not resolved_name:
                     yf_data = _yf_name_cache.get(symbol)
                     if yf_data:
-                        company_name = yf_data.get("company_name", "")
+                        resolved_name = yf_data.get("company_name", "")
                 conn.execute(text("""
                     INSERT INTO "world_stocks" (ticker, company_name)
                     VALUES (:ticker, :company_name)
-                    ON CONFLICT (ticker) DO NOTHING
-                """), {"ticker": symbol, "company_name": company_name})
+                    ON CONFLICT DO NOTHING
+                """), {"ticker": symbol, "company_name": resolved_name})
 
+            # Process exactly like an approved pending transaction:
+            # inserts transaction row + creates/updates/removes holding
+            _process_approved_transaction(conn, t, str(current_user.id), now)
             conn.commit()
 
-        return {"success": True, "transaction_id": transaction_id, "message": "Transaction created successfully"}
+        return {"success": True, "message": "Transaction created successfully"}
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating transaction: {str(e)}")
+
+
+@router.delete("/transactions/{transaction_id}")
+async def delete_world_stock_transaction(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a world stock transaction (user must own it)."""
+    try:
+        from sqlalchemy import text
+        from app.core.database import engine
+
+        with engine.connect() as conn:
+            row = conn.execute(text(
+                'SELECT id, user_id FROM "world_stock_transactions" WHERE id = :id'
+            ), {"id": transaction_id}).fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Transaction not found")
+            if str(row[1]) != str(current_user.id):
+                raise HTTPException(status_code=403, detail="Not your transaction")
+            conn.execute(text(
+                'DELETE FROM "world_stock_transactions" WHERE id = :id'
+            ), {"id": transaction_id})
+            conn.commit()
+
+        return {"success": True, "message": "Transaction deleted"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting transaction: {str(e)}")
 
 
 @router.get("/dividends", response_model=List[WorldStockDividendResponse])
@@ -455,7 +489,9 @@ async def get_world_stock_dividends(
                        d.source_pdf, d.created_at, d.updated_at,
                        ws.logo_url
                 FROM "world_dividends" d
-                LEFT JOIN "world_stocks" ws ON d.ticker = ws.ticker
+                LEFT JOIN LATERAL (
+                    SELECT logo_url FROM "world_stocks" WHERE ticker = d.ticker LIMIT 1
+                ) ws ON true
                 WHERE {where_clause}
                 ORDER BY d.payment_date DESC NULLS LAST, d.created_at DESC
                 LIMIT :limit
@@ -627,6 +663,18 @@ async def get_world_stock_summary(
         raise HTTPException(status_code=500, detail=f"Error calculating summary: {str(e)}")
 
 
+@router.get("/exchange-rate")
+async def get_exchange_rate(current_user: User = Depends(get_current_user)):
+    """Return the current USD/ILS rate from the yfinance cache."""
+    try:
+        from app.services.stock_price_service import get_or_refresh_usd_ils_rate
+        from app.core.database import engine
+        rate = get_or_refresh_usd_ils_rate(engine)
+        return {"usd_ils": round(rate, 4) if rate else None}
+    except Exception as e:
+        return {"usd_ils": None}
+
+
 @router.get("/portfolio-dashboard")
 async def get_portfolio_dashboard(
     user_id: Optional[str] = None,
@@ -654,7 +702,9 @@ async def get_portfolio_dashboard(
                        ws.sector
                 FROM "world_stock_holdings" h
                 LEFT JOIN "stock_prices" sp ON h.ticker = sp.ticker AND sp.market = 'world'
-                LEFT JOIN "world_stocks" ws ON h.ticker = ws.ticker
+                LEFT JOIN LATERAL (
+                    SELECT sector FROM "world_stocks" WHERE ticker = h.ticker LIMIT 1
+                ) ws ON true
                 WHERE h.user_id = :user_id AND h.quantity > 0
                 ORDER BY 
                     CASE WHEN sp.current_price IS NOT NULL THEN h.quantity * sp.current_price ELSE h.current_value END DESC NULLS LAST
@@ -2161,7 +2211,9 @@ async def get_world_stock_detail(
                 SELECT h.quantity, h.purchase_cost, h.current_value, h.last_price,
                        ws.logo_url, ws.logo_svg
                 FROM world_stock_holdings h
-                LEFT JOIN world_stocks ws ON h.ticker = ws.ticker
+                LEFT JOIN LATERAL (
+                    SELECT logo_url, logo_svg FROM world_stocks WHERE ticker = h.ticker LIMIT 1
+                ) ws ON true
                 WHERE h.user_id = :user_id AND h.ticker = :ticker AND h.quantity > 0
                 LIMIT 1
             """), params).fetchone()

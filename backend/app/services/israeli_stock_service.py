@@ -1921,44 +1921,92 @@ class IsraeliStockService:
             return False
     
     def create_transaction(self, transaction_data: dict) -> int:
-        """Create a new transaction manually"""
+        """Create a new transaction manually — updates holdings exactly like an approved pending transaction."""
         try:
             conn = self.create_database_connection()
             cursor = conn.cursor()
-            
-            insert_sql = """
-            INSERT INTO "israeli_stock_transactions" (
-                user_id, security_no, symbol, company_name, transaction_type,
-                transaction_date, transaction_time, quantity, price, total_value,
-                commission, tax, currency, source_pdf
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-            """
-            
-            cursor.execute(insert_sql, (
-                transaction_data['user_id'],
-                transaction_data.get('security_no', ''),
-                transaction_data.get('symbol', ''),
-                transaction_data.get('company_name', ''),
-                transaction_data.get('transaction_type', 'BUY'),
-                transaction_data.get('transaction_date'),
-                transaction_data.get('transaction_time'),
-                transaction_data.get('quantity', 0),
-                transaction_data.get('price', 0),
-                transaction_data.get('total_value', 0),
-                transaction_data.get('commission', 0),
-                transaction_data.get('tax', 0),
-                transaction_data.get('currency', 'ILS'),
-                'Manual Entry'
-            ))
-            
-            transaction_id = cursor.fetchone()[0]
+
+            user_id = transaction_data['user_id']
+            transaction_type = (transaction_data.get('transaction_type') or 'BUY').upper()
+            symbol = (transaction_data.get('symbol') or '').strip().upper()
+            company_name = (transaction_data.get('company_name') or '').strip()
+            currency = transaction_data.get('currency') or 'ILS'
+            quantity = float(transaction_data.get('quantity') or 0)
+            price = float(transaction_data.get('price') or 0)
+            commission = float(transaction_data.get('commission') or 0)
+            tax = float(transaction_data.get('tax') or 0)
+            total_value = float(transaction_data.get('total_value') or 0)
+            transaction_date = transaction_data.get('transaction_date')
+
+            # Cash transactions get a unique security_no to avoid the unique constraint
+            # (user_id, security_no, transaction_date, transaction_type, source_pdf)
+            if transaction_type in ('DEPOSIT', 'WITHDRAWAL', 'FX_CONVERSION'):
+                import uuid as _uuid
+                security_no = f"CASH_{_uuid.uuid4().hex[:12]}"
+            else:
+                # Look up security_no from catalog (fall back to symbol itself)
+                security_no = transaction_data.get('security_no') or ''
+            if not security_no:
+                cursor.execute(
+                    'SELECT security_no, name FROM "israeli_stocks" WHERE symbol = %s LIMIT 1',
+                    (symbol,)
+                )
+                row = cursor.fetchone()
+                if row:
+                    security_no = row[0]
+                    if not company_name:
+                        company_name = row[1]
+            if not security_no:
+                security_no = symbol  # best-effort fallback
+
+            if transaction_type == 'DIVIDEND':
+                # Dividends go to the dividends table
+                cursor.execute("""
+                    INSERT INTO "israeli_dividends" (
+                        user_id, security_no, symbol, company_name, payment_date,
+                        amount, tax, currency, source_pdf
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (user_id, security_no, symbol, company_name, transaction_date,
+                      total_value, tax, currency, 'Manual Entry'))
+                transaction_id = cursor.fetchone()[0]
+            else:
+                # BUY / SELL — insert transaction record then update holding
+                cursor.execute("""
+                    INSERT INTO "israeli_stock_transactions" (
+                        user_id, security_no, symbol, company_name, transaction_type,
+                        transaction_date, transaction_time, quantity, price, total_value,
+                        commission, tax, currency, source_pdf
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (
+                    user_id, security_no, symbol, company_name, transaction_type,
+                    transaction_date, transaction_data.get('transaction_time'),
+                    quantity, price, total_value, commission, tax, currency, 'Manual Entry'
+                ))
+                transaction_id = cursor.fetchone()[0]
+                conn.commit()
+
+                # Only update holdings for stock BUY/SELL — not cash transactions
+                if transaction_type not in ('DEPOSIT', 'WITHDRAWAL', 'FX_CONVERSION'):
+                    self._update_holding_for_transaction(
+                        cursor=cursor,
+                        user_id=user_id,
+                        security_no=security_no,
+                        symbol=symbol,
+                        company_name=company_name,
+                        transaction_type=transaction_type,
+                        quantity=quantity,
+                        price=price,
+                        currency=currency,
+                        holding_date=transaction_date,
+                    )
+
             conn.commit()
             cursor.close()
             conn.close()
-            
             return transaction_id
-            
+
         except Exception as e:
             print(f"Error creating transaction: {e}")
             raise e
