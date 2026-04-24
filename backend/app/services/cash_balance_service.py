@@ -146,24 +146,24 @@ class CashBalanceService:
         
         # Get dividends (they increase cash)
         div_query = f"""
-            SELECT 
+            SELECT
                 payment_date,
                 security_no,
                 company_name,
                 amount,
-                tax_withheld,
+                tax,
                 currency
             FROM "israeli_dividends"
             WHERE user_id = %s{date_filter.replace('transaction_date', 'payment_date') if date_filter else ''}
             ORDER BY payment_date
         """
-        
+
         cursor.execute(div_query, params)
         dividends = cursor.fetchall()
-        
+
         total_dividends = Decimal('0')
         dividend_taxes = Decimal('0')
-        
+
         for div in dividends:
             payment_date = div[0]
             security_no = div[1]

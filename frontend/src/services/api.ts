@@ -407,6 +407,20 @@ export const israeliStocksAPI = {
     return response.data;
   },
 
+  getCashBalance: async () => {
+    const response = await api.get("/israeli-stocks/cash-balance");
+    return response.data.balance as {
+      available_cash: number;
+      total_deposits: number;
+      total_withdrawals: number;
+      total_stock_purchases: number;
+      total_stock_sales: number;
+      total_dividends: number;
+      total_commissions: number;
+      total_taxes: number;
+    };
+  },
+
   getSummary: async () => {
     const response = await api.get("/israeli-stocks/summary");
     return response.data;
@@ -657,8 +671,18 @@ export const worldStocksAPI = {
     return response.data;
   },
 
+  getExchangeRate: async (): Promise<{ usd_ils: number | null }> => {
+    const response = await api.get("/world-stocks/exchange-rate");
+    return response.data;
+  },
+
   createTransaction: async (transactionData: any) => {
     const response = await api.post("/world-stocks/transactions", transactionData);
+    return response.data;
+  },
+
+  deleteTransaction: async (transactionId: number) => {
+    const response = await api.delete(`/world-stocks/transactions/${transactionId}`);
     return response.data;
   },
 

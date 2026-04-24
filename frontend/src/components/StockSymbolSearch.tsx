@@ -10,7 +10,7 @@ interface StockOption {
   logo_url?: string | null;
 }
 
-type Market = "israeli" | "international";
+type Market = "israeli" | "international" | string;
 
 interface StockSymbolSearchProps {
   market: Market;
