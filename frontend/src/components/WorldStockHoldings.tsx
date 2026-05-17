@@ -3,9 +3,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Building2,
-  Banknote,
-  ArrowUp,
-  ArrowDown,
   AlertTriangle,
   Table2,
   PieChart as PieChartLucide,
@@ -269,127 +266,83 @@ export default function WorldStockHoldings({
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Portfolio Summary — Variant D: Bloomberg-style consolidated panel */}
       {Array.isArray(holdings) && holdings.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
-          <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-xl">
-            <div className="flex items-center">
-              <Building2 className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Total Holdings</p>
-                <p className="text-2xl font-bold">
-                  {Array.isArray(holdings) ? holdings.length : 0}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-6 rounded-xl">
-            <div className="flex items-center">
-              <Banknote className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Total Portfolio</p>
-                <p className="text-2xl font-bold">
+        <div className="bg-surface-dark-secondary border border-white/[0.06] rounded-xl overflow-hidden">
+          {/* Top section */}
+          <div className="p-6 grid grid-cols-1 md:grid-cols-[1.3fr_1px_1fr] gap-6">
+            {/* Hero: Total Portfolio */}
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">
+                Total Portfolio · World Stocks
+              </p>
+              <div className="flex items-baseline gap-3 mb-2">
+                <span className="font-heading font-bold text-4xl tracking-tight tabular-nums text-gray-50 leading-none">
                   {formatCurrency(totalValue + totalCash)}
-                </p>
-                <p className="text-xs opacity-70 mt-0.5">
-                  Holdings {formatCurrency(totalValue)} · Cash {formatCurrency(totalCash)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div
-            className={`bg-gradient-to-r ${
-              totalUnrealizedPL >= 0
-                ? "from-green-500 to-green-600"
-                : "from-red-500 to-red-600"
-            } text-white p-6 rounded-xl`}
-          >
-            <div className="flex items-center">
-              {totalUnrealizedPL >= 0 ? (
-                <ArrowUp className="h-8 w-8 opacity-80" />
-              ) : (
-                <ArrowDown className="h-8 w-8 opacity-80" />
-              )}
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Unrealized P/L</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(totalUnrealizedPL)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div
-            className={`bg-gradient-to-r ${
-              totalUnrealizedPLPercent >= 0
-                ? "from-green-500 to-green-600"
-                : "from-red-500 to-red-600"
-            } text-white p-6 rounded-xl`}
-          >
-            <div className="flex items-center">
-              {totalUnrealizedPLPercent >= 0 ? (
-                <ArrowUp className="h-8 w-8 opacity-80" />
-              ) : (
-                <ArrowDown className="h-8 w-8 opacity-80" />
-              )}
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Return %</p>
-                <p className="text-2xl font-bold">
+                </span>
+                <span
+                  className={`font-heading text-xs font-semibold tabular-nums px-2 py-1 rounded-md ${
+                    totalUnrealizedPLPercent > 0
+                      ? "bg-green-500/10 text-gain"
+                      : totalUnrealizedPLPercent < 0
+                      ? "bg-rose-500/10 text-loss"
+                      : "bg-white/[0.06] text-gray-400"
+                  }`}
+                >
+                  {totalUnrealizedPLPercent >= 0 ? "+" : ""}
                   {totalUnrealizedPLPercent.toFixed(2)}%
-                </p>
+                </span>
               </div>
+              <p className="text-[11px] text-gray-500">
+                Holdings {formatCurrency(totalValue)} · Cash {formatCurrency(totalCash)}
+              </p>
             </div>
-          </div>
 
-          <div
-            className={`bg-gradient-to-r ${
-              totalRealizedPL >= 0
-                ? "from-teal-500 to-teal-600"
-                : "from-orange-500 to-orange-600"
-            } text-white p-6 rounded-xl`}
-          >
-            <div className="flex items-center">
-              {totalRealizedPL >= 0 ? (
-                <ArrowUp className="h-8 w-8 opacity-80" />
-              ) : (
-                <ArrowDown className="h-8 w-8 opacity-80" />
-              )}
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Realized P/L</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(totalRealizedPL)}
-                </p>
-              </div>
-            </div>
-          </div>
+            {/* Vertical divider */}
+            <div className="hidden md:block bg-white/[0.05]" />
 
-          <div className="bg-gradient-to-r from-gray-700 to-gray-800 text-white p-6 rounded-xl">
-            <div className="flex items-center">
-              <Banknote className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Cash</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(totalCash)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {(summaryData?.total_tax_withheld_ils ?? 0) > 0 && (
-            <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-6 rounded-xl">
-              <div className="flex items-center">
-                <Banknote className="h-8 w-8 opacity-80" />
-                <div className="ml-3">
-                  <p className="text-sm opacity-80">Tax Withheld</p>
-                  <p className="text-2xl font-bold">
-                    ₪{(summaryData?.total_tax_withheld_ils || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
+            {/* Right ledger */}
+            <div className="flex flex-col gap-3 justify-center">
+              {[
+                ["Unrealized P/L", formatCurrency(totalUnrealizedPL), totalUnrealizedPL > 0 ? "up" : totalUnrealizedPL < 0 ? "down" : null],
+                ["Realized P/L", formatCurrency(totalRealizedPL), totalRealizedPL > 0 ? "up" : totalRealizedPL < 0 ? "down" : null],
+                ["Return %", `${totalUnrealizedPLPercent >= 0 ? "+" : ""}${totalUnrealizedPLPercent.toFixed(2)}%`, totalUnrealizedPLPercent > 0 ? "up" : totalUnrealizedPLPercent < 0 ? "down" : null],
+              ].map(([label, value, tone]) => (
+                <div key={label as string} className="flex justify-between items-baseline">
+                  <span className="text-[11px] text-gray-400">{label}</span>
+                  <span
+                    className={`font-heading font-semibold text-sm tabular-nums tracking-tight ${
+                      tone === "up" ? "text-gain" : tone === "down" ? "text-loss" : "text-gray-100"
+                    }`}
+                  >
+                    {value}
+                  </span>
                 </div>
-              </div>
+              ))}
             </div>
-          )}
+          </div>
+
+          {/* Bottom strip */}
+          <div className="border-t border-white/[0.05] bg-white/[0.015] px-6 py-4">
+            <div className={`grid gap-4 ${(summaryData?.total_tax_withheld_ils ?? 0) > 0 ? "grid-cols-4" : "grid-cols-3"}`}>
+              {[
+                { label: "Holdings", value: String(holdings.length), sub: "Positions", tone: null },
+                { label: "Cash", value: formatCurrency(totalCash), sub: "Available", tone: null },
+                ...(((summaryData?.total_tax_withheld_ils ?? 0) > 0)
+                  ? [{ label: "Tax Withheld", value: `₪${(summaryData?.total_tax_withheld_ils || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub: "Capital gains", tone: "warn" as const }]
+                  : []),
+                { label: "Total Holdings", value: formatCurrency(totalValue), sub: "Market value", tone: null },
+              ].map(({ label, value, sub, tone }, i) => (
+                <div key={label} className={i > 0 ? "pl-4 border-l border-white/[0.04]" : ""}>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{label}</p>
+                  <p className={`font-heading font-bold text-lg tabular-nums tracking-tight leading-none ${tone === "warn" ? "text-warn" : "text-gray-100"}`}>
+                    {value}
+                  </p>
+                  <p className="text-[10px] text-gray-600 mt-1">{sub}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

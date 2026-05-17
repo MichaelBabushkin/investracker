@@ -3,10 +3,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Building2,
-  TrendingUp,
-  Banknote,
-  ArrowUp,
-  ArrowDown,
   AlertTriangle,
   Table2,
   PieChart as PieChartLucide,
@@ -270,85 +266,84 @@ export default function IsraeliStockHoldings({
         </div>
       </div>
 
-      {/* Holdings Summary — only when positions exist */}
-      {holdings.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-xl">
-            <div className="flex items-center">
-              <Building2 className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Total Holdings</p>
-                <p className="text-2xl font-bold">{holdings.length}</p>
+      {/* Portfolio Summary — Variant D: Bloomberg-style consolidated panel */}
+      {(holdings.length > 0 || totalDeposits > 0 || availableCash !== 0) && (
+        <div className="bg-surface-dark-secondary border border-white/[0.06] rounded-xl overflow-hidden">
+          {/* Top section */}
+          <div className="p-6 grid grid-cols-1 md:grid-cols-[1.3fr_1px_1fr] gap-6">
+            {/* Hero: Current Value */}
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">
+                Current Value · Israeli Stocks
+              </p>
+              <div className="flex items-baseline gap-3 mb-2">
+                <span className="font-heading font-bold text-4xl tracking-tight tabular-nums text-gray-50 leading-none">
+                  {formatCurrency(totalValue)}
+                </span>
+                <span
+                  className={`font-heading text-xs font-semibold tabular-nums px-2 py-1 rounded-md ${
+                    totalReturnPercentage > 0
+                      ? "bg-green-500/10 text-gain"
+                      : totalReturnPercentage < 0
+                      ? "bg-rose-500/10 text-loss"
+                      : "bg-white/[0.06] text-gray-400"
+                  }`}
+                >
+                  {totalReturnPercentage >= 0 ? "+" : ""}
+                  {totalReturnPercentage.toFixed(2)}%
+                </span>
               </div>
+              <p className="text-[11px] text-gray-500">
+                {holdings.length} position{holdings.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+
+            {/* Vertical divider */}
+            <div className="hidden md:block bg-white/[0.05]" />
+
+            {/* Right ledger */}
+            <div className="flex flex-col gap-3 justify-center">
+              {[
+                ["Cost basis", formatCurrency(totalCost), null],
+                ["Total return", formatCurrency(totalReturn), totalReturn > 0 ? "up" : totalReturn < 0 ? "down" : null],
+                ["Return %", formatPercentage(totalReturnPercentage), totalReturnPercentage > 0 ? "up" : totalReturnPercentage < 0 ? "down" : null],
+              ].map(([label, value, tone]) => (
+                <div key={label as string} className="flex justify-between items-baseline">
+                  <span className="text-[11px] text-gray-400">{label}</span>
+                  <span
+                    className={`font-heading font-semibold text-sm tabular-nums tracking-tight ${
+                      tone === "up" ? "text-gain" : tone === "down" ? "text-loss" : "text-gray-100"
+                    }`}
+                  >
+                    {value}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl">
-            <div className="flex items-center">
-              <Banknote className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Current Value</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
-              </div>
+          {/* Bottom strip */}
+          {(totalDeposits > 0 || availableCash !== 0) && (
+            <div className="border-t border-white/[0.05] bg-white/[0.015] grid grid-cols-3 px-6 py-4 gap-4">
+              {[
+                { label: "Net Cash Flow", value: formatCurrency(netCashFlow), sub: "Invested capital", tone: null },
+                { label: "Available Cash", value: formatCurrency(availableCash), sub: "Ready to invest", tone: availableCash < 0 ? "warn" : null },
+                { label: "Holdings", value: String(holdings.length), sub: "Positions", tone: null },
+              ].map(({ label, value, sub, tone }) => (
+                <div key={label} className={`${label !== "Net Cash Flow" ? "pl-4 border-l border-white/[0.04]" : ""}`}>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{label}</p>
+                  <p
+                    className={`font-heading font-bold text-lg tabular-nums tracking-tight leading-none ${
+                      tone === "warn" ? "text-warn" : "text-gray-100"
+                    }`}
+                  >
+                    {value}
+                  </p>
+                  <p className="text-[10px] text-gray-600 mt-1">{sub}</p>
+                </div>
+              ))}
             </div>
-          </div>
-
-          <div className="bg-gradient-to-r from-gray-500 to-gray-600 text-white p-6 rounded-xl">
-            <div className="flex items-center">
-              <Banknote className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Total Cost</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalCost)}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className={`bg-gradient-to-r ${totalReturn >= 0 ? "from-green-500 to-green-600" : "from-red-500 to-red-600"} text-white p-6 rounded-xl`}>
-            <div className="flex items-center">
-              {totalReturn >= 0 ? <ArrowUp className="h-8 w-8 opacity-80" /> : <ArrowDown className="h-8 w-8 opacity-80" />}
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Total Return</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalReturn)}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className={`bg-gradient-to-r ${totalReturnPercentage >= 0 ? "from-green-500 to-green-600" : "from-red-500 to-red-600"} text-white p-6 rounded-xl`}>
-            <div className="flex items-center">
-              <TrendingUp className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Return %</p>
-                <p className="text-2xl font-bold">{formatPercentage(totalReturnPercentage)}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Cash Flow Metrics — always shown when there are any transactions */}
-      {(totalDeposits > 0 || availableCash !== 0) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-6 rounded-xl">
-            <div className="flex items-center">
-              <Banknote className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Net Cash Flow</p>
-                <p className="text-2xl font-bold">{formatCurrency(netCashFlow)}</p>
-                <p className="text-xs opacity-75 mt-1">Total invested capital</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-r from-teal-500 to-teal-600 text-white p-6 rounded-xl">
-            <div className="flex items-center">
-              <Banknote className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Available Cash</p>
-                <p className="text-2xl font-bold">{formatCurrency(availableCash)}</p>
-                <p className="text-xs opacity-75 mt-1">Ready to invest</p>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
