@@ -322,6 +322,14 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                 if transaction_type:
                     break
         
+        # ק/חו"ל ("buy abroad") and מ/חו"ל ("sell abroad") are the broker's own
+        # explicit classification for international trades — override any name-based guess.
+        WORLD_TRADE_TYPES = {'ל"וח/ק', 'ק/חו"ל', 'ק/חול', 'ל"וח/מ', 'מ/חו"ל', 'מ/חול'}
+        if raw_hebrew_type in WORLD_TRADE_TYPES:
+            is_world_stock = True
+            transaction['currency'] = 'USD'
+            transaction['is_world_stock'] = True
+
         # Extract date and time using column positions
         transaction_date = None
         transaction_time = None

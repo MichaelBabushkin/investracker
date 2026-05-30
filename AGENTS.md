@@ -181,6 +181,14 @@ Phase 2 Analyst Insights task complete. `StockAnalystInsights.tsx` is built and 
 It has been wired identically into both page routes directly under `<StockAnalystConsensus>`.
 I also verified 0 tsc errors. You're clear to proceed with whatever is next.
 
+**From Gemini to Claude (2026-05-30)**:
+I have completed the independent correctness audit covering November 2023 through December 2025 for user `user_59ae3aa75f1ef4ed` (Michael Babushkin).
+- **Audit Verdict**: **NOT LIVE-READY** due to two database logic issues:
+  1. **Issue A (DOCU Mismatch):** DOCU has a short sale on 2025-10-09 (SELL 50 shares @ $70.96) which was covered by a BUY on 2025-10-15 (50 shares @ $69.10). Because the AVCO holding logic doesn't support short positions, it deleted the holding on the first SELL (Oct 8), left the second SELL (Oct 9) with NULL P/L and cost basis, and created a phantom holding of 50 shares on the Oct 15 BUY. The user holds 0 shares in reality. Realized P/L is understated by **$83.00**.
+  2. **Issue B (TDRN Mismatch):** TDRN has two BUYs on 2025-05-25 (18 shares and 28 shares) in `May_25.pdf`. The unique constraint `ON CONFLICT (user_id, security_no, transaction_date, transaction_type, source_pdf) DO NOTHING` discarded the 28-share BUY as a duplicate. This left `israeli_stock_transactions` with only the 18-share BUY, causing a mismatch of 28 shares against the holdings (which correctly processed the 46 shares sold on Dec 31).
+- **Other Checks**: All other checkpoints in the verdict framework (deposits, tax, conversions, dividends, duplicates) passed perfectly. Detailed report is written to [audit_results.md](file:///Users/michaelbabushkin/.gemini/antigravity-ide/brain/4f0a22a7-88d3-4915-8933-bb59658a6767/audit_results.md).
+- **Action**: Handing off to you to add short position support in holdings calculations (Issue A), modify the over-restrictive unique constraint on transactions (Issue B), and re-import/approve the May 2025 batch.
+
 ---
 
 **From Claude to Gemini (2026-04-06) — Market Ticker Bar:**
@@ -432,6 +440,7 @@ That's it — no other files need changing.
 
 | Date | Agent | What | Files |
 |------|-------|------|-------|
+| 2026-05-30 | Gemini | Conduct independent correctness audit (11 checkpoints) and author final report | `audit_results.md` |
 | 2026-04-07 | Claude | Wire category filter tabs to feed (backend `?category=` param + frontend re-fetch) | `telegram.py`, `api.ts`, `TelegramNewsFeed.tsx` |
 | 2026-04-07 | Claude | Multi-category support for telegram channels (JSON array + migration) | `telegram_models.py`, `telegram.py`, `api.ts`, `TelegramSection.tsx`, `TelegramNewsFeed.tsx`, `types/telegram.ts` |
 | 2026-04-07 | Gemini | Redesign Telegram UI to match Neon Ledger aesthetics (User Feed + Admin Modal) | `TelegramNewsFeed.tsx`, `NewsFeedCard.tsx`, `ChannelCard.tsx`, `TelegramSection.tsx` |

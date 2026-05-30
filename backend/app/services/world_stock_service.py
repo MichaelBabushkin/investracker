@@ -1013,7 +1013,16 @@ class WorldStockService:
                         
                         # Check if it's a world stock (NOT Israeli)
                         is_world = self.broker_parser._is_world_stock(name, security_no)
-                        
+
+                        # Authoritative fallback: if any cell in the row contains the
+                        # broker's own "abroad" transaction type codes (ק/חו"ל, מ/חו"ל etc.)
+                        # the stock is definitively international regardless of its name.
+                        if not is_world:
+                            row_str = ' '.join(str(v) for v in row.values if not pd.isna(v))
+                            # PDFs store Hebrew in visual/RTL order: ק/חו"ל appears as ל"וח/ק
+                            if 'ל"וח' in row_str or 'חו"ל' in row_str:
+                                is_world = True
+
                         if is_world:
                             all_rows.append({
                                 'row': row,

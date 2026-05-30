@@ -41,6 +41,8 @@ export default function WorldStockTransactions({
   const [transactions, setTransactions] = useState<WorldStockTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<string>("ALL");
 
   const fetchTransactions = useCallback(async () => {
     try {
@@ -237,6 +239,18 @@ export default function WorldStockTransactions({
       openCount: openTrades.length,
     };
   }, [transactions]);
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((t) => {
+      const matchesType = filterType === "ALL" || (t.transaction_type?.toUpperCase() === filterType);
+      const term = searchTerm.toLowerCase();
+      const matchesSearch = !term ||
+        t.symbol?.toLowerCase().includes(term) ||
+        t.ticker?.toLowerCase().includes(term) ||
+        t.company_name?.toLowerCase().includes(term);
+      return matchesType && matchesSearch;
+    });
+  }, [transactions, filterType, searchTerm]);
 
   const totalOpened = transactions
     .filter((t) => t.transaction_type?.toUpperCase() === "BUY")
@@ -551,6 +565,41 @@ export default function WorldStockTransactions({
         </div>
       )}
 
+      {/* Filter Controls */}
+      <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-300 mb-1">
+              Search Symbol or Company
+            </label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search..."
+              className="w-full px-3 py-2 border border-white/10 rounded-md text-sm focus:ring-brand-400/40 focus:border-brand-400 text-gray-300 bg-surface-dark"
+            />
+          </div>
+          <div className="md:w-48">
+            <label className="block text-xs font-medium text-gray-300 mb-1">
+              Transaction Type
+            </label>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="w-full px-3 py-2 border border-white/10 rounded-md text-sm focus:ring-brand-400/40 focus:border-brand-400 text-gray-300 bg-surface-dark"
+            >
+              <option value="ALL">All Types</option>
+              <option value="BUY">Buy</option>
+              <option value="SELL">Sell</option>
+              <option value="DIVIDEND">Dividend</option>
+              <option value="CURRENCY_CONVERSION">FX Deposit</option>
+              <option value="CAPITAL_GAINS_TAX">Tax</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* Transactions Table */}
       <div className="bg-surface-dark-secondary rounded-xl border border-white/10 overflow-hidden">
         <div className="overflow-x-auto">
@@ -591,7 +640,7 @@ export default function WorldStockTransactions({
               </tr>
             </thead>
             <tbody className="bg-surface-dark-secondary divide-y divide-white/5">
-              {transactions.map((transaction) => {
+              {filteredTransactions.map((transaction) => {
                 // Helper to safely parse numbers
                 const parseNum = (val: any): number => {
                   if (val === null || val === undefined) return 0;
