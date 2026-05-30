@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { israeliStocksAPI } from "@/services/api";
-import { Check, X, Pencil } from "lucide-react";
+import { Check, X, Pencil, CheckCheck, XCircle } from "lucide-react";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 
 interface PendingTransaction {
@@ -231,15 +231,17 @@ export default function PendingTransactionsReview({
           <button
             onClick={handleRejectAll}
             disabled={loading}
-            className="bg-loss/20 text-loss px-4 py-2 rounded-xl hover:bg-loss/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-loss/40 bg-loss/10 text-loss text-sm font-semibold hover:bg-loss hover:border-loss hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
+            <XCircle size={15} />
             Reject All
           </button>
           <button
             onClick={handleApproveAll}
             disabled={loading}
-            className="bg-gain/20 text-gain px-4 py-2 rounded-xl hover:bg-gain/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2 rounded-xl border border-gain/40 bg-gain/10 text-gain text-sm font-semibold hover:bg-gain hover:border-gain hover:text-[#0B0F1A] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
+            <CheckCheck size={15} />
             Approve All
           </button>
         </div>
@@ -258,34 +260,34 @@ export default function PendingTransactionsReview({
           <table className="min-w-full divide-y divide-white/5">
             <thead className="bg-surface-dark">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Time
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Stock
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Quantity
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Price
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Commission
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Tax
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -295,7 +297,7 @@ export default function PendingTransactionsReview({
                 <tr key={transaction.id} className="hover:bg-white/5">
                   {editingId === transaction.id ? (
                     <>
-                      <td className="px-4 py-4 whitespace-nowrap">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <input
                           type="text"
                           value={editData.transaction_date || ""}
@@ -308,7 +310,7 @@ export default function PendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-24 text-gray-100"
                         />
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <input
                           type="text"
                           placeholder="HH:MM"
@@ -322,7 +324,7 @@ export default function PendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-16 text-gray-100"
                         />
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <div>
                           <div className="text-sm font-medium text-gray-100">
                             {editData.stock_name || transaction.stock_name}
@@ -332,7 +334,7 @@ export default function PendingTransactionsReview({
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <select
                           value={editData.transaction_type || "BUY"}
                           onChange={(e) =>
@@ -350,7 +352,7 @@ export default function PendingTransactionsReview({
                           <option value="WITHDRAWAL">WITHDRAWAL</option>
                         </select>
                       </td>
-                      <td className="px-6py-4">
+                      <td className="px-3 py-3">
                         <input
                           type="number"
                           value={editData.quantity ?? ""}
@@ -363,7 +365,7 @@ export default function PendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded py-1 text-sm w-16 text-center text-gray-100"
                         />
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <input
                           type="number"
                           step="0.01"
@@ -377,7 +379,7 @@ export default function PendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-28 text-right text-gray-100"
                         />
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <input
                           type="number"
                           step="0.01"
@@ -391,7 +393,7 @@ export default function PendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-28 text-right text-gray-100"
                         />
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <input
                           type="number"
                           step="0.01"
@@ -405,7 +407,7 @@ export default function PendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-20 text-right text-gray-100"
                         />
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <input
                           type="number"
                           step="0.01"
@@ -419,7 +421,7 @@ export default function PendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-20 text-right text-gray-100"
                         />
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <td className="px-3 py-3 whitespace-nowrap text-center">
                         <button
                           onClick={() => handleSaveEdit(transaction.id)}
                           disabled={processingIds.has(transaction.id)}
@@ -437,13 +439,13 @@ export default function PendingTransactionsReview({
                     </>
                   ) : (
                     <>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-100">
                         {transaction.transaction_date || "N/A"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-100">
                         {transaction.transaction_time || "-"}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-100">
+                      <td className="px-3 py-3 text-sm text-gray-100">
                         <div className="font-medium">
                           {transaction.stock_name}
                         </div>
@@ -451,7 +453,7 @@ export default function PendingTransactionsReview({
                           {transaction.security_no}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <span
                           className={`px-2 py-1 text-xs font-semibold rounded ${getTypeColor(
                             transaction.transaction_type
@@ -460,56 +462,58 @@ export default function PendingTransactionsReview({
                           {transaction.transaction_type}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100 text-right">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-100 text-right">
                         {transaction.quantity
                           ? transaction.quantity.toLocaleString()
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100 text-right">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-100 text-right">
                         {transaction.price
                           ? `₪${transaction.price.toLocaleString()}`
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100 text-right">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-100 text-right">
                         {transaction.amount
                           ? `₪${transaction.amount.toLocaleString()}`
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100 text-right">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-100 text-right">
                         {transaction.commission
                           ? `₪${transaction.commission.toLocaleString()}`
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100 text-right">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-100 text-right">
                         {transaction.tax
                           ? `₪${transaction.tax.toLocaleString()}`
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <button
-                          onClick={() => handleEdit(transaction)}
-                          disabled={processingIds.has(transaction.id)}
-                          className="text-brand-400 hover:text-brand-500 mr-3"
-                          title="Edit"
-                        >
-                          <Pencil className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleApprove(transaction.id)}
-                          disabled={processingIds.has(transaction.id)}
-                          className="text-gain hover:text-gain mr-3"
-                          title="Approve"
-                        >
-                          <Check className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleReject(transaction.id)}
-                          disabled={processingIds.has(transaction.id)}
-                          className="text-loss hover:text-loss"
-                          title="Reject"
-                        >
-                          <X className="h-5 w-5" />
-                        </button>
+                      <td className="px-3 py-3 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleEdit(transaction)}
+                            disabled={processingIds.has(transaction.id)}
+                            className="p-1.5 rounded-lg text-brand-400 hover:bg-brand-400/15 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Edit"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleApprove(transaction.id)}
+                            disabled={processingIds.has(transaction.id)}
+                            className="p-1.5 rounded-lg text-gain hover:bg-gain/15 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Approve"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleReject(transaction.id)}
+                            disabled={processingIds.has(transaction.id)}
+                            className="p-1.5 rounded-lg text-loss hover:bg-loss/15 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Reject"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </>
                   )}

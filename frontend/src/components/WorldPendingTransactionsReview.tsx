@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { worldStocksAPI } from "@/services/api";
-import { Check, X, Pencil } from "lucide-react";
+import { Check, X, Pencil, CheckCheck, XCircle } from "lucide-react";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import StockLogo from "@/components/StockLogo";
 
@@ -31,12 +31,14 @@ interface WorldPendingTransactionsReviewProps {
   batchId?: string;
   onApprovalComplete?: (completedBatchId?: string) => void;
   onCountChange?: (count: number) => void;
+  typeFilter?: string[];
 }
 
 export default function WorldPendingTransactionsReview({
   batchId,
   onApprovalComplete,
   onCountChange,
+  typeFilter,
 }: WorldPendingTransactionsReviewProps) {
   const [transactions, setTransactions] = useState<PendingWorldTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,9 @@ export default function WorldPendingTransactionsReview({
         undefined
       );
       const filtered = (data.transactions || []).filter(
-        (t: PendingWorldTransaction) => t.status === "pending" || t.status === "modified"
+        (t: PendingWorldTransaction) =>
+          (t.status === "pending" || t.status === "modified") &&
+          (!typeFilter || typeFilter.includes(t.transaction_type))
       );
       setTransactions(filtered);
       if (onCountChange) onCountChange(filtered.length);
@@ -249,15 +253,17 @@ export default function WorldPendingTransactionsReview({
           <button
             onClick={handleRejectAll}
             disabled={loading}
-            className="bg-loss/20 text-loss px-4 py-2 rounded-xl hover:bg-loss/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-loss/40 bg-loss/10 text-loss text-sm font-semibold hover:bg-loss hover:border-loss hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
+            <XCircle size={15} />
             Reject All
           </button>
           <button
             onClick={handleApproveAll}
             disabled={loading}
-            className="bg-gain/20 text-gain px-4 py-2 rounded-xl hover:bg-gain/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2 rounded-xl border border-gain/40 bg-gain/10 text-gain text-sm font-semibold hover:bg-gain hover:border-gain hover:text-[#0B0F1A] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
+            <CheckCheck size={15} />
             Approve All
           </button>
         </div>
@@ -276,31 +282,31 @@ export default function WorldPendingTransactionsReview({
           <table className="min-w-full divide-y divide-white/5">
             <thead className="bg-surface-dark">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Stock
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Quantity
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Price
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Commission
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Tax
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -310,7 +316,7 @@ export default function WorldPendingTransactionsReview({
                 <tr key={transaction.id} className="hover:bg-white/5">
                   {editingId === transaction.id ? (
                     <>
-                      <td className="px-4 py-4 whitespace-nowrap">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <input
                           type="text"
                           value={editData.transaction_date || ""}
@@ -323,7 +329,7 @@ export default function WorldPendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-24 text-gray-100"
                         />
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <div>
                           <div className="text-sm font-medium text-gray-100">
                             {editData.stock_name || transaction.stock_name}
@@ -333,7 +339,7 @@ export default function WorldPendingTransactionsReview({
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <select
                           value={editData.transaction_type || "BUY"}
                           onChange={(e) =>
@@ -350,7 +356,7 @@ export default function WorldPendingTransactionsReview({
                           <option value="CURRENCY_CONVERSION">FX</option>
                         </select>
                       </td>
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-3 py-3 text-right">
                         <input
                           type="number"
                           step="0.01"
@@ -364,7 +370,7 @@ export default function WorldPendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-20 text-right text-gray-100"
                         />
                       </td>
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-3 py-3 text-right">
                         <input
                           type="number"
                           step="0.01"
@@ -378,7 +384,7 @@ export default function WorldPendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-20 text-right text-gray-100"
                         />
                       </td>
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-3 py-3 text-right">
                         <input
                           type="number"
                           step="0.01"
@@ -392,7 +398,7 @@ export default function WorldPendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-20 text-right text-gray-100"
                         />
                       </td>
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-3 py-3 text-right">
                         <input
                           type="number"
                           step="0.01"
@@ -406,7 +412,7 @@ export default function WorldPendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-16 text-right text-gray-100"
                         />
                       </td>
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-3 py-3 text-right">
                         <input
                           type="number"
                           step="0.01"
@@ -420,7 +426,7 @@ export default function WorldPendingTransactionsReview({
                           className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-sm w-16 text-right text-gray-100"
                         />
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <td className="px-3 py-3 whitespace-nowrap text-center">
                         <div className="flex items-center justify-center space-x-2">
                           <button
                             onClick={() => saveEdit(transaction.id)}
@@ -443,10 +449,10 @@ export default function WorldPendingTransactionsReview({
                     </>
                   ) : (
                     <>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-100">
                         {transaction.transaction_date}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <div className="flex items-center gap-3">
                           <StockLogo
                             symbol={transaction.ticker || "?"}
@@ -463,7 +469,7 @@ export default function WorldPendingTransactionsReview({
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <span
                           className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getTransactionTypeColor(
                             transaction.transaction_type
@@ -472,62 +478,62 @@ export default function WorldPendingTransactionsReview({
                           {transaction.transaction_type === "CURRENCY_CONVERSION" ? "ILS → USD" : transaction.transaction_type}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-100">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-right text-gray-100">
                         {transaction.quantity !== null
                           ? transaction.transaction_type === "CURRENCY_CONVERSION"
                             ? `$${transaction.quantity.toFixed(2)}`
                             : transaction.quantity.toFixed(2)
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-100">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-right text-gray-100">
                         {transaction.price !== null
                           ? transaction.transaction_type === "CURRENCY_CONVERSION"
                             ? `₪${transaction.price.toFixed(4)}`
                             : `$${transaction.price.toFixed(2)}`
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-100">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-right text-gray-100">
                         {transaction.amount !== null
                           ? transaction.currency === "ILS"
                             ? `₪${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                             : `$${transaction.amount.toFixed(2)}`
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-400">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-right text-gray-400">
                         {transaction.commission !== null
                           ? `$${transaction.commission.toFixed(2)}`
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-400">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-right text-gray-400">
                         {transaction.tax !== null
                           ? `$${transaction.tax.toFixed(2)}`
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        <div className="flex items-center justify-center space-x-2">
+                      <td className="px-3 py-3 whitespace-nowrap text-center text-sm font-medium">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => startEdit(transaction)}
                             disabled={processingIds.has(transaction.id)}
-                            className="text-brand-400 hover:text-brand-500 disabled:opacity-50"
+                            className="p-1.5 rounded-lg text-brand-400 hover:bg-brand-400/15 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             title="Edit"
                           >
-                            <Pencil className="h-5 w-5" />
+                            <Pencil className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleApprove(transaction.id)}
                             disabled={processingIds.has(transaction.id)}
-                            className="text-gain hover:text-gain disabled:opacity-50"
+                            className="p-1.5 rounded-lg text-gain hover:bg-gain/15 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             title="Approve"
                           >
-                            <Check className="h-5 w-5" />
+                            <Check className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleReject(transaction.id)}
                             disabled={processingIds.has(transaction.id)}
-                            className="text-loss hover:text-loss disabled:opacity-50"
+                            className="p-1.5 rounded-lg text-loss hover:bg-loss/15 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             title="Reject"
                           >
-                            <X className="h-5 w-5" />
+                            <X className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
@@ -540,15 +546,6 @@ export default function WorldPendingTransactionsReview({
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="bg-brand-400/10 border border-brand-400/20 rounded-xl p-4">
-        <p className="text-sm text-brand-400">
-          <strong>Tip:</strong> Review each transaction carefully. You can edit
-          any field by clicking the pencil icon. Click the checkmark to approve
-          or X to reject individual transactions, or use the buttons above for
-          batch operations.
-        </p>
-      </div>
       {ConfirmDialogElement}
     </div>
   );

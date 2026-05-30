@@ -1239,7 +1239,7 @@ async def approve_all_in_batch(
         PendingIsraeliTransaction.upload_batch_id == batch_id,
         PendingIsraeliTransaction.user_id == str(current_user.id),
         PendingIsraeliTransaction.status.in_(["pending", "modified"])
-    ).all()
+    ).order_by(PendingIsraeliTransaction.transaction_date.asc(), PendingIsraeliTransaction.id.asc()).all()
     
     service = IsraeliStockService()
     approved_count = 0
@@ -1277,7 +1277,7 @@ async def approve_all_batches(
     transactions = db.query(PendingIsraeliTransaction).filter(
         PendingIsraeliTransaction.user_id == str(current_user.id),
         PendingIsraeliTransaction.status.in_(["pending", "modified"])
-    ).all()
+    ).order_by(PendingIsraeliTransaction.transaction_date.asc(), PendingIsraeliTransaction.id.asc()).all()
     
     service = IsraeliStockService()
     approved_count = 0
@@ -1317,7 +1317,7 @@ async def reject_all_in_batch(
         PendingIsraeliTransaction.upload_batch_id == batch_id,
         PendingIsraeliTransaction.user_id == str(current_user.id),
         PendingIsraeliTransaction.status.in_(["pending", "modified"])
-    ).all()
+    ).order_by(PendingIsraeliTransaction.transaction_date.asc(), PendingIsraeliTransaction.id.asc()).all()
     
     rejected_count = len(transactions)
     
@@ -1355,7 +1355,7 @@ async def reject_all_batches(
     transactions = db.query(PendingIsraeliTransaction).filter(
         PendingIsraeliTransaction.user_id == str(current_user.id),
         PendingIsraeliTransaction.status.in_(["pending", "modified"])
-    ).all()
+    ).order_by(PendingIsraeliTransaction.transaction_date.asc(), PendingIsraeliTransaction.id.asc()).all()
     
     rejected_count = len(transactions)
     

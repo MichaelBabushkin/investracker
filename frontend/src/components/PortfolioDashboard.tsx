@@ -108,20 +108,23 @@ export default function PortfolioDashboard() {
   const totalPending = israeliPendingCount + worldPendingCount;
 
   const fetchPendingCounts = useCallback(async () => {
+    let israeliCount = 0;
+    let worldCount = 0;
     try {
       const data = await israeliStocksAPI.getPendingTransactions(undefined, undefined);
-      const count = (data.transactions || []).filter(
+      israeliCount = (data.transactions || []).filter(
         (t: any) => t.status === "pending" || t.status === "modified"
       ).length;
-      setIsraeliPendingCount(count);
+      setIsraeliPendingCount(israeliCount);
     } catch { /* silent */ }
     try {
       const data = await worldStocksAPI.getPendingTransactions(undefined, undefined);
-      const count = (data.transactions || []).filter(
+      worldCount = (data.transactions || []).filter(
         (t: any) => t.status === "pending" || t.status === "modified"
       ).length;
-      setWorldPendingCount(count);
+      setWorldPendingCount(worldCount);
     } catch { /* silent */ }
+    return { israeliCount, worldCount };
   }, []);
 
   const fetchAccounts = useCallback(async () => {
@@ -141,9 +144,9 @@ export default function PortfolioDashboard() {
 
   const handleUploadComplete = (_results: UploadResult[]) => {
     setUploadOpen(false);
-    fetchPendingCounts().then(() => {
-      if (israeliPendingCount > 0 || worldPendingCount > 0) {
-        setPendingMarket(israeliPendingCount > 0 ? "israeli" : "international");
+    fetchPendingCounts().then(({ israeliCount, worldCount }) => {
+      if (israeliCount > 0 || worldCount > 0) {
+        setPendingMarket(israeliCount > 0 ? "israeli" : "international");
         setPendingOpen(true);
       }
     });
@@ -576,14 +579,14 @@ export default function PortfolioDashboard() {
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={(e) => e.target === e.currentTarget && setPendingOpen(false)}
         >
-          <div className="bg-surface-dark-secondary border border-white/10 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
+          <div className="bg-surface-dark-secondary border border-white/10 rounded-2xl w-full max-w-6xl h-[82vh] flex flex-col">
+            {/* Sticky header */}
+            <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-white/8">
               <div className="flex items-center gap-3">
                 <h2 className="text-base font-semibold text-gray-100">Review Pending</h2>
                 <div className="flex gap-1 p-0.5 bg-surface-dark rounded-lg">
                   {MARKET_TABS.map(({ id, name }) => {
-                    const count = id === "israeli" ? israeliPendingCount : worldPendingCount;
+                    const count = id === "israeli" ? israeliPendingCount : id === "international" ? worldPendingCount : null;
                     return (
                       <button
                         key={id}
@@ -595,7 +598,7 @@ export default function PortfolioDashboard() {
                         }`}
                       >
                         {name}
-                        {count > 0 && (
+                        {count !== null && count > 0 && (
                           <span className="inline-flex items-center justify-center min-w-[16px] h-4 rounded-full bg-warn/20 text-warn text-[9px] font-bold px-1">
                             {count}
                           </span>
@@ -612,19 +615,33 @@ export default function PortfolioDashboard() {
                 <X size={18} />
               </button>
             </div>
-            {/* Modal body */}
-            <div className="p-6">
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto p-6 min-h-0">
               {pendingMarket === "israeli" ? (
                 <PendingTransactionsReview
                   onApprovalComplete={handleApprovalComplete}
                   onCountChange={setIsraeliPendingCount}
                 />
-              ) : (
+              ) : pendingMarket === "international" ? (
                 <WorldPendingTransactionsReview
                   onApprovalComplete={handleApprovalComplete}
                   onCountChange={setWorldPendingCount}
+                  typeFilter={["BUY", "SELL", "DIVIDEND"]}
+                />
+              ) : (
+                <WorldPendingTransactionsReview
+                  onApprovalComplete={handleApprovalComplete}
+                  typeFilter={["CURRENCY_CONVERSION", "CAPITAL_GAINS_TAX"]}
                 />
               )}
+            </div>
+
+            {/* Pinned tip footer */}
+            <div className="flex-shrink-0 px-6 py-3 border-t border-white/8 bg-brand-400/[0.04]">
+              <p className="text-xs text-brand-400/80">
+                <span className="font-semibold text-brand-400">Tip:</span> Click the pencil to edit any field before approving. Use ✓ / ✕ per row, or the batch buttons above for all at once.
+              </p>
             </div>
           </div>
         </div>

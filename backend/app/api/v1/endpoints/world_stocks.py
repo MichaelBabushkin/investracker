@@ -1388,31 +1388,46 @@ async def sync_exchange_data_from_yfinance(
 # ===== PENDING TRANSACTIONS ENDPOINTS =====
 
 def _extract_ticker(ticker_field: str, stock_name: str):
-    """Extract actual ticker from stock_name (e.g., 'NKE US' -> 'NKE', 'FORD MOTOR(F)' -> 'F', 'CATERPILLAR(CAT' -> 'CAT')"""
+    """Extract actual ticker from stock_name.
+
+    Handles:
+      'NKE US'           -> ticker='NKE'
+      'FORD MOTOR(F)'    -> ticker='F'
+      'CATERPILLAR(CAT'  -> ticker='CAT'  (truncated paren)
+      'AMZN ןוזאמא'     -> ticker='AMZN' (Latin ticker + Hebrew name)
+    """
     import re
     actual_ticker = ticker_field
     stock_name_for_display = stock_name
-    
+
     if stock_name:
         name = stock_name.strip()
+
         if ' US' in name:
             actual_ticker = name.replace(' US', '').strip()
+
         elif '(' in name and ')' in name:
-            # Full paren: "FORD MOTOR(F)" -> ticker="F"
             start = name.rfind('(')
             end = name.rfind(')')
             if start != -1 and end != -1:
                 actual_ticker = name[start+1:end]
                 stock_name_for_display = name[:start].strip()
+
         elif '(' in name:
-            # Truncated paren (PDF column cutoff): "CATERPILLAR(CAT" -> ticker="CAT"
+            # Truncated paren: "CATERPILLAR(CAT"
             start = name.rfind('(')
             candidate = name[start+1:].strip()
-            # Validate it looks like a ticker (1-5 uppercase letters)
             if candidate and re.match(r'^[A-Z]{1,5}$', candidate):
                 actual_ticker = candidate
                 stock_name_for_display = name[:start].strip()
-    
+
+        else:
+            # "AMZN ןוזאמא" — Latin ticker followed by Hebrew text
+            m = re.match(r'^([A-Z]{1,6})\s', name)
+            if m and re.search(r'[א-ת]', name):
+                actual_ticker = m.group(1)
+                stock_name_for_display = m.group(1)  # use ticker as display name
+
     return actual_ticker, stock_name_for_display
 
 
@@ -1431,29 +1446,43 @@ def _process_approved_transaction(conn, t, user_id: str, now):
         realized_pl = None
         cost_basis = None
         
-        # For SELL, compute realized P/L BEFORE modifying the holding
+        sell_commission = float(t.commission or 0) if t.transaction_type == 'SELL' else 0
+
+        # Look up existing holding (needed for both SELL P/L and BUY short-cover logic)
+        existing_holding = conn.execute(text("""
+            SELECT id, quantity, purchase_cost FROM "world_stock_holdings"
+            WHERE user_id = :user_id AND ticker = :ticker
+        """), {"user_id": user_id, "ticker": actual_ticker}).fetchone()
+
+        existing_qty = float(existing_holding[1] or 0) if existing_holding else 0.0
+        existing_cost = float(existing_holding[2] or 0) if existing_holding else 0.0
+
+        # For SELL: compute realized P/L BEFORE modifying the holding.
+        # Supports short selling: if no long position exists, a negative holding is created.
         if t.transaction_type == 'SELL':
-            existing = conn.execute(text("""
-                SELECT id, quantity, purchase_cost FROM "world_stock_holdings"
-                WHERE user_id = :user_id AND ticker = :ticker
-            """), {"user_id": user_id, "ticker": actual_ticker}).fetchone()
-            
-            if existing and float(existing[1] or 0) > 0:
-                avg_cost_per_share = float(existing[2] or 0) / float(existing[1])
+            if existing_qty > 0.001:
+                # Normal long sell
+                avg_cost_per_share = existing_cost / existing_qty
                 cost_basis = avg_cost_per_share * quantity
-                # Use gross proceeds (qty * price), then subtract commission once
-                gross_proceeds = quantity * price
-                sell_commission = float(t.commission or 0)
-                realized_pl = gross_proceeds - cost_basis - sell_commission
-        
+                realized_pl = quantity * price - cost_basis - sell_commission
+            # else: short sale — P/L computed when the short is covered by a future BUY
+
+        # For BUY: if existing holding is negative (short position), this is a buy-to-cover.
+        if t.transaction_type == 'BUY' and existing_qty < -0.001:
+            covered_qty = min(quantity, abs(existing_qty))
+            short_avg_price = existing_cost / existing_qty  # negative cost / negative qty = positive avg
+            cover_cost_per_share = price + buy_commission / quantity
+            realized_pl = covered_qty * (short_avg_price - cover_cost_per_share)
+            cost_basis = covered_qty * cover_cost_per_share
+
         # Insert transaction record
         conn.execute(text("""
-            INSERT INTO "world_stock_transactions" 
+            INSERT INTO "world_stock_transactions"
             (user_id, ticker, symbol, company_name, transaction_date, transaction_time,
-             transaction_type, quantity, price, total_value, commission, currency, 
+             transaction_type, quantity, price, total_value, commission, currency,
              source_pdf, realized_pl, cost_basis, created_at, updated_at)
             VALUES (:user_id, :ticker, :symbol, :company_name, :transaction_date, :transaction_time,
-                    :transaction_type, :quantity, :price, :total_value, :commission, :currency, 
+                    :transaction_type, :quantity, :price, :total_value, :commission, :currency,
                     :source_pdf, :realized_pl, :cost_basis, :created_at, :updated_at)
         """), {
             "user_id": user_id,
@@ -1474,57 +1503,71 @@ def _process_approved_transaction(conn, t, user_id: str, now):
             "created_at": now,
             "updated_at": now
         })
-        
-        # Update or create holding
-        existing_holding = conn.execute(text("""
-            SELECT id, quantity, purchase_cost FROM "world_stock_holdings"
-            WHERE user_id = :user_id AND ticker = :ticker
-        """), {"user_id": user_id, "ticker": actual_ticker}).fetchone()
-        
+
+        # Update or create holding (supports negative quantities for short positions)
         if t.transaction_type == 'BUY':
+            new_qty = existing_qty + quantity
+            new_cost = existing_cost + cost
             if existing_holding:
-                new_qty = float(existing_holding[1] or 0) + quantity
-                new_cost = float(existing_holding[2] or 0) + cost
-                conn.execute(text("""
-                    UPDATE "world_stock_holdings" 
-                    SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
-                    WHERE id = :id
-                """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
+                if abs(new_qty) < 0.001:
+                    conn.execute(text('DELETE FROM "world_stock_holdings" WHERE id = :id'), {"id": existing_holding[0]})
+                else:
+                    conn.execute(text("""
+                        UPDATE "world_stock_holdings"
+                        SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
+                        WHERE id = :id
+                    """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
             else:
                 conn.execute(text("""
-                    INSERT INTO "world_stock_holdings" 
-                    (user_id, ticker, symbol, company_name, quantity, purchase_cost, 
+                    INSERT INTO "world_stock_holdings"
+                    (user_id, ticker, symbol, company_name, quantity, purchase_cost,
                      current_value, currency, source_pdf, created_at, updated_at)
                     VALUES (:user_id, :ticker, :symbol, :company_name, :quantity, :purchase_cost,
                             :current_value, :currency, :source_pdf, :created_at, :updated_at)
                 """), {
-                    "user_id": user_id,
-                    "ticker": actual_ticker,
-                    "symbol": actual_ticker,
-                    "company_name": stock_name_for_display,
-                    "quantity": quantity,
-                    "purchase_cost": cost,
-                    "current_value": cost,
-                    "currency": t.currency or "USD",
-                    "source_pdf": t.pdf_filename,
-                    "created_at": now,
-                    "updated_at": now
+                    "user_id": user_id, "ticker": actual_ticker, "symbol": actual_ticker,
+                    "company_name": stock_name_for_display, "quantity": quantity,
+                    "purchase_cost": cost, "current_value": cost,
+                    "currency": t.currency or "USD", "source_pdf": t.pdf_filename,
+                    "created_at": now, "updated_at": now
                 })
+
         elif t.transaction_type == 'SELL':
-            if existing_holding:
-                new_qty = float(existing_holding[1] or 0) - quantity
-                if new_qty > 0.001:
-                    original_qty = float(existing_holding[1] or 1)
-                    new_cost = float(existing_holding[2] or 0) * (new_qty / original_qty)
+            new_qty = existing_qty - quantity
+            if abs(new_qty) < 0.001:
+                if existing_holding:
+                    conn.execute(text('DELETE FROM "world_stock_holdings" WHERE id = :id'), {"id": existing_holding[0]})
+            elif new_qty > 0:
+                # Partial long sell
+                new_cost = existing_cost * (new_qty / existing_qty)
+                conn.execute(text("""
+                    UPDATE "world_stock_holdings"
+                    SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
+                    WHERE id = :id
+                """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
+            else:
+                # Short position — store as negative quantity, cost = negative proceeds
+                short_proceeds = -(quantity * price - sell_commission)
+                if existing_holding:
                     conn.execute(text("""
-                        UPDATE "world_stock_holdings" 
+                        UPDATE "world_stock_holdings"
                         SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
                         WHERE id = :id
-                    """), {"quantity": new_qty, "cost": new_cost, "updated_at": now, "id": existing_holding[0]})
+                    """), {"quantity": new_qty, "cost": existing_cost + short_proceeds, "updated_at": now, "id": existing_holding[0]})
                 else:
                     conn.execute(text("""
-                        DELETE FROM "world_stock_holdings" WHERE id = :id
-                    """), {"id": existing_holding[0]})
+                        INSERT INTO "world_stock_holdings"
+                        (user_id, ticker, symbol, company_name, quantity, purchase_cost,
+                         current_value, currency, source_pdf, created_at, updated_at)
+                        VALUES (:user_id, :ticker, :symbol, :company_name, :quantity, :purchase_cost,
+                                :current_value, :currency, :source_pdf, :created_at, :updated_at)
+                    """), {
+                        "user_id": user_id, "ticker": actual_ticker, "symbol": actual_ticker,
+                        "company_name": stock_name_for_display, "quantity": new_qty,
+                        "purchase_cost": short_proceeds, "current_value": short_proceeds,
+                        "currency": t.currency or "USD", "source_pdf": t.pdf_filename,
+                        "created_at": now, "updated_at": now
+                    })
     
     elif t.transaction_type == 'DIVIDEND':
         gross_amount = t.amount or 0
@@ -1781,12 +1824,12 @@ async def approve_all_world_in_batch(
     db: Session = Depends(get_db)
 ):
     """Approve all pending world stock transactions in a batch"""
-    
+
     transactions = db.query(PendingWorldTransaction).filter(
         PendingWorldTransaction.upload_batch_id == batch_id,
         PendingWorldTransaction.user_id == str(current_user.id),
         PendingWorldTransaction.status.in_(["pending", "modified"])
-    ).all()
+    ).order_by(PendingWorldTransaction.transaction_date.asc(), PendingWorldTransaction.id.asc()).all()
     
     if not transactions:
         raise HTTPException(status_code=404, detail="No pending transactions found in this batch")
@@ -1830,8 +1873,8 @@ async def approve_all_world_batches(
     transactions = db.query(PendingWorldTransaction).filter(
         PendingWorldTransaction.user_id == str(current_user.id),
         PendingWorldTransaction.status.in_(["pending", "modified"])
-    ).all()
-    
+    ).order_by(PendingWorldTransaction.transaction_date.asc(), PendingWorldTransaction.id.asc()).all()
+
     if not transactions:
         raise HTTPException(status_code=404, detail="No pending transactions found")
     

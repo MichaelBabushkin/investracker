@@ -893,3 +893,122 @@ def refresh_exchange_rates(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch exchange rate: {str(e)}")
+
+
+@router.post("/fix-world-data")
+def fix_world_data(
+    user_id: str,
+    current_admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Recompute world_stock_holdings from transactions and backfill NULL realized_pl.
+
+    Safe to run multiple times (idempotent).
+    Step 1 — rebuild holdings: delete all holdings for the user, then replay every
+              BUY and SELL in chronological order using the same AVCO logic as approval.
+    Step 2 — backfill realized_pl: for every SELL with realized_pl IS NULL, look up
+              the cost basis from the rebuilt holdings snapshot at the time of the SELL
+              and compute P/L = gross_proceeds - cost_basis - sell_commission.
+    """
+    from decimal import Decimal
+
+    report = {"rebuilt_holdings": [], "backfilled_pl": [], "errors": []}
+
+    with engine.connect() as conn:
+        # --- Step 1: Rebuild holdings from transactions ---
+        conn.execute(text('DELETE FROM "world_stock_holdings" WHERE user_id = :uid'), {"uid": user_id})
+
+        buysell = conn.execute(text("""
+            SELECT id, ticker, company_name, transaction_type, quantity, price,
+                   total_value, commission, currency, transaction_date, source_pdf
+            FROM "world_stock_transactions"
+            WHERE user_id = :uid AND transaction_type IN ('BUY', 'SELL')
+            ORDER BY transaction_date ASC, id ASC
+        """), {"uid": user_id}).fetchall()
+
+        # In-memory holdings: {ticker: {qty, cost}}
+        holdings: dict = {}
+        sell_cost_snapshot: dict = {}  # {transaction_id: cost_basis}
+
+        for row in buysell:
+            txn_id, ticker, company_name, txn_type, qty, price, total_value, commission, currency, txn_date, source_pdf = row
+            qty = float(qty or 0)
+            price = float(price or 0)
+            commission = float(commission or 0)
+
+            if txn_type == 'BUY':
+                cost = qty * price + commission
+                if ticker in holdings:
+                    holdings[ticker]['qty'] += qty
+                    holdings[ticker]['cost'] += cost
+                else:
+                    holdings[ticker] = {'qty': qty, 'cost': cost, 'company_name': company_name, 'currency': currency, 'source_pdf': source_pdf}
+
+            elif txn_type == 'SELL':
+                if ticker in holdings and holdings[ticker]['qty'] > 0.001:
+                    avg_cost_per_share = holdings[ticker]['cost'] / holdings[ticker]['qty']
+                    cost_basis = avg_cost_per_share * qty
+                    sell_cost_snapshot[txn_id] = cost_basis
+                    new_qty = holdings[ticker]['qty'] - qty
+                    if new_qty > 0.001:
+                        holdings[ticker]['qty'] = new_qty
+                        holdings[ticker]['cost'] = holdings[ticker]['cost'] * (new_qty / (new_qty + qty))
+                    else:
+                        del holdings[ticker]
+                else:
+                    report["errors"].append(f"SELL {ticker} id={txn_id}: no holding found at time of sale")
+
+        now = datetime.now()
+        for ticker, h in holdings.items():
+            conn.execute(text("""
+                INSERT INTO "world_stock_holdings"
+                (user_id, ticker, symbol, company_name, quantity, purchase_cost,
+                 current_value, currency, source_pdf, created_at, updated_at)
+                VALUES (:uid, :ticker, :ticker, :company_name, :qty, :cost,
+                        :cost, :currency, :source_pdf, :now, :now)
+            """), {
+                "uid": user_id, "ticker": ticker, "company_name": h['company_name'],
+                "qty": h['qty'], "cost": h['cost'], "currency": h.get('currency', 'USD'),
+                "source_pdf": h.get('source_pdf', 'computed'), "now": now
+            })
+            report["rebuilt_holdings"].append(f"{ticker}: {h['qty']:.4f} shares, cost ${h['cost']:.2f}")
+
+        # --- Step 2: Backfill NULL realized_pl ---
+        null_sells = conn.execute(text("""
+            SELECT id, ticker, quantity, price, commission
+            FROM "world_stock_transactions"
+            WHERE user_id = :uid AND transaction_type = 'SELL' AND realized_pl IS NULL
+            ORDER BY transaction_date ASC, id ASC
+        """), {"uid": user_id}).fetchall()
+
+        for row in null_sells:
+            txn_id, ticker, qty, price, commission = row
+            qty = float(qty or 0)
+            price = float(price or 0)
+            commission = float(commission or 0)
+
+            if txn_id in sell_cost_snapshot:
+                cost_basis = sell_cost_snapshot[txn_id]
+                gross_proceeds = qty * price
+                realized_pl = gross_proceeds - cost_basis - commission
+                conn.execute(text("""
+                    UPDATE "world_stock_transactions"
+                    SET realized_pl = :pl, cost_basis = :cb, updated_at = :now
+                    WHERE id = :id
+                """), {"pl": realized_pl, "cb": cost_basis, "now": now, "id": txn_id})
+                report["backfilled_pl"].append(
+                    f"{ticker} id={txn_id}: cost_basis=${cost_basis:.2f}, P/L=${realized_pl:.2f}"
+                )
+            else:
+                report["errors"].append(f"SELL {ticker} id={txn_id}: cannot compute P/L (no cost basis)")
+
+        conn.commit()
+
+    return {
+        "success": True,
+        "user_id": user_id,
+        "rebuilt_holdings_count": len(report["rebuilt_holdings"]),
+        "backfilled_pl_count": len(report["backfilled_pl"]),
+        "error_count": len(report["errors"]),
+        "details": report
+    }

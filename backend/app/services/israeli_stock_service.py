@@ -528,7 +528,16 @@ class IsraeliStockService:
                         
                         # Check if it's a world stock, currency conversion, or capital gains tax
                         is_world = self.broker_parser._is_world_stock(name, security_no) or is_currency_conversion or is_capital_gains_tax
-                        
+
+                        # Authoritative fallback: ק/חו"ל and מ/חו"ל are the broker's own
+                        # "buy/sell abroad" codes — definitive proof of an international trade
+                        # regardless of stock name format (e.g. "AMZN ןוזאמא").
+                        if not is_world:
+                            row_str = ' '.join(str(v) for v in row.values if not pd.isna(v))
+                            # PDFs store Hebrew in visual/RTL order: ק/חו"ל appears as ל"וח/ק
+                            if 'ל"וח' in row_str or 'חו"ל' in row_str:
+                                is_world = True
+
                         if is_world:
                             all_rows.append({
                                 'row': row,
@@ -1013,7 +1022,7 @@ class IsraeliStockService:
                     transaction_date, transaction_time, quantity, price, total_value,
                     commission, tax, currency, source_pdf
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (user_id, security_no, transaction_date, transaction_type, source_pdf) DO NOTHING
+                ON CONFLICT (user_id, security_no, transaction_date, transaction_type, source_pdf, quantity, price) DO NOTHING
                 """
                 
                 cursor.executemany(insert_sql, bulk_data)
@@ -1564,19 +1573,39 @@ class IsraeliStockService:
                 transaction_date = pending_transaction.transaction_date
                 if isinstance(transaction_date, str):
                     transaction_date = self.parse_date_string(transaction_date)
-                
+
                 # Get transaction time if available
                 transaction_time = pending_transaction.transaction_time if hasattr(pending_transaction, 'transaction_time') else None
-                
+
+                qty = float(pending_transaction.quantity) if pending_transaction.quantity else 0
+                price = float(pending_transaction.price) if pending_transaction.price else 0
+                commission = float(pending_transaction.commission) if pending_transaction.commission else 0
+
+                # For SELL: compute realized P/L from current holding's avg cost BEFORE updating
+                realized_pl = None
+                if transaction_type == 'SELL':
+                    cursor.execute(
+                        'SELECT quantity, purchase_cost FROM "israeli_stock_holdings" WHERE user_id = %s AND security_no = %s',
+                        (user_id, data['security_no'])
+                    )
+                    holding_row = cursor.fetchone()
+                    if holding_row and float(holding_row[0] or 0) > 0:
+                        hold_qty = float(holding_row[0])
+                        hold_cost = float(holding_row[1] or 0)
+                        avg_cost_per_share = hold_cost / hold_qty
+                        cost_basis = avg_cost_per_share * qty
+                        gross_proceeds = price * qty
+                        realized_pl = gross_proceeds - cost_basis - commission
+
                 insert_sql = """
                 INSERT INTO "israeli_stock_transactions" (
                     user_id, security_no, symbol, company_name, transaction_type,
-                    transaction_date, transaction_time, quantity, price, total_value, 
-                    commission, tax, currency, source_pdf, created_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                ON CONFLICT (user_id, security_no, transaction_date, transaction_type, source_pdf) DO NOTHING
+                    transaction_date, transaction_time, quantity, price, total_value,
+                    commission, tax, currency, source_pdf, realized_pl, created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (user_id, security_no, transaction_date, transaction_type, source_pdf, quantity, price) DO NOTHING
                 """
-                
+
                 cursor.execute(insert_sql, (
                     user_id,
                     data['security_no'],
@@ -1585,16 +1614,17 @@ class IsraeliStockService:
                     transaction_type,
                     transaction_date,
                     transaction_time,
-                    float(pending_transaction.quantity) if pending_transaction.quantity else 0,
-                    float(pending_transaction.price) if pending_transaction.price else 0,
+                    qty,
+                    price,
                     float(pending_transaction.amount) if pending_transaction.amount else 0,
-                    float(pending_transaction.commission) if pending_transaction.commission else 0,
+                    commission,
                     float(pending_transaction.tax) if pending_transaction.tax else 0,
                     data['currency'],
-                    data['source_pdf']
+                    data['source_pdf'],
+                    realized_pl
                 ))
                 conn.commit()
-                
+
                 # Update holdings based on transaction type
                 self._update_holding_for_transaction(
                     cursor=cursor,
@@ -1631,7 +1661,7 @@ class IsraeliStockService:
                     transaction_date, transaction_time, quantity, price, total_value, 
                     commission, tax, currency, source_pdf, created_at
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                ON CONFLICT (user_id, security_no, transaction_date, transaction_type, source_pdf) DO NOTHING
+                ON CONFLICT (user_id, security_no, transaction_date, transaction_type, source_pdf, quantity, price) DO NOTHING
                 """
                 
                 cursor.execute(insert_sql, (

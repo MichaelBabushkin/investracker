@@ -382,134 +382,102 @@ export default function IsraeliStockTransactions({
         </div>
       </div>
 
-      {/* Summary */}
+      {/* Summary Cards */}
       {transactions.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div className="metric-card">
-            <div className="flex items-center">
-              <ArrowRight className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Transactions</p>
-                <p className="text-2xl font-bold">{transactions.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="metric-card bg-gradient-to-r from-green-500 to-green-600">
-            <div className="flex items-center">
-              <TrendingUp className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-xl">
+            <div className="flex items-center justify-between">
+              <div>
                 <p className="text-sm opacity-80">Overall Bought</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(totalBought)}
+                <p className="text-3xl font-bold">{formatCurrency(totalBought)}</p>
+                <p className="text-xs opacity-70 mt-1">
+                  {transactions.filter(t => t.transaction_type?.toUpperCase() === "BUY").length} buy transactions
                 </p>
               </div>
+              <TrendingUp className="h-12 w-12 opacity-60" />
             </div>
           </div>
 
-          <div className="metric-card bg-gradient-to-r from-red-500 to-red-600">
-            <div className="flex items-center">
-              <TrendingDown className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
+          <div className="bg-gradient-to-r from-red-500 to-red-600 text-white p-6 rounded-xl">
+            <div className="flex items-center justify-between">
+              <div>
                 <p className="text-sm opacity-80">Overall Sold</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(totalSold)}
+                <p className="text-3xl font-bold">{formatCurrency(totalSold)}</p>
+                <p className="text-xs opacity-70 mt-1">
+                  {transactions.filter(t => t.transaction_type?.toUpperCase() === "SELL").length} sell transactions
                 </p>
               </div>
+              <TrendingDown className="h-12 w-12 opacity-60" />
             </div>
           </div>
 
-          <div className="metric-card bg-gradient-to-r from-blue-500 to-blue-600">
-            <div className="flex items-center">
-              <DollarSign className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Total Commission Paid</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(totalCommission)}
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-80">Total Commissions</p>
+                <p className="text-3xl font-bold">{formatCurrency(totalCommission)}</p>
+                <p className="text-xs opacity-70 mt-1">{transactions.length} transactions</p>
+              </div>
+              <Banknote className="h-12 w-12 opacity-60" />
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-6 rounded-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-80">Total Volume</p>
+                <p className="text-3xl font-bold">{formatCurrency(totalBought + totalSold)}</p>
+                <p className="text-xs opacity-70 mt-1">
+                  Avg: {formatCurrency(transactions.length > 0 ? (totalBought + totalSold) / transactions.length : 0)}
                 </p>
               </div>
+              <DollarSign className="h-12 w-12 opacity-60" />
             </div>
           </div>
         </div>
       )}
 
-      {/* Cash Flow Summary */}
+      {/* Cash Flow Stats Row */}
       {transactions.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="metric-card bg-gradient-to-r from-purple-500 to-purple-600">
-            <div className="flex items-center">
-              <Banknote className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Total Deposits</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(totalDeposits)}
-                </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-surface-dark-secondary p-4 rounded-xl border border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Total Deposits</p>
+                <p className="text-xl font-bold text-gain">{formatCurrency(totalDeposits)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Withdrawals</p>
+                <p className="text-xl font-semibold text-loss">{formatCurrency(totalWithdrawals)}</p>
               </div>
             </div>
           </div>
 
-          <div className="metric-card bg-gradient-to-r from-cyan-500 to-cyan-600">
-            <div className="flex items-center">
-              <ArrowLeftRight className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">FX Converted (ILS→USD)</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(totalFxConversion)}
-                </p>
+          <div className="bg-surface-dark-secondary p-4 rounded-xl border border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">FX Converted (ILS→USD)</p>
+                <p className="text-xl font-bold text-gray-100">{formatCurrency(totalFxConversion)}</p>
               </div>
+              <ArrowLeftRight className="h-6 w-6 text-cyan-400 opacity-60" />
             </div>
           </div>
 
-          <div className="metric-card bg-gradient-to-r from-orange-500 to-orange-600">
-            <div className="flex items-center">
-              <Banknote className="h-8 w-8 opacity-80" />
-              <div className="ml-3">
-                <p className="text-sm opacity-80">Total Withdrawals</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(totalWithdrawals)}
+          <div className="bg-surface-dark-secondary p-4 rounded-xl border border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400">Net Flow</p>
+                <p className={`text-xl font-bold ${totalDeposits - totalWithdrawals >= 0 ? "text-gain" : "text-loss"}`}>
+                  {formatCurrency(totalDeposits - totalWithdrawals)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Open Positions</p>
+                <p className="text-xl font-semibold text-gray-100">
+                  {new Set(transactions.filter(t => t.transaction_type?.toUpperCase() === "BUY").map(t => t.symbol || t.company_name)).size}
                 </p>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Monthly Activity Chart */}
-      {monthlyData.length > 0 && (
-        <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-gray-300">
-              Monthly Trading Activity (Buy vs Sell)
-            </h3>
-            <span className="text-xs text-gray-400">
-              Last {monthlyData.length} months
-            </span>
-          </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={monthlyData}
-                margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(v: any) => formatCurrency(v)} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar
-                  dataKey="buy"
-                  name="Buy"
-                  fill="#16a34a"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="sell"
-                  name="Sell"
-                  fill="#dc2626"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
           </div>
         </div>
       )}
@@ -521,6 +489,30 @@ export default function IsraeliStockTransactions({
         formatDate={formatDate}
         unitLabel="units"
       />
+
+      {/* Monthly Activity Chart */}
+      {monthlyData.length > 0 && (
+        <div className="bg-surface-dark-secondary rounded-xl border border-white/10 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-100">Monthly Trading Activity</h3>
+            <span className="text-xs text-gray-400">Last {monthlyData.length} months</span>
+          </div>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#9CA3AF" }} />
+              <YAxis tickFormatter={(v) => `₪${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 12, fill: "#9CA3AF" }} />
+              <Tooltip
+                formatter={(v: any) => formatCurrency(v)}
+                contentStyle={{ backgroundColor: "#1F2937", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "0.5rem", color: "#F9FAFB" }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12, color: "#9CA3AF" }} />
+              <Bar dataKey="buy" name="Buy" fill="#10b981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="sell" name="Sell" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Filter Controls */}
       <div className="bg-surface-dark-secondary border border-white/10 rounded-xl p-4">
