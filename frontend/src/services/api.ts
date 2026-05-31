@@ -671,6 +671,19 @@ export const worldStocksAPI = {
     return response.data;
   },
 
+  getWorldCashBalance: async (): Promise<{
+    fx_deposits: number;
+    fx_withdrawals: number;
+    stock_purchases: number;
+    stock_sales: number;
+    net_dividends: number;
+    total_commissions: number;
+    available_cash: number;
+  }> => {
+    const response = await api.get("/world-stocks/cash-balance");
+    return response.data;
+  },
+
   getExchangeRate: async (): Promise<{ usd_ils: number | null }> => {
     const response = await api.get("/world-stocks/exchange-rate");
     return response.data;

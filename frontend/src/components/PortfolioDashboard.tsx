@@ -100,6 +100,15 @@ export default function PortfolioDashboard() {
   } | null>(null);
   const [cashBalanceLoading, setCashBalanceLoading] = useState(false);
   const [worldCashUSD, setWorldCashUSD] = useState<number | null>(null);
+  const [worldCashBreakdown, setWorldCashBreakdown] = useState<{
+    fx_deposits: number;
+    fx_withdrawals: number;
+    stock_purchases: number;
+    stock_sales: number;
+    net_dividends: number;
+    total_commissions: number;
+    available_cash: number;
+  } | null>(null);
 
   // World accounts (for International account selector)
   const [accounts, setAccounts] = useState<WorldStockAccount[]>([]);
@@ -167,12 +176,14 @@ export default function PortfolioDashboard() {
   const fetchCashBalance = useCallback(async () => {
     setCashBalanceLoading(true);
     try {
-      const [ilsData, worldData] = await Promise.all([
+      const [ilsData, worldData, worldBreakdown] = await Promise.all([
         israeliStocksAPI.getCashBalance(),
         worldStocksAPI.getPortfolioDashboard(),
+        worldStocksAPI.getWorldCashBalance(),
       ]);
       setCashBalanceData(ilsData);
       setWorldCashUSD(worldData?.portfolioData?.totalCash ?? null);
+      setWorldCashBreakdown(worldBreakdown);
     } catch { /* silent */ } finally {
       setCashBalanceLoading(false);
     }
@@ -216,55 +227,81 @@ export default function PortfolioDashboard() {
     }
 
     const isConvert = cashType === "CONVERT";
-
-    // Determine the final stored amount and currency
-    // Rate is always "ILS per USD". Divide when going ILS→foreign, multiply when foreign→ILS.
-    const storedAmount = isConvert && convertRate && convertToCurrency !== cashCurrency
-      ? cashCurrency === "ILS"
-        ? (parseFloat(cashAmount) / parseFloat(convertRate)).toFixed(2)
-        : (parseFloat(cashAmount) * parseFloat(convertRate)).toFixed(2)
-      : cashAmount;
-    // Backend transaction type: CONVERT → FX_CONVERSION
-    const backendType = isConvert ? "FX_CONVERSION" : cashType;
-
-    const ilsAmount = parseFloat(cashAmount);
     const rate = parseFloat(convertRate) || 0;
-    const usdAmount = isConvert && rate > 0
-      ? cashCurrency === "ILS" ? ilsAmount / rate : ilsAmount * rate
-      : 0;
+    // Rate is always ILS per USD.
+    const isIlsToUsd = isConvert && cashCurrency === "ILS";
+    const isUsdToIls = isConvert && cashCurrency !== "ILS";
+
+    // Compute the actual amounts on each side
+    const fromAmount = parseFloat(cashAmount);            // amount in cashCurrency
+    const toAmount = isIlsToUsd
+      ? fromAmount / rate                                 // ILS→USD: divide by rate → USD received
+      : isUsdToIls
+        ? fromAmount * rate                               // USD→ILS: multiply by rate → ILS received
+        : 0;
+    const ilsSpentOrReceived = isIlsToUsd ? fromAmount : isUsdToIls ? toAmount : fromAmount;
+    const usdSpentOrReceived = isIlsToUsd ? toAmount    : isUsdToIls ? fromAmount : 0;
 
     setManualSubmitting(true);
     try {
-      // 1. Record ILS side (deposit / withdrawal / FX outflow)
-      await israeliStocksAPI.createTransaction({
-        transaction_type: backendType,
-        transaction_date: cashDate,
-        total_value: ilsAmount,
-        currency: cashCurrency,
-        symbol: "CASH",
-        company_name: isConvert ? "Cash Conversion" : cashType === "DEPOSIT" ? "Cash Deposit" : "Cash Withdrawal",
-        quantity: 0,
-        price: 0,
-        commission: 0,
-      });
-
-      // 2. For conversions: also record the USD inflow in world stocks
-      if (isConvert && usdAmount > 0) {
+      if (isIlsToUsd) {
+        // ILS→USD: record ILS outflow as FX_CONVERSION, then USD inflow as CURRENCY_CONVERSION (currency='ILS')
+        await israeliStocksAPI.createTransaction({
+          transaction_type: "FX_CONVERSION",
+          transaction_date: cashDate,
+          total_value: ilsSpentOrReceived,
+          currency: "ILS",
+          symbol: "CASH",
+          company_name: `Currency Conversion ILS→USD`,
+          quantity: 0, price: 0, commission: 0,
+        });
         await worldStocksAPI.createTransaction({
           symbol: "USD",
           transaction_type: "CURRENCY_CONVERSION",
-          quantity: usdAmount,        // USD amount received
-          price: rate,                // exchange rate (ILS per USD)
-          total_value: ilsAmount,     // ILS amount spent
-          currency: cashCurrency,
+          quantity: usdSpentOrReceived,   // USD received
+          price: rate,                    // ILS per USD
+          total_value: ilsSpentOrReceived,// ILS spent
+          currency: "ILS",               // marks this as ILS→USD direction
           transaction_date: cashDate,
-          company_name: `Currency Conversion ${cashCurrency}→${convertToCurrency}`,
-          commission: 0,
-          tax: 0,
+          company_name: `Currency Conversion ILS→USD`,
+          commission: 0, tax: 0,
+        });
+      } else if (isUsdToIls) {
+        // USD→ILS: record ILS inflow as DEPOSIT, then USD outflow as CURRENCY_CONVERSION (currency='USD')
+        await israeliStocksAPI.createTransaction({
+          transaction_type: "DEPOSIT",
+          transaction_date: cashDate,
+          total_value: ilsSpentOrReceived, // ILS received
+          currency: "ILS",
+          symbol: "CASH",
+          company_name: `Currency Conversion USD→ILS`,
+          quantity: 0, price: 0, commission: 0,
+        });
+        await worldStocksAPI.createTransaction({
+          symbol: "USD",
+          transaction_type: "CURRENCY_CONVERSION",
+          quantity: usdSpentOrReceived,    // USD spent
+          price: rate,                     // ILS per USD
+          total_value: ilsSpentOrReceived, // ILS received
+          currency: "USD",                 // marks this as USD→ILS direction
+          transaction_date: cashDate,
+          company_name: `Currency Conversion USD→ILS`,
+          commission: 0, tax: 0,
+        });
+      } else {
+        // Plain deposit or withdrawal
+        await israeliStocksAPI.createTransaction({
+          transaction_type: cashType,
+          transaction_date: cashDate,
+          total_value: fromAmount,
+          currency: cashCurrency,
+          symbol: "CASH",
+          company_name: cashType === "DEPOSIT" ? "Cash Deposit" : "Cash Withdrawal",
+          quantity: 0, price: 0, commission: 0,
         });
       }
 
-      const label = isConvert ? "Conversion" : cashType === "DEPOSIT" ? "Deposit" : "Withdrawal";
+      const label = isIlsToUsd ? "ILS→USD conversion" : isUsdToIls ? "USD→ILS conversion" : cashType === "DEPOSIT" ? "Deposit" : "Withdrawal";
       toast.success(`${label} recorded`);
       setManualOpen(false);
       setCashAmount("");
@@ -512,14 +549,46 @@ export default function PortfolioDashboard() {
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">US Dollar</span>
                   <span className="text-xs text-gray-600">USD</span>
                 </div>
-                <p className={`text-3xl font-bold tabular-nums mb-5 ${(worldCashUSD ?? 0) >= 0 ? "text-gray-100" : "text-loss"}`}>
-                  ${(worldCashUSD ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <p className={`text-3xl font-bold tabular-nums mb-5 ${(worldCashBreakdown?.available_cash ?? worldCashUSD ?? 0) >= 0 ? "text-gray-100" : "text-loss"}`}>
+                  ${(worldCashBreakdown?.available_cash ?? worldCashUSD ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
-                <p className="text-xs text-gray-500">
-                  Derived from international stock sales, dividends, and FX deposits minus purchases.
-                </p>
-                {worldCashUSD === null && (
-                  <p className="text-xs text-gray-600 mt-2">No international activity yet.</p>
+                {worldCashBreakdown ? (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between text-gray-400">
+                      <span>FX deposits (ILS→USD)</span>
+                      <span className="text-gain tabular-nums">+${worldCashBreakdown.fx_deposits.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>FX withdrawals (USD→ILS)</span>
+                      <span className="text-loss tabular-nums">−${worldCashBreakdown.fx_withdrawals.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>Stock purchases</span>
+                      <span className="text-loss tabular-nums">−${worldCashBreakdown.stock_purchases.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>Stock sales</span>
+                      <span className="text-gain tabular-nums">+${worldCashBreakdown.stock_sales.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400">
+                      <span>Dividends (net)</span>
+                      <span className="text-gain tabular-nums">+${worldCashBreakdown.net_dividends.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>
+                    </div>
+                    {worldCashBreakdown.total_commissions > 0 && (
+                      <div className="flex justify-between text-gray-400">
+                        <span>Commissions & fees</span>
+                        <span className="text-loss tabular-nums">−${worldCashBreakdown.total_commissions.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>
+                      </div>
+                    )}
+                    <div className="border-t border-white/8 pt-2 flex justify-between font-semibold text-gray-200">
+                      <span>Available</span>
+                      <span className="tabular-nums">${worldCashBreakdown.available_cash.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    Derived from FX deposits, stock sales, and dividends minus purchases.
+                  </p>
                 )}
               </div>
             </div>

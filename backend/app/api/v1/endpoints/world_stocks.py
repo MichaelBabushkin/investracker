@@ -675,6 +675,55 @@ async def get_exchange_rate(current_user: User = Depends(get_current_user)):
         return {"usd_ils": None}
 
 
+@router.get("/cash-balance")
+async def get_world_cash_balance(
+    current_user: User = Depends(get_current_user)
+):
+    """Detailed USD cash breakdown — mirrors the ILS cash-balance endpoint."""
+    user_id = str(current_user.id)
+    try:
+        with engine.connect() as conn:
+            # FX deposits: USD received from ILS→USD conversions
+            row = conn.execute(text("""
+                SELECT
+                    -- ILS→USD: currency='ILS', quantity = USD received
+                    COALESCE(SUM(CASE WHEN transaction_type='CURRENCY_CONVERSION' AND currency='ILS' THEN quantity  ELSE 0 END), 0) AS fx_deposits,
+                    -- USD→ILS: currency='USD', quantity = USD spent
+                    COALESCE(SUM(CASE WHEN transaction_type='CURRENCY_CONVERSION' AND currency='USD' THEN quantity  ELSE 0 END), 0) AS fx_withdrawals,
+                    COALESCE(SUM(CASE WHEN transaction_type='BUY'  THEN quantity * price  ELSE 0 END), 0)            AS stock_purchases_gross,
+                    COALESCE(SUM(CASE WHEN transaction_type='SELL' THEN quantity * price  ELSE 0 END), 0)            AS stock_sales_gross,
+                    COALESCE(SUM(COALESCE(commission, 0)), 0)                                                        AS total_commissions
+                FROM world_stock_transactions
+                WHERE user_id = :uid
+            """), {"uid": user_id}).fetchone()
+
+            fx_deposits       = float(row[0] or 0)
+            fx_withdrawals    = float(row[1] or 0)
+            stock_purchases   = float(row[2] or 0)
+            stock_sales       = float(row[3] or 0)
+            total_commissions = float(row[4] or 0)
+
+            # Net dividends (after withholding tax)
+            div_row = conn.execute(text("""
+                SELECT COALESCE(SUM(net_amount), 0) FROM world_dividends WHERE user_id = :uid
+            """), {"uid": user_id}).fetchone()
+            net_dividends = float(div_row[0] or 0)
+
+            available = fx_deposits - fx_withdrawals - stock_purchases + stock_sales - total_commissions + net_dividends
+
+            return {
+                "fx_deposits":       round(fx_deposits, 2),
+                "fx_withdrawals":    round(fx_withdrawals, 2),
+                "stock_purchases":   round(stock_purchases, 2),
+                "stock_sales":       round(stock_sales, 2),
+                "net_dividends":     round(net_dividends, 2),
+                "total_commissions": round(total_commissions, 2),
+                "available_cash":    round(available, 2),
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/portfolio-dashboard")
 async def get_portfolio_dashboard(
     user_id: Optional[str] = None,
