@@ -33,6 +33,116 @@ router = APIRouter()
 # ── yfinance company-name cache (persists for server session) ────────────────
 _yf_name_cache: dict[str, dict | None] = {}
 
+
+def _trigger_recalculations(db: Session, user_id: str, ticker: Optional[str] = None):
+    """Helper to update stock prices and recalculate returns in the background"""
+    from app.services.stock_price_service import StockPriceService
+    from app.services.returns_calculator import ReturnsCalculator
+    try:
+        price_service = StockPriceService(db)
+        if ticker:
+            price_service.update_world_stock_prices([ticker], market='world')
+        else:
+            price_service.update_world_stock_prices(market='world')
+            
+        price_service.update_holdings_values(user_id=user_id, market='world')
+        
+        calculator = ReturnsCalculator(db)
+        calculator.update_all_user_returns(user_id, market='world')
+    except Exception as e:
+        print(f"Error triggering background recalculations: {e}")
+
+
+def _rebuild_world_holding_from_transactions(db: Session, user_id: str, ticker: str):
+    """Rebuild a world stock holding for a user from their transaction history"""
+    try:
+        # Get all transactions for this ticker ordered chronologically
+        txs = db.execute(text("""
+            SELECT transaction_type, quantity, price, commission, total_value, source_pdf
+            FROM "world_stock_transactions"
+            WHERE user_id = :user_id AND ticker = :ticker
+            ORDER BY transaction_date, transaction_time, id
+        """), {"user_id": user_id, "ticker": ticker}).fetchall()
+        
+        if not txs:
+            # Delete holding if no transactions remain
+            db.execute(text("""
+                DELETE FROM "world_stock_holdings"
+                WHERE user_id = :user_id AND ticker = :ticker
+            """), {"user_id": user_id, "ticker": ticker})
+            db.commit()
+            return
+
+        qty = 0.0
+        cost = 0.0
+        source_pdf = "Multiple PDFs"
+        currency = "USD"
+        
+        for tx in txs:
+            tx_type, tx_qty, tx_price, tx_comm, tx_val, tx_pdf = tx
+            tx_qty = float(tx_qty or 0)
+            tx_price = float(tx_price or 0)
+            tx_comm = float(tx_comm or 0)
+            
+            if tx_pdf:
+                source_pdf = tx_pdf
+                
+            if tx_type == 'BUY':
+                qty += tx_qty
+                cost += tx_qty * tx_price + tx_comm
+            elif tx_type == 'SELL':
+                if qty > 0.001:
+                    avg_cost = cost / qty
+                    qty -= tx_qty
+                    cost = qty * avg_cost
+                else: # Short sale
+                    qty -= tx_qty
+                    cost += -(tx_qty * tx_price - tx_comm)
+                    
+        if abs(qty) < 0.001:
+            db.execute(text("""
+                DELETE FROM "world_stock_holdings"
+                WHERE user_id = :user_id AND ticker = :ticker
+            """), {"user_id": user_id, "ticker": ticker})
+        else:
+            # Check if holding exists to update or insert
+            existing = db.execute(text("""
+                SELECT id FROM "world_stock_holdings"
+                WHERE user_id = :user_id AND ticker = :ticker
+            """), {"user_id": user_id, "ticker": ticker}).fetchone()
+            
+            now = datetime.now()
+            if existing:
+                db.execute(text("""
+                    UPDATE "world_stock_holdings"
+                    SET quantity = :quantity, purchase_cost = :cost, updated_at = :updated_at
+                    WHERE id = :id
+                """), {"quantity": qty, "cost": cost, "updated_at": now, "id": existing[0]})
+            else:
+                # Get company name from world_stocks catalog if possible
+                stock_catalog = db.execute(text("""
+                    SELECT company_name FROM "world_stocks" WHERE ticker = :ticker LIMIT 1
+                """), {"ticker": ticker}).fetchone()
+                comp_name = stock_catalog[0] if stock_catalog else ticker
+                
+                db.execute(text("""
+                    INSERT INTO "world_stock_holdings"
+                    (user_id, ticker, symbol, company_name, quantity, purchase_cost,
+                     current_value, currency, source_pdf, created_at, updated_at)
+                    VALUES (:user_id, :ticker, :symbol, :company_name, :quantity, :purchase_cost,
+                            :current_value, :currency, :source_pdf, :created_at, :updated_at)
+                """), {
+                    "user_id": user_id, "ticker": ticker, "symbol": ticker,
+                    "company_name": comp_name, "quantity": qty,
+                    "purchase_cost": cost, "current_value": cost,
+                    "currency": currency, "source_pdf": source_pdf,
+                    "created_at": now, "updated_at": now
+                })
+        db.commit()
+    except Exception as e:
+        print(f"Error rebuilding world holding: {e}")
+        db.rollback()
+
 def _yfinance_lookup(ticker: str) -> dict | None:
     """Validate a ticker via yfinance and return {symbol, company_name} or None.
     Results are cached in-memory so each ticker is only fetched once per server session."""
@@ -365,7 +475,8 @@ async def search_world_stocks_catalog(
 @router.post("/transactions")
 async def create_world_stock_transaction(
     transaction_data: dict,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Create a new world stock transaction manually — updates holdings exactly like an approved PDF transaction."""
     try:
@@ -420,6 +531,7 @@ async def create_world_stock_transaction(
             _process_approved_transaction(conn, t, str(current_user.id), now)
             conn.commit()
 
+        _trigger_recalculations(db, str(current_user.id), symbol)
         return {"success": True, "message": "Transaction created successfully"}
 
     except HTTPException:
@@ -431,25 +543,32 @@ async def create_world_stock_transaction(
 @router.delete("/transactions/{transaction_id}")
 async def delete_world_stock_transaction(
     transaction_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Delete a world stock transaction (user must own it)."""
     try:
         from sqlalchemy import text
         from app.core.database import engine
 
+        ticker = None
         with engine.connect() as conn:
             row = conn.execute(text(
-                'SELECT id, user_id FROM "world_stock_transactions" WHERE id = :id'
+                'SELECT id, user_id, ticker FROM "world_stock_transactions" WHERE id = :id'
             ), {"id": transaction_id}).fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Transaction not found")
             if str(row[1]) != str(current_user.id):
                 raise HTTPException(status_code=403, detail="Not your transaction")
+            ticker = row[2]
             conn.execute(text(
                 'DELETE FROM "world_stock_transactions" WHERE id = :id'
             ), {"id": transaction_id})
             conn.commit()
+
+        if ticker:
+            _rebuild_world_holding_from_transactions(db, str(current_user.id), ticker)
+            _trigger_recalculations(db, str(current_user.id), ticker)
 
         return {"success": True, "message": "Transaction deleted"}
 
@@ -1856,6 +1975,8 @@ async def approve_pending_world_transaction(
         transaction.reviewed_by = str(current_user.id)
         db.commit()
         
+        _trigger_recalculations(db, str(current_user.id), transaction.ticker)
+        
         return {
             "success": True, 
             "message": f"{transaction.transaction_type} transaction approved and processed"
@@ -1903,6 +2024,9 @@ async def approve_all_world_in_batch(
     
     db.commit()
     
+    if approved_count > 0:
+        _trigger_recalculations(db, str(current_user.id))
+    
     return {
         "success": True,
         "message": f"Approved {approved_count} of {len(transactions)} transactions",
@@ -1946,6 +2070,9 @@ async def approve_all_world_batches(
             errors.append(f"Error processing transaction {t.id} ({t.ticker}): {str(e)}")
     
     db.commit()
+    
+    if approved_count > 0:
+        _trigger_recalculations(db, str(current_user.id))
     
     return {
         "success": True,

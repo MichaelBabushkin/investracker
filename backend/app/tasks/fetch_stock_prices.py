@@ -29,8 +29,9 @@ def run_active_price_update():
     db = SessionLocal()
     try:
         updated, failed = update_active_stocks_prices(db)
-        holdings_updated = recalculate_holdings_values(db)
-        logger.info(f"Active update complete: {updated} prices updated, {failed} failed, {holdings_updated} holdings recalculated")
+        world_holdings_updated = recalculate_holdings_values(db, market='world')
+        israeli_holdings_updated = recalculate_holdings_values(db, market='israeli')
+        logger.info(f"Active update complete: {updated} prices updated, {failed} failed, {world_holdings_updated} world holdings and {israeli_holdings_updated} Israeli holdings recalculated")
     except Exception as e:
         logger.error(f"Active price update failed: {e}")
         raise

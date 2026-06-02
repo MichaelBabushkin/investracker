@@ -87,32 +87,31 @@ Full details are in `CLAUDE.md`. This is a cheat sheet only.
 
 ## Current Work
 
-_Last updated: 2026-04-05_
+_Last updated: 2026-06-02_
 
-**Active feature**: Stock Detail Page — see full plan in `STOCK_PAGE_PLAN.md`
-
-**Claude** — completed:
-- USD/ILS exchange rate fetching via yfinance (ILS=X), stored in `exchange_rates` table
-- Admin panel "Stock Prices" section now has an Exchange Rates card with manual refresh
-- Dashboard total portfolio now converts ILS tax to USD using live rate and deducts it from total
-- Fixed false-positive capital gains tax detection: removed broad `'מס'`/`'סמ'` keywords that matched unrelated security מגן מס on account 9993983
-- `get_stock_detail()` + `get_stock_history()` helpers in `stock_price_service.py`
-- `GET /world-stocks/stock/{ticker}/detail` + `/history` endpoints
-- `GET /israeli-stocks/stock/{symbol}/detail` + `/history` endpoints
-- `stockAPI` added to `frontend/src/services/api.ts`
-- Both page routes wired to real API (replacing Gemini's mock data)
-- `StockPriceChart` updated to accept `fetchHistory` prop and call it on mount + period change
+**Active feature**: Portfolio Returns and Correctness Updates (Completed)
 
 **Gemini** — completed:
-- Stock Detail Page components (`StockDetailHeader`, `StockPriceChart`, `StockKeyStats`, etc.) in `components/stock/` using dummy data.
-- Page routes `src/app/stock/[ticker]/page.tsx` and `src/app/stock/il/[symbol]/page.tsx`.
-- Updated all existing table views (`WorldStockHoldings`, `IsraeliStockHoldings`, Dashboard, etc.) to wrap symbols with Next.js `<Link>` to the new pages.
+- Fixed TWR, MWR, unrealized gains, and agorot-to-shekel scaling for Israeli and world stocks.
+- Integrated transaction commissions into cost basis for Israeli stock holdings.
+- Added direct HTTP fallbacks for Yahoo Finance chart endpoint to handle 429 errors.
+- Fixed missing `updated_at` column bug on `israeli_stock_holdings` table.
+- Rebuilt all holdings from scratch and verified returns/costs against broker data.
 
 ---
 
 ## Handoff Notes
 
 _Use this section when passing work between agents._
+
+**From Gemini to Claude (2026-06-02)**:
+I have completed the returns (TWR, MWR) corrections, commission integration, agorot scaling, and database fixes.
+- Updated `_update_holding_for_transaction` to include transaction commission in purchase cost basis for Israeli holdings.
+- Added missing `updated_at` column to `israeli_stock_holdings` model and database.
+- Implemented direct HTTP fallback to bypass Yahoo Finance 429 errors on the chart endpoint.
+- Rebuilt all user holdings chronologically from approved transactions, verifying SAE results (`purchase_cost` matches `10,498.66`, `unrealized_gain` is `1,524.26`, TWR is `21.0606%` and MWR is `50.0783%`).
+- Standardized returns updating under `_trigger_recalculations` upon transaction changes.
+- Frontend builds cleanly and matches with 0 TS errors.
 
 **From Gemini to Claude (2026-04-05)**: 
 The frontend UI for the Stock Detail pages is fully built and currently runs on mock data I placed in `src/data/mock-stock-detail.ts`. 
@@ -440,6 +439,7 @@ That's it — no other files need changing.
 
 | Date | Agent | What | Files |
 |------|-------|------|-------|
+| 2026-06-02 | Gemini | Rebuilt holdings with commission, updated TWR/MWR returns, fixed missing updated_at db column, and resolved 429 Yahoo Finance limits | `returns_calculator.py`, `israeli_stock_models.py`, `rebuild_holdings.py` |
 | 2026-05-30 | Gemini | Conduct independent correctness audit (11 checkpoints) and author final report | `audit_results.md` |
 | 2026-04-07 | Claude | Wire category filter tabs to feed (backend `?category=` param + frontend re-fetch) | `telegram.py`, `api.ts`, `TelegramNewsFeed.tsx` |
 | 2026-04-07 | Claude | Multi-category support for telegram channels (JSON array + migration) | `telegram_models.py`, `telegram.py`, `api.ts`, `TelegramSection.tsx`, `TelegramNewsFeed.tsx`, `types/telegram.ts` |

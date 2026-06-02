@@ -96,6 +96,59 @@ class StockPriceService:
         )
         return {row[0]: row[1] for row in result.fetchall()}
     
+    def _fetch_price_direct_http(self, yf_ticker: str) -> Optional[Dict]:
+        """
+        Fetch current price and metadata directly from the Yahoo chart API using requests.
+        Bypasses yfinance's quoteSummary endpoints (which get blocked with 429).
+        """
+        import requests
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yf_ticker}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+        }
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+            if r.status_code == 200:
+                data = r.json()
+                if 'chart' in data and data['chart']['result']:
+                    meta = data['chart']['result'][0]['meta']
+                    
+                    price = meta.get('regularMarketPrice')
+                    prev_close = meta.get('chartPreviousClose') or meta.get('previousClose')
+                    high = meta.get('regularMarketDayHigh')
+                    low = meta.get('regularMarketDayLow')
+                    volume = meta.get('regularMarketVolume')
+                    currency = meta.get('currency', 'USD')
+                    
+                    is_agorot = (currency == 'ILA')
+                    if is_agorot:
+                        if price is not None: price = price / 100.0
+                        if prev_close is not None: prev_close = prev_close / 100.0
+                        if high is not None: high = high / 100.0
+                        if low is not None: low = low / 100.0
+                        currency = 'ILS'
+                        
+                    change = None
+                    change_pct = None
+                    if price is not None and prev_close is not None:
+                        change = price - prev_close
+                        change_pct = (change / prev_close) * 100 if prev_close > 0 else 0
+                        
+                    return {
+                        'current_price': price,
+                        'previous_close': prev_close,
+                        'day_high': high,
+                        'day_low': low,
+                        'volume': volume,
+                        'market_cap': None,
+                        'price_change': change,
+                        'price_change_pct': change_pct,
+                        'currency': currency
+                    }
+        except Exception as e:
+            logger.warning(f"Direct HTTP fetch failed for {yf_ticker}: {e}")
+        return None
+    
     def fetch_prices_batch(self, tickers: List[str]) -> Dict[str, Dict]:
         """
         Fetch prices for multiple tickers using yfinance.
@@ -113,44 +166,52 @@ class StockPriceService:
             
             try:
                 # yfinance can fetch multiple tickers at once
-                tickers_str = " ".join(batch)
-                logger.info(f"Calling yf.download for: {tickers_str}")
-                data = yf.download(
-                    tickers_str,
-                    period="1d",
-                    interval="1d",
-                    progress=False,
-                    threads=True
-                )
+                non_ta_tickers = [t for t in batch if not t.endswith('.TA')]
                 
-                logger.info(f"yf.download returned data.shape: {data.shape if hasattr(data, 'shape') else 'N/A'}")
-                logger.info(f"yf.download data.empty: {data.empty if hasattr(data, 'empty') else 'N/A'}")
-                logger.info(f"yf.download data.columns: {list(data.columns) if hasattr(data, 'columns') else 'N/A'}")
-                logger.info(f"yf.download data.index: {data.index.tolist() if hasattr(data, 'index') else 'N/A'}")
+                data = pd.DataFrame()
+                if non_ta_tickers:
+                    tickers_str_non_ta = " ".join(non_ta_tickers)
+                    logger.info(f"Calling yf.download for non-TA tickers: {tickers_str_non_ta}")
+                    data = yf.download(
+                        tickers_str_non_ta,
+                        period="1d",
+                        interval="1d",
+                        progress=False,
+                        threads=True
+                    )
                 
                 # Also get info for each ticker
                 for ticker in batch:
                     try:
                         logger.info(f"Processing ticker: {ticker}")
+                        
+                        # Direct HTTP fetch check for Israeli stock tickers or Exchange rate tickers
+                        direct_data = None
+                        if ticker.endswith('.TA') or ticker.endswith('=X'):
+                            logger.info(f"Using direct HTTP fetch for {ticker}")
+                            direct_data = self._fetch_price_direct_http(ticker)
+                            
+                        if direct_data:
+                            results[ticker] = direct_data
+                            logger.info(f"Direct HTTP fetch successful for {ticker}: {direct_data['current_price']}")
+                            continue
+                        
+                        # Standard yfinance logic
                         stock = yf.Ticker(ticker)
                         info = stock.info
                         logger.info(f"Ticker {ticker} info keys: {list(info.keys())[:20]}")
                         logger.info(f"Ticker {ticker} currentPrice: {info.get('currentPrice')}, regularMarketPrice: {info.get('regularMarketPrice')}")
                         
                         # Handle both single and multi-ticker response format
-                        if len(batch) == 1:
-                            # For single ticker, data structure might have MultiIndex columns
+                        if len(non_ta_tickers) == 1:
                             logger.info(f"Single ticker mode, data columns: {list(data.columns) if hasattr(data, 'columns') else 'N/A'}")
                             if not data.empty and len(data) > 0:
-                                # Check if columns are MultiIndex (tuple format)
                                 if isinstance(data.columns, pd.MultiIndex) or (len(data.columns) > 0 and isinstance(data.columns[0], tuple)):
-                                    # MultiIndex format: ('Close', 'HARL.TA')
                                     close = data[('Close', ticker)].iloc[-1] if ('Close', ticker) in data.columns else None
                                     volume = data[('Volume', ticker)].iloc[-1] if ('Volume', ticker) in data.columns else None
                                     high = data[('High', ticker)].iloc[-1] if ('High', ticker) in data.columns else None
                                     low = data[('Low', ticker)].iloc[-1] if ('Low', ticker) in data.columns else None
                                 else:
-                                    # Simple columns: 'Close', 'Volume', etc.
                                     close = data['Close'].iloc[-1] if 'Close' in data.columns else None
                                     volume = data['Volume'].iloc[-1] if 'Volume' in data.columns else None
                                     high = data['High'].iloc[-1] if 'High' in data.columns else None
@@ -160,13 +221,23 @@ class StockPriceService:
                                 close = volume = high = low = None
                                 logger.info("Data is empty, setting all values to None")
                         else:
-                            close = data['Close'][ticker].iloc[-1] if ticker in data['Close'].columns and len(data['Close'][ticker]) > 0 else None
-                            volume = data['Volume'][ticker].iloc[-1] if ticker in data['Volume'].columns and len(data['Volume'][ticker]) > 0 else None
-                            high = data['High'][ticker].iloc[-1] if ticker in data['High'].columns and len(data['High'][ticker]) > 0 else None
-                            low = data['Low'][ticker].iloc[-1] if ticker in data['Low'].columns and len(data['Low'][ticker]) > 0 else None
+                            close = data['Close'][ticker].iloc[-1] if not data.empty and 'Close' in data.columns and ticker in data['Close'].columns and len(data['Close'][ticker]) > 0 else None
+                            volume = data['Volume'][ticker].iloc[-1] if not data.empty and 'Volume' in data.columns and ticker in data['Volume'].columns and len(data['Volume'][ticker]) > 0 else None
+                            high = data['High'][ticker].iloc[-1] if not data.empty and 'High' in data.columns and ticker in data['High'].columns and len(data['High'][ticker]) > 0 else None
+                            low = data['Low'][ticker].iloc[-1] if not data.empty and 'Low' in data.columns and ticker in data['Low'].columns and len(data['Low'][ticker]) > 0 else None
                         
                         current_price = float(info.get('currentPrice') or info.get('regularMarketPrice') or close or 0)
                         previous_close = float(info.get('previousClose') or info.get('regularMarketPreviousClose') or 0)
+                        
+                        # Handle potential agorot returned in standard yfinance call
+                        currency = info.get('currency', 'USD')
+                        is_agorot = (currency == 'ILA')
+                        if is_agorot:
+                            current_price /= 100.0
+                            previous_close /= 100.0
+                            if close: close /= 100.0
+                            if high: high /= 100.0
+                            if low: low /= 100.0
                         
                         logger.info(f"Final values for {ticker}: current_price={current_price}, previous_close={previous_close}")
                         
@@ -179,6 +250,10 @@ class StockPriceService:
                             'market_cap': info.get('marketCap'),
                         }
                         
+                        if is_agorot:
+                            if results[ticker]['day_high']: results[ticker]['day_high'] /= 100.0
+                            if results[ticker]['day_low']: results[ticker]['day_low'] /= 100.0
+                        
                         # Calculate price change
                         if results[ticker]['current_price'] and results[ticker]['previous_close']:
                             change = results[ticker]['current_price'] - results[ticker]['previous_close']
@@ -187,8 +262,14 @@ class StockPriceService:
                             results[ticker]['price_change_pct'] = change_pct
                         
                     except Exception as e:
-                        logger.error(f"Failed to fetch {ticker}: {e}", exc_info=True)
-                        continue
+                        logger.error(f"Failed to fetch {ticker} via yfinance: {e}", exc_info=True)
+                        logger.info(f"Attempting fallback direct HTTP fetch for {ticker}")
+                        direct_data = self._fetch_price_direct_http(ticker)
+                        if direct_data:
+                            results[ticker] = direct_data
+                            logger.info(f"Fallback direct HTTP fetch successful for {ticker}: {direct_data['current_price']}")
+                        else:
+                            continue
                 
             except Exception as e:
                 logger.error(f"Batch fetch failed: {e}")
@@ -208,7 +289,7 @@ class StockPriceService:
         Returns (updated_count, failed_count)
         """
         if tickers is None:
-            tickers = self.get_active_tickers()
+            tickers = self.get_active_tickers(market=market)
         
         if not tickers:
             logger.info("No tickers to update")
@@ -346,7 +427,10 @@ class StockPriceService:
 def update_active_stocks_prices(db: Session) -> Tuple[int, int]:
     """Update prices for stocks in user holdings"""
     service = StockPriceService(db)
-    return service.update_world_stock_prices()
+    world_updated, world_failed = service.update_world_stock_prices(market='world')
+    israeli_updated, israeli_failed = service.update_world_stock_prices(market='israeli')
+    return (world_updated + israeli_updated, world_failed + israeli_failed)
+
 
 
 def update_catalog_stocks_prices(db: Session, limit: int = 500, market: str = 'world') -> Tuple[int, int]:
@@ -407,12 +491,177 @@ def get_or_refresh_usd_ils_rate(engine) -> Optional[float]:
     return None
 
 
+def _fetch_detail_direct(ticker: str, is_israeli: bool = False) -> Optional[dict]:
+    import requests
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+    }
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            if 'chart' in data and data['chart']['result']:
+                meta = data['chart']['result'][0]['meta']
+                currency = meta.get('currency', 'USD')
+                is_agorot = (currency == 'ILA')
+                
+                # Scale fields
+                current = meta.get('regularMarketPrice')
+                prev_close = meta.get('chartPreviousClose') or meta.get('previousClose')
+                high = meta.get('regularMarketDayHigh')
+                low = meta.get('regularMarketDayLow')
+                week_52_high = meta.get('fiftyTwoWeekHigh')
+                week_52_low = meta.get('fiftyTwoWeekLow')
+                
+                if is_agorot:
+                    if current is not None: current /= 100.0
+                    if prev_close is not None: prev_close /= 100.0
+                    if high is not None: high /= 100.0
+                    if low is not None: low /= 100.0
+                    if week_52_high is not None: week_52_high /= 100.0
+                    if week_52_low is not None: week_52_low /= 100.0
+                    currency = 'ILS'
+                    
+                change = round(current - prev_close, 4) if current is not None and prev_close is not None else None
+                change_pct = round((change / prev_close) * 100, 2) if change is not None and prev_close else None
+                
+                company_name = meta.get('longName') or meta.get('shortName') or ticker
+                exchange = meta.get('fullExchangeName') or meta.get('exchangeName') or ("TASE" if is_israeli else "NASDAQ")
+                
+                return {
+                    "ticker": ticker,
+                    "company_name": company_name,
+                    "exchange": exchange,
+                    "sector": None,
+                    "industry": None,
+                    "currency": currency,
+                    "market_state": "CLOSED",
+                    "price": {
+                        "current": current,
+                        "change": change,
+                        "change_pct": change_pct,
+                        "previous_close": prev_close,
+                        "day_high": high,
+                        "day_low": low,
+                        "post_market_price": None,
+                        "post_market_change_pct": None,
+                        "pre_market_price": None,
+                    },
+                    "stats": {
+                        "market_cap": None,
+                        "pe_ratio": None,
+                        "forward_pe": None,
+                        "eps": None,
+                        "forward_eps": None,
+                        "dividend_yield": None,
+                        "dividend_rate": None,
+                        "ex_dividend_date": None,
+                        "last_dividend_value": None,
+                        "five_yr_avg_yield": None,
+                        "beta": None,
+                        "week_52_high": week_52_high,
+                        "week_52_low": week_52_low,
+                        "avg_volume": meta.get('regularMarketVolume'),
+                        "fifty_day_avg": None,
+                        "two_hundred_day_avg": None,
+                        "earnings_date": None,
+                    },
+                    "analyst": {
+                        "recommendation": None,
+                        "recommendation_mean": None,
+                        "analyst_count": None,
+                        "target_mean": None,
+                        "target_high": None,
+                        "target_low": None,
+                        "recommendations_trend": [],
+                        "upgrades_downgrades": [],
+                    },
+                    "about": {
+                        "description": None,
+                        "employees": None,
+                        "website": None,
+                        "ceo": None,
+                        "founded": None,
+                    },
+                }
+    except Exception as e:
+        logger.warning(f"_fetch_detail_direct failed for {ticker}: {e}")
+    return None
+
+def _fetch_history_direct(ticker: str, period: str) -> Optional[dict]:
+    import requests
+    from datetime import datetime
+    yf_period, yf_interval = _HISTORY_PARAMS.get(period.upper(), ("1mo", "1d"))
+    
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={yf_period}&interval={yf_interval}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+    }
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            if 'chart' in data and data['chart']['result']:
+                chart = data['chart']['result'][0]
+                meta = chart.get('meta', {})
+                currency = meta.get('currency', 'USD')
+                is_agorot = (currency == 'ILA')
+                
+                timestamp = chart.get('timestamp', [])
+                indicators = chart.get('indicators', {}).get('quote', [{}])[0]
+                
+                opens = indicators.get('open', [])
+                highs = indicators.get('high', [])
+                lows = indicators.get('low', [])
+                closes = indicators.get('close', [])
+                volumes = indicators.get('volume', [])
+                
+                history_data = []
+                for i in range(len(timestamp)):
+                    ts = timestamp[i]
+                    close_val = closes[i] if i < len(closes) else None
+                    if close_val is None:
+                        continue
+                        
+                    open_val = opens[i] if i < len(opens) else None
+                    high_val = highs[i] if i < len(highs) else None
+                    low_val = lows[i] if i < len(lows) else None
+                    vol_val = volumes[i] if i < len(volumes) else 0
+                    
+                    if is_agorot:
+                        if open_val is not None: open_val /= 100.0
+                        if high_val is not None: high_val /= 100.0
+                        if low_val is not None: low_val /= 100.0
+                        if close_val is not None: close_val /= 100.0
+                        
+                    dt = datetime.fromtimestamp(ts)
+                    date_str = dt.strftime("%Y-%m-%d") if yf_interval not in ("5m", "15m") else dt.strftime("%Y-%m-%dT%H:%M:%S")
+                    
+                    history_data.append({
+                        "date": date_str,
+                        "open": round(float(open_val), 4) if open_val is not None else None,
+                        "high": round(float(high_val), 4) if high_val is not None else None,
+                        "low": round(float(low_val), 4) if low_val is not None else None,
+                        "close": round(float(close_val), 4) if close_val is not None else None,
+                        "volume": int(vol_val) if vol_val is not None else 0
+                    })
+                return {"ticker": ticker, "period": period, "data": history_data}
+    except Exception as e:
+        logger.warning(f"_fetch_history_direct failed for {ticker}: {e}")
+    return None
+
 def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
     """
     Fetch rich metadata and current price stats for a single stock from yfinance.
     Returns a structured dict matching the StockDetail API response schema.
     For Israeli stocks pass is_israeli=True — ticker should already be the yfinance ticker (e.g. "TEVA.TA").
     """
+    # If is_israeli is True or ticker ends with .TA, try direct HTTP fetch first to ensure we get prices
+    direct_detail = None
+    if is_israeli or ticker.endswith('.TA'):
+        direct_detail = _fetch_detail_direct(ticker, is_israeli=is_israeli)
+        
     try:
         t = yf.Ticker(ticker)
         info = t.info or {}
@@ -424,7 +673,18 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
         except Exception:
             current_price = float(info.get("currentPrice") or info.get("regularMarketPrice") or 0) or None
 
+        if not current_price and direct_detail:
+            current_price = direct_detail["price"]["current"]
+
         previous_close = float(info.get("previousClose") or info.get("regularMarketPreviousClose") or 0) or None
+        if not previous_close and direct_detail:
+            previous_close = direct_detail["price"]["previous_close"]
+
+        # Agorot scaling
+        currency = info.get("currency") or ("ILS" if is_israeli else "USD")
+        is_agorot = (currency == 'ILA')
+        
+        # Scale prices
         change = round(current_price - previous_close, 4) if current_price and previous_close else None
         change_pct = round((change / previous_close) * 100, 2) if change and previous_close else None
 
@@ -433,33 +693,54 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
         eps = info.get("trailingEps")
         beta = info.get("beta")
         week_52_high = info.get("fiftyTwoWeekHigh")
+        if not week_52_high and direct_detail:
+            week_52_high = direct_detail["stats"]["week_52_high"]
         week_52_low = info.get("fiftyTwoWeekLow")
-        avg_volume = info.get("averageVolume")
+        if not week_52_low and direct_detail:
+            week_52_low = direct_detail["stats"]["week_52_low"]
+        avg_volume = info.get("averageVolume") or (direct_detail["stats"]["avg_volume"] if direct_detail else None)
 
-        # dividendYield: yfinance returns decimal (0.0668) but sometimes already pct (6.68)
-        # Normalise to percentage always
         raw_yield = info.get("dividendYield")
         dividend_yield_pct = None
         if raw_yield is not None:
             raw_yield = float(raw_yield)
             dividend_yield_pct = round(raw_yield * 100 if raw_yield < 1 else raw_yield, 2)
 
-        # Market state & extended hours
-        market_state = (info.get("marketState") or "CLOSED").upper()  # OPEN/CLOSED/PRE/POST
+        market_state = (info.get("marketState") or "CLOSED").upper()
         post_market_price = float(info.get("postMarketPrice")) if info.get("postMarketPrice") else None
         post_market_change_pct = float(info.get("postMarketChangePercent")) if info.get("postMarketChangePercent") else None
         pre_market_price = float(info.get("preMarketPrice")) if info.get("preMarketPrice") else None
 
-        # Day range & moving averages
         day_high = float(info.get("dayHigh") or info.get("regularMarketDayHigh") or 0) or None
+        if not day_high and direct_detail:
+            day_high = direct_detail["price"]["day_high"]
         day_low = float(info.get("dayLow") or info.get("regularMarketDayLow") or 0) or None
+        if not day_low and direct_detail:
+            day_low = direct_detail["price"]["day_low"]
         fifty_day_avg = float(info.get("fiftyDayAverage")) if info.get("fiftyDayAverage") else None
         two_hundred_day_avg = float(info.get("twoHundredDayAverage")) if info.get("twoHundredDayAverage") else None
 
-        # Dividend details
         dividend_rate = float(info.get("dividendRate")) if info.get("dividendRate") else None
         five_yr_avg_yield = float(info.get("fiveYearAvgDividendYield")) if info.get("fiveYearAvgDividendYield") else None
         last_dividend_value = float(info.get("lastDividendValue")) if info.get("lastDividendValue") else None
+        
+        if is_agorot:
+            currency = 'ILS'
+            if current_price is not None: current_price /= 100.0
+            if previous_close is not None: previous_close /= 100.0
+            if change is not None: change /= 100.0
+            if day_high is not None: day_high /= 100.0
+            if day_low is not None: day_low /= 100.0
+            if week_52_high is not None: week_52_high /= 100.0
+            if week_52_low is not None: week_52_low /= 100.0
+            if fifty_day_avg is not None: fifty_day_avg /= 100.0
+            if two_hundred_day_avg is not None: two_hundred_day_avg /= 100.0
+            if dividend_rate is not None: dividend_rate /= 100.0
+            if last_dividend_value is not None: last_dividend_value /= 100.0
+            # Recompute change
+            change = round(current_price - previous_close, 4) if current_price and previous_close else None
+            change_pct = round((change / previous_close) * 100, 2) if change and previous_close else None
+
         ex_dividend_ts = info.get("exDividendDate") or info.get("lastDividendDate")
         ex_dividend_date = None
         if ex_dividend_ts:
@@ -469,7 +750,6 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
             except Exception:
                 pass
 
-        # Earnings
         earnings_ts = info.get("earningsTimestamp")
         earnings_date = None
         if earnings_ts:
@@ -479,15 +759,18 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
             except Exception:
                 pass
 
-        # Analyst consensus
-        recommendation = info.get("recommendationKey")  # "buy"/"hold"/"sell"/"strong_buy" etc.
+        recommendation = info.get("recommendationKey")
         recommendation_mean = float(info.get("recommendationMean")) if info.get("recommendationMean") else None
         analyst_count = int(info.get("numberOfAnalystOpinions")) if info.get("numberOfAnalystOpinions") else None
         target_mean = float(info.get("targetMeanPrice")) if info.get("targetMeanPrice") else None
         target_high = float(info.get("targetHighPrice")) if info.get("targetHighPrice") else None
         target_low = float(info.get("targetLowPrice")) if info.get("targetLowPrice") else None
+        
+        if is_agorot:
+            if target_mean is not None: target_mean /= 100.0
+            if target_high is not None: target_high /= 100.0
+            if target_low is not None: target_low /= 100.0
 
-        # Recommendation trend (last 4 months)
         recommendations_trend = []
         try:
             rec_df = t.recommendations
@@ -506,7 +789,6 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
         except Exception:
             pass
 
-        # Upgrades & Downgrades (last 10)
         upgrades_downgrades = []
         try:
             ud_df = t.upgrades_downgrades
@@ -525,11 +807,12 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
         except Exception:
             pass
 
-        # Forward metrics
         forward_pe = float(info.get("forwardPE")) if info.get("forwardPE") else None
         forward_eps = float(info.get("forwardEps")) if info.get("forwardEps") else None
+        
+        if is_agorot:
+            if forward_eps is not None: forward_eps /= 100.0
 
-        # Officers — try to extract CEO
         ceo = None
         officers = info.get("companyOfficers") or []
         for officer in officers:
@@ -540,11 +823,11 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
 
         return {
             "ticker": ticker,
-            "company_name": info.get("longName") or info.get("shortName") or ticker,
-            "exchange": info.get("fullExchangeName") or info.get("exchange") or ("TASE" if is_israeli else "NASDAQ"),
+            "company_name": info.get("longName") or info.get("shortName") or (direct_detail["company_name"] if direct_detail else ticker),
+            "exchange": info.get("fullExchangeName") or info.get("exchange") or (direct_detail["exchange"] if direct_detail else ("TASE" if is_israeli else "NASDAQ")),
             "sector": info.get("sector"),
             "industry": info.get("industry"),
-            "currency": info.get("currency") or ("ILS" if is_israeli else "USD"),
+            "currency": currency,
             "market_state": market_state,
             "price": {
                 "current": current_price,
@@ -569,9 +852,9 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
                 "last_dividend_value": last_dividend_value,
                 "five_yr_avg_yield": five_yr_avg_yield,
                 "beta": float(beta) if beta else None,
-                "week_52_high": float(week_52_high) if week_52_high else None,
-                "week_52_low": float(week_52_low) if week_52_low else None,
-                "avg_volume": int(avg_volume) if avg_volume else None,
+                "week_52_high": week_52_high,
+                "week_52_low": week_52_low,
+                "avg_volume": int(avg_volume) if avg_volume is not None else None,
                 "fifty_day_avg": fifty_day_avg,
                 "two_hundred_day_avg": two_hundred_day_avg,
                 "earnings_date": earnings_date,
@@ -596,6 +879,9 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
         }
     except Exception as e:
         logger.warning(f"get_stock_detail({ticker}) failed: {e}")
+        if direct_detail:
+            logger.info(f"Returning direct_detail fallback for {ticker}")
+            return direct_detail
         return {
             "ticker": ticker,
             "company_name": ticker,
@@ -614,7 +900,6 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
             "about": {"description": None, "employees": None, "website": None, "ceo": None, "founded": None},
         }
 
-
 # Period → (yfinance period, yfinance interval)
 _HISTORY_PARAMS = {
     "1D":  ("1d",  "5m"),
@@ -625,29 +910,56 @@ _HISTORY_PARAMS = {
     "ALL": ("5y",  "1wk"),
 }
 
-
 def get_stock_history(ticker: str, period: str = "1M") -> dict:
     """
     Fetch OHLCV history for a ticker from yfinance.
     period: one of 1D, 1W, 1M, 3M, 1Y, ALL
     Returns { ticker, period, data: [{date, open, high, low, close, volume}] }
     """
+    if ticker.endswith('.TA'):
+        direct_hist = _fetch_history_direct(ticker, period)
+        if direct_hist:
+            return direct_hist
+            
     yf_period, yf_interval = _HISTORY_PARAMS.get(period.upper(), ("1mo", "1d"))
     try:
         t = yf.Ticker(ticker)
         hist = t.history(period=yf_period, interval=yf_interval)
+        
+        # Determine if ticker currency is ILA to scale down history data
+        is_agorot = False
+        try:
+            is_agorot = (t.info.get('currency') == 'ILA')
+        except Exception:
+            pass
+            
         data = []
         for ts, row in hist.iterrows():
+            close_val = float(row["Close"])
+            open_val = float(row["Open"])
+            high_val = float(row["High"])
+            low_val = float(row["Low"])
+            vol_val = int(row["Volume"]) if not pd.isna(row["Volume"]) else 0
+            
+            if is_agorot:
+                close_val /= 100.0
+                open_val /= 100.0
+                high_val /= 100.0
+                low_val /= 100.0
+                
             data.append({
                 "date": ts.strftime("%Y-%m-%d") if yf_interval != "5m" and yf_interval != "15m"
                         else ts.strftime("%Y-%m-%dT%H:%M:%S"),
-                "open":   round(float(row["Open"]),   4),
-                "high":   round(float(row["High"]),   4),
-                "low":    round(float(row["Low"]),    4),
-                "close":  round(float(row["Close"]),  4),
-                "volume": int(row["Volume"]) if not pd.isna(row["Volume"]) else 0,
+                "open":   round(open_val,   4),
+                "high":   round(high_val,   4),
+                "low":    round(low_val,    4),
+                "close":  round(close_val,  4),
+                "volume": vol_val,
             })
         return {"ticker": ticker, "period": period, "data": data}
     except Exception as e:
         logger.warning(f"get_stock_history({ticker}, {period}) failed: {e}")
+        direct_hist = _fetch_history_direct(ticker, period)
+        if direct_hist:
+            return direct_hist
         return {"ticker": ticker, "period": period, "data": []}
