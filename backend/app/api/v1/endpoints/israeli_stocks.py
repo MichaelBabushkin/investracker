@@ -254,7 +254,8 @@ async def get_israeli_dividends(
 @router.post("/transactions")
 async def create_transaction(
     transaction_data: dict,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Create a new transaction manually"""
     try:
@@ -265,6 +266,10 @@ async def create_transaction(
         
         # Create transaction
         transaction_id = service.create_transaction(transaction_data)
+        
+        # Recalculate returns
+        symbol = transaction_data.get('symbol')
+        _trigger_recalculations(db, str(current_user.id), symbol)
         
         return {
             "success": True,
@@ -279,7 +284,8 @@ async def create_transaction(
 async def update_transaction(
     transaction_id: int,
     transaction_data: dict,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Update an existing transaction"""
     try:
@@ -289,6 +295,9 @@ async def update_transaction(
         success = service.update_transaction(transaction_id, transaction_data, current_user.id)
         
         if success:
+            # Recalculate returns
+            symbol = transaction_data.get('symbol')
+            _trigger_recalculations(db, str(current_user.id), symbol)
             return {
                 "success": True,
                 "message": "Transaction updated successfully"
@@ -302,15 +311,31 @@ async def update_transaction(
 @router.delete("/transactions/{transaction_id}")
 async def delete_transaction(
     transaction_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Delete a transaction"""
     try:
         service = IsraeliStockService()
         
+        # We need the symbol of the transaction before deleting it to trigger recalculations
+        symbol = None
+        try:
+            with engine.connect() as conn:
+                sym_row = conn.execute(
+                    text('SELECT symbol FROM israeli_stock_transactions WHERE id = :id AND user_id = :uid'),
+                    {"id": transaction_id, "uid": str(current_user.id)}
+                ).fetchone()
+                if sym_row:
+                    symbol = sym_row[0]
+        except Exception:
+            pass
+            
         success = service.delete_transaction(transaction_id, current_user.id)
         
         if success:
+            # Recalculate returns
+            _trigger_recalculations(db, str(current_user.id), symbol)
             return {
                 "success": True,
                 "message": "Transaction deleted successfully"
@@ -584,23 +609,6 @@ async def delete_holding(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting holding: {str(e)}")
 
-@router.delete("/transactions/{transaction_id}")
-async def delete_transaction(
-    transaction_id: int,
-    current_user: User = Depends(get_current_user)
-):
-    """Delete a specific transaction"""
-    try:
-        service = IsraeliStockService()
-        success = service.delete_transaction(transaction_id, str(current_user.id))
-        
-        if not success:
-            raise HTTPException(status_code=404, detail="Transaction not found or access denied")
-        
-        return {"message": "Transaction deleted successfully"}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error deleting transaction: {str(e)}")
 
 @router.post("/crawl-logos")
 async def crawl_all_stock_logos(
@@ -1190,6 +1198,25 @@ async def get_pending_transactions(
     }
 
 
+def _trigger_recalculations(db: Session, user_id: str, symbol: Optional[str] = None):
+    """Helper to update stock prices and recalculate returns in the background"""
+    from app.services.stock_price_service import StockPriceService
+    from app.services.returns_calculator import ReturnsCalculator
+    try:
+        price_service = StockPriceService(db)
+        if symbol:
+            price_service.update_world_stock_prices([symbol], market='israeli')
+        else:
+            price_service.update_world_stock_prices(market='israeli')
+            
+        price_service.update_holdings_values(user_id=user_id, market='israeli')
+        
+        calculator = ReturnsCalculator(db)
+        calculator.update_all_user_returns(user_id, market='israeli')
+    except Exception as e:
+        print(f"Error triggering background recalculations: {e}")
+
+
 @router.post("/pending-transactions/{transaction_id}/approve")
 async def approve_pending_transaction(
     transaction_id: int,
@@ -1218,6 +1245,21 @@ async def approve_pending_transaction(
         transaction.reviewed_at = datetime.now()
         transaction.reviewed_by = str(current_user.id)
         db.commit()
+        
+        # Recalculate returns
+        symbol = None
+        try:
+            with engine.connect() as conn:
+                symbol_row = conn.execute(
+                    text('SELECT symbol FROM "israeli_stocks" WHERE security_no = :security_no'),
+                    {"security_no": transaction.security_no}
+                ).fetchone()
+                if symbol_row:
+                    symbol = symbol_row[0]
+        except Exception:
+            pass
+            
+        _trigger_recalculations(db, str(current_user.id), symbol)
         
         return {
             "success": True, 
@@ -1260,6 +1302,9 @@ async def approve_all_in_batch(
     
     db.commit()
     
+    if approved_count > 0:
+        _trigger_recalculations(db, str(current_user.id))
+    
     return {
         "success": True,
         "message": f"Approved {approved_count} transactions",
@@ -1297,6 +1342,9 @@ async def approve_all_batches(
             errors.append(f"Error processing transaction {t.id}: {str(e)}")
     
     db.commit()
+    
+    if approved_count > 0:
+        _trigger_recalculations(db, str(current_user.id))
     
     return {
         "success": True,

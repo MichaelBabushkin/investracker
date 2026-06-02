@@ -84,6 +84,7 @@ class IsraeliStockHolding(Base):
     mwr = Column(DECIMAL(10, 4), nullable=True)  # Money-Weighted Return (IRR)
     
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Constraints
     __table_args__ = (

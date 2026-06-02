@@ -1417,7 +1417,7 @@ class IsraeliStockService:
     def _update_holding_for_transaction(self, cursor, user_id: str, security_no: str, 
                                        symbol: str, company_name: str, transaction_type: str,
                                        quantity: float, price: float, currency: str, 
-                                       holding_date) -> None:
+                                       holding_date, commission: float = 0.0) -> None:
         """Update or create holding based on a transaction with weighted average calculation"""
         # Check if holding already exists (one holding per user per stock)
         cursor.execute(
@@ -1438,7 +1438,7 @@ class IsraeliStockService:
                 
                 # Calculate old total cost and new total cost
                 old_total_cost = old_quantity * (old_purchase_cost / old_quantity if old_quantity > 0 else 0)
-                new_purchase_amount = quantity * price
+                new_purchase_amount = quantity * price + commission
                 
                 # New totals
                 new_quantity = old_quantity + quantity
@@ -1461,7 +1461,7 @@ class IsraeliStockService:
                 )
             else:
                 # Create new holding
-                total_cost = quantity * price
+                total_cost = quantity * price + commission
                 current_value = quantity * price
                 
                 cursor.execute(
@@ -1636,7 +1636,8 @@ class IsraeliStockService:
                     quantity=float(pending_transaction.quantity) if pending_transaction.quantity else 0,
                     price=float(pending_transaction.price) if pending_transaction.price else 0,
                     currency=data['currency'],
-                    holding_date=transaction_date
+                    holding_date=transaction_date,
+                    commission=commission
                 )
                 conn.commit()
                 
@@ -2030,6 +2031,7 @@ class IsraeliStockService:
                         price=price,
                         currency=currency,
                         holding_date=transaction_date,
+                        commission=float(commission) if commission else 0.0
                     )
 
             conn.commit()
