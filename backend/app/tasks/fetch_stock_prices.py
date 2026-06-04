@@ -32,6 +32,21 @@ def run_active_price_update():
         world_holdings_updated = recalculate_holdings_values(db, market='world')
         israeli_holdings_updated = recalculate_holdings_values(db, market='israeli')
         logger.info(f"Active update complete: {updated} prices updated, {failed} failed, {world_holdings_updated} world holdings and {israeli_holdings_updated} Israeli holdings recalculated")
+        
+        # Also recalculate returns (TWR, MWR, unrealized gains) for all active users
+        from sqlalchemy import text
+        from app.services.returns_calculator import ReturnsCalculator
+        
+        calculator = ReturnsCalculator(db)
+        
+        res_israeli = db.execute(text('SELECT DISTINCT user_id FROM "israeli_stock_holdings"')).fetchall()
+        res_world = db.execute(text('SELECT DISTINCT user_id FROM "world_stock_holdings"')).fetchall()
+        
+        user_ids = {row[0] for row in res_israeli} | {row[0] for row in res_world}
+        for uid in user_ids:
+            logger.info(f"Recalculating returns for user {uid}...")
+            calculator.update_all_user_returns(uid)
+            
     except Exception as e:
         logger.error(f"Active price update failed: {e}")
         raise
