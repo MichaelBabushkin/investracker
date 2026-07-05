@@ -221,6 +221,20 @@ class IsraeliStockService:
                 pdf_content = f.read()
             file_size = len(pdf_content)
             
+            # Derive report period from holding_date (always a full calendar month)
+            report_period_start = None
+            report_period_end = None
+            if holding_date:
+                import calendar
+                try:
+                    holding_date_val = holding_date.date()
+                except AttributeError:
+                    holding_date_val = holding_date
+                
+                report_period_start = holding_date_val.replace(day=1)
+                last_day = calendar.monthrange(holding_date_val.year, holding_date_val.month)[1]
+                report_period_end = holding_date_val.replace(day=last_day)
+
             # Save PDF to database (check for duplicates)
             save_result = self.save_pdf_to_database(
                 user_id=user_id,
@@ -228,7 +242,9 @@ class IsraeliStockService:
                 file_data=pdf_content,
                 file_size=file_size,
                 broker=broker,
-                batch_id=batch_id
+                batch_id=batch_id,
+                report_period_start=report_period_start,
+                report_period_end=report_period_end,
             )
             
             # Check if duplicate was detected
@@ -314,6 +330,8 @@ class IsraeliStockService:
                     'batch_id': batch_id,
                     'pdf_name': pdf_name,
                     'holding_date': holding_date.isoformat() if holding_date else None,
+                    'report_period_start': report_period_start.isoformat() if report_period_start else None,
+                    'report_period_end': report_period_end.isoformat() if report_period_end else None,
                     'total_extracted': len(holdings) + len(regular_transactions) + len(dividends),
                     'holdings_found': len(holdings),
                     'transactions_found': len(regular_transactions),
@@ -1111,7 +1129,9 @@ class IsraeliStockService:
         file_data: bytes,
         file_size: int,
         broker: str,
-        batch_id: str
+        batch_id: str,
+        report_period_start=None,
+        report_period_end=None,
     ) -> dict:
         """
         Save uploaded PDF file to database
@@ -1144,18 +1164,21 @@ class IsraeliStockService:
             # No duplicate, proceed with insert
             insert_sql = """
             INSERT INTO "israeli_report_uploads" (
-                user_id, filename, file_data, file_size, broker, upload_batch_id
-            ) VALUES (%s, %s, %s, %s, %s, %s)
+                user_id, filename, file_data, file_size, broker, upload_batch_id,
+                report_period_start, report_period_end
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """
-            
+
             cursor.execute(insert_sql, (
                 user_id,
                 filename,
                 psycopg2.Binary(file_data),
                 file_size,
                 broker,
-                batch_id
+                batch_id,
+                report_period_start,
+                report_period_end,
             ))
             
             report_id = cursor.fetchone()[0]
@@ -1170,10 +1193,54 @@ class IsraeliStockService:
             print(f"ERROR: Failed to save PDF to database: {e}")
             raise
 
+    def rebuild_holding_for_symbol(self, user_id: str, symbol: str) -> None:
+        """
+        Rebuild an Israeli stock holding from scratch by replaying every
+        remaining approved transaction in chronological order.
+        Called after the reconcile accept-report replaces a period's transactions.
+        """
+        conn = self.create_database_connection()
+        cursor = conn.cursor()
+        try:
+            # Wipe the existing holding so we start clean
+            cursor.execute(
+                'DELETE FROM israeli_stock_holdings WHERE user_id = %s AND symbol = %s',
+                (user_id, symbol)
+            )
+
+            # Fetch all approved transactions ordered chronologically
+            cursor.execute("""
+                SELECT transaction_type, quantity, price, commission,
+                       transaction_date, security_no, company_name, currency
+                FROM israeli_stock_transactions
+                WHERE user_id = %s AND symbol = %s
+                ORDER BY transaction_date, id
+            """, (user_id, symbol))
+
+            for tx in cursor.fetchall():
+                tx_type, qty, price, commission, tx_date, security_no, company_name, currency = tx
+                self._update_holding_for_transaction(
+                    cursor, user_id,
+                    security_no or symbol,
+                    symbol,
+                    company_name or symbol,
+                    tx_type,
+                    float(qty or 0),
+                    float(price or 0),
+                    currency or 'ILS',
+                    tx_date,
+                    commission=float(commission or 0),
+                )
+
+            conn.commit()
+        finally:
+            cursor.close()
+            conn.close()
+
     def save_to_pending_transactions(
-        self, 
-        holdings: List[Dict], 
-        transactions: List[Dict], 
+        self,
+        holdings: List[Dict],
+        transactions: List[Dict],
         dividends: List[Dict],
         user_id: str,
         batch_id: str,

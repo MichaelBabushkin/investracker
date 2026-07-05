@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
 import os
+import logging
 from dotenv import load_dotenv
 
 from app.core.config import settings
@@ -15,6 +16,9 @@ from app import models
 
 # Load environment variables
 load_dotenv()
+
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -44,13 +48,37 @@ async def lifespan(app: FastAPI):
         ensure_tables_exist()
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
-        # Don't crash the app - let it try to start anyway
-        # The health check will catch if DB is truly broken
-    
+
+    # Start background price update scheduler
+    # Runs every 15 min, Sun–Fri, 07:00–22:00 UTC
+    # (covers Israeli market Sun–Thu 07:00–14:30 UTC and US market Mon–Fri 13:30–20:00 UTC)
+    scheduler = None
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from app.tasks.fetch_stock_prices import run_active_price_update
+
+        scheduler = BackgroundScheduler(timezone="UTC")
+        scheduler.add_job(
+            run_active_price_update,
+            trigger="cron",
+            day_of_week="sun,mon,tue,wed,thu,fri",
+            hour="7-22",
+            minute="*/15",
+            id="active_price_update",
+            replace_existing=True,
+            misfire_grace_time=120,
+        )
+        scheduler.start()
+        print("✅ Price update scheduler started (every 15 min, Sun–Fri 07–22 UTC).")
+    except Exception as e:
+        print(f"⚠️  Scheduler failed to start (continuing without it): {e}")
+
     yield
+
     # Shutdown
+    if scheduler and scheduler.running:
+        scheduler.shutdown(wait=False)
     print("👋 Shutting down Investracker API...")
-    pass
 
 app = FastAPI(
     title=settings.APP_NAME,

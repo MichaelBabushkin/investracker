@@ -84,4 +84,7 @@ export interface UploadResult {
   holdings_saved: number;
   transactions_saved: number;
   error?: string;
+  batch_id?: string;
+  status?: string;
+  filename?: string;
 }

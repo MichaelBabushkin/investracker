@@ -1354,6 +1354,279 @@ async def approve_all_batches(
     }
 
 
+@router.get("/pending-transactions/batch/{batch_id}/reconcile-preview")
+async def reconcile_preview(
+    batch_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Return the period covered by this batch and all approved manual transactions
+    that fall within that period (both Israeli and World). Used to show the
+    reconcile diff screen before the user accepts the report as source of truth.
+    """
+    from app.models.world_stock_models import PendingWorldTransaction
+
+    # Resolve report period from the upload record
+    upload = db.query(IsraeliReportUpload).filter(
+        IsraeliReportUpload.upload_batch_id == batch_id,
+        IsraeliReportUpload.user_id == str(current_user.id)
+    ).first()
+
+    if not upload:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    if not upload.report_period_start or not upload.report_period_end:
+        raise HTTPException(
+            status_code=422,
+            detail="Report period could not be determined from this PDF. "
+                   "The 'נכון לתאריך' date may be missing from the document."
+        )
+
+    period_start = upload.report_period_start
+    period_end = upload.report_period_end
+    period_label = period_start.strftime("%B %Y")
+
+    # Existing approved Israeli transactions in the period
+    israeli_manual = db.execute(text("""
+        SELECT id, transaction_date, transaction_type, symbol, company_name,
+               quantity, price, total_value, commission, currency
+        FROM israeli_stock_transactions
+        WHERE user_id = :uid
+          AND transaction_date BETWEEN :start AND :end
+        ORDER BY transaction_date, id
+    """), {"uid": str(current_user.id), "start": period_start, "end": period_end}).fetchall()
+
+    # Existing approved World transactions in the period
+    world_manual = db.execute(text("""
+        SELECT id, transaction_date, transaction_type, ticker, company_name,
+               quantity, price, total_value, commission, currency
+        FROM world_stock_transactions
+        WHERE user_id = :uid
+          AND transaction_date BETWEEN :start AND :end
+        ORDER BY transaction_date, id
+    """), {"uid": str(current_user.id), "start": period_start, "end": period_end}).fetchall()
+
+    # Pending Israeli transactions in this batch
+    pdf_israeli = db.query(PendingIsraeliTransaction).filter(
+        PendingIsraeliTransaction.upload_batch_id == batch_id,
+        PendingIsraeliTransaction.user_id == str(current_user.id),
+        PendingIsraeliTransaction.status.in_(["pending", "modified"])
+    ).order_by(PendingIsraeliTransaction.transaction_date, PendingIsraeliTransaction.id).all()
+
+    # Pending World transactions in this batch
+    pdf_world = db.query(PendingWorldTransaction).filter(
+        PendingWorldTransaction.upload_batch_id == batch_id,
+        PendingWorldTransaction.user_id == str(current_user.id),
+        PendingWorldTransaction.status.in_(["pending", "modified"])
+    ).order_by(PendingWorldTransaction.transaction_date, PendingWorldTransaction.id).all()
+
+    def row_to_dict_israeli(r):
+        return {
+            "id": r[0], "transaction_date": str(r[1]), "transaction_type": r[2],
+            "symbol": r[3], "company_name": r[4],
+            "quantity": float(r[5] or 0), "price": float(r[6] or 0),
+            "total_value": float(r[7] or 0), "commission": float(r[8] or 0),
+            "currency": r[9], "market": "israeli"
+        }
+
+    def row_to_dict_world(r):
+        return {
+            "id": r[0], "transaction_date": str(r[1]), "transaction_type": r[2],
+            "symbol": r[3], "company_name": r[4],
+            "quantity": float(r[5] or 0), "price": float(r[6] or 0),
+            "total_value": float(r[7] or 0), "commission": float(r[8] or 0),
+            "currency": r[9], "market": "world"
+        }
+
+    def pending_israeli_to_dict(t):
+        return {
+            "id": t.id, "transaction_date": str(t.transaction_date),
+            "transaction_type": t.transaction_type,
+            "symbol": t.security_no, "company_name": t.stock_name,
+            "quantity": float(t.quantity or 0), "price": float(t.price or 0),
+            "total_value": float(t.amount or 0), "commission": float(t.commission or 0),
+            "currency": t.currency or "ILS", "market": "israeli"
+        }
+
+    def pending_world_to_dict(t):
+        return {
+            "id": t.id, "transaction_date": str(t.transaction_date),
+            "transaction_type": t.transaction_type,
+            "symbol": t.ticker, "company_name": t.company_name,
+            "quantity": float(t.quantity or 0), "price": float(t.price or 0),
+            "total_value": float(t.total_value or 0), "commission": float(t.commission or 0),
+            "currency": t.currency or "USD", "market": "world"
+        }
+
+    manual_transactions = (
+        [row_to_dict_israeli(r) for r in israeli_manual] +
+        [row_to_dict_world(r) for r in world_manual]
+    )
+    pdf_transactions = (
+        [pending_israeli_to_dict(t) for t in pdf_israeli] +
+        [pending_world_to_dict(t) for t in pdf_world]
+    )
+
+    return {
+        "period_start": str(period_start),
+        "period_end": str(period_end),
+        "period_label": period_label,
+        "manual_count": len(manual_transactions),
+        "pdf_count": len(pdf_transactions),
+        "manual_transactions": manual_transactions,
+        "pdf_transactions": pdf_transactions,
+    }
+
+
+@router.post("/pending-transactions/batch/{batch_id}/accept-report")
+async def accept_report_as_source_of_truth(
+    batch_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Atomic period replacement:
+      1. Hard-delete all approved Israeli + World transactions in the report period.
+      2. Approve every pending transaction in this batch.
+      3. Rebuild holdings for all affected symbols.
+      4. Recalculate returns.
+    If anything fails the whole operation is rolled back.
+    """
+    from app.models.world_stock_models import PendingWorldTransaction
+    from app.api.v1.endpoints.world_stocks import (
+        _process_approved_transaction as _process_world_tx,
+        _trigger_recalculations as _world_recalc,
+    )
+
+    upload = db.query(IsraeliReportUpload).filter(
+        IsraeliReportUpload.upload_batch_id == batch_id,
+        IsraeliReportUpload.user_id == str(current_user.id)
+    ).first()
+
+    if not upload:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    if not upload.report_period_start or not upload.report_period_end:
+        raise HTTPException(status_code=422, detail="Report period not set on this batch")
+
+    period_start = upload.report_period_start
+    period_end = upload.report_period_end
+    uid = str(current_user.id)
+
+    try:
+        # ── Step 1: Delete approved transactions in the period ────────────────
+        del_israeli = db.execute(text("""
+            DELETE FROM israeli_stock_transactions
+            WHERE user_id = :uid
+              AND transaction_date BETWEEN :start AND :end
+            RETURNING symbol
+        """), {"uid": uid, "start": period_start, "end": period_end})
+        deleted_israeli_symbols = {r[0] for r in del_israeli.fetchall()}
+
+        del_world = db.execute(text("""
+            DELETE FROM world_stock_transactions
+            WHERE user_id = :uid
+              AND transaction_date BETWEEN :start AND :end
+            RETURNING ticker
+        """), {"uid": uid, "start": period_start, "end": period_end})
+        deleted_world_tickers = {r[0] for r in del_world.fetchall()}
+
+        deleted_count = len(deleted_israeli_symbols) + len(deleted_world_tickers)
+
+        # ── Step 2: Approve all pending Israeli transactions in this batch ────
+        israeli_pending = db.query(PendingIsraeliTransaction).filter(
+            PendingIsraeliTransaction.upload_batch_id == batch_id,
+            PendingIsraeliTransaction.user_id == uid,
+            PendingIsraeliTransaction.status.in_(["pending", "modified"])
+        ).order_by(
+            PendingIsraeliTransaction.transaction_date.asc(),
+            PendingIsraeliTransaction.id.asc()
+        ).all()
+
+        service = IsraeliStockService()
+        approved_israeli = 0
+        new_israeli_symbols = set()
+        errors = []
+
+        for t in israeli_pending:
+            try:
+                service.process_approved_transaction(t, uid)
+                t.status = "approved"
+                t.reviewed_at = datetime.now()
+                t.reviewed_by = uid
+                approved_israeli += 1
+                if t.security_no:
+                    new_israeli_symbols.add(t.security_no)
+            except Exception as e:
+                errors.append(f"Israeli tx {t.id}: {e}")
+
+        # ── Step 3: Approve all pending World transactions in this batch ──────
+        world_pending = db.query(PendingWorldTransaction).filter(
+            PendingWorldTransaction.upload_batch_id == batch_id,
+            PendingWorldTransaction.user_id == uid,
+            PendingWorldTransaction.status.in_(["pending", "modified"])
+        ).order_by(
+            PendingWorldTransaction.transaction_date.asc(),
+            PendingWorldTransaction.id.asc()
+        ).all()
+
+        approved_world = 0
+        new_world_tickers = set()
+        now = datetime.now()
+
+        for t in world_pending:
+            try:
+                with engine.connect() as conn:
+                    _process_world_tx(conn, t, uid, now)
+                    conn.commit()
+                t.status = "approved"
+                t.reviewed_at = now
+                t.reviewed_by = uid
+                approved_world += 1
+                if t.ticker:
+                    new_world_tickers.add(t.ticker)
+            except Exception as e:
+                errors.append(f"World tx {t.id}: {e}")
+
+        # ── Commit everything ─────────────────────────────────────────────────
+        db.commit()
+
+        # ── Step 4: Rebuild holdings for all affected symbols ─────────────────
+        all_israeli_symbols = deleted_israeli_symbols | new_israeli_symbols
+        for symbol in all_israeli_symbols:
+            try:
+                service.rebuild_holding_for_symbol(uid, symbol)
+            except Exception as e:
+                errors.append(f"Rebuild Israeli holding {symbol}: {e}")
+
+        from app.api.v1.endpoints.world_stocks import (
+            _rebuild_world_holding_from_transactions as _rebuild_world,
+        )
+        all_world_tickers = deleted_world_tickers | new_world_tickers
+        for ticker in all_world_tickers:
+            try:
+                _rebuild_world(db, uid, ticker)
+            except Exception as e:
+                errors.append(f"Rebuild World holding {ticker}: {e}")
+
+        # Trigger price refresh + return recalculation for both markets
+        _trigger_recalculations(db, uid)
+        _world_recalc(db, uid)
+
+        period_label = period_start.strftime("%B %Y")
+        return {
+            "success": True,
+            "period_label": period_label,
+            "deleted_manual_count": deleted_count,
+            "approved_from_pdf": approved_israeli + approved_world,
+            "errors": errors if errors else None,
+        }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Accept report failed: {e}")
+
+
 @router.post("/pending-transactions/batch/{batch_id}/reject-all")
 async def reject_all_in_batch(
     batch_id: str,

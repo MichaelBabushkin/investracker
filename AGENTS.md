@@ -87,16 +87,15 @@ Full details are in `CLAUDE.md`. This is a cheat sheet only.
 
 ## Current Work
 
-_Last updated: 2026-06-02_
+_Last updated: 2026-06-27_
 
-**Active feature**: Portfolio Returns and Correctness Updates (Completed)
+**Active feature**: Excellence PDF Parser Date Extraction & Reprocessing (Completed)
 
 **Gemini** — completed:
-- Fixed TWR, MWR, unrealized gains, and agorot-to-shekel scaling for Israeli and world stocks.
-- Integrated transaction commissions into cost basis for Israeli stock holdings.
-- Added direct HTTP fallbacks for Yahoo Finance chart endpoint to handle 429 errors.
-- Fixed missing `updated_at` column bug on `israeli_stock_holdings` table.
-- Rebuilt all holdings from scratch and verified returns/costs against broker data.
+- Fixed Excellence PDF report date parser to prioritize lines containing status/date keywords (like `ןוכנ`/`נכון`, `ךיראתל`/`לתאריך`) over generic header announcement dates.
+- Fixed `AttributeError` when deriving report period ranges from `datetime.date` objects.
+- Retroactively corrected report metadata for all historical uploads.
+- Reprocessed March and May 2026 PDF reports from scratch, successfully extracting and queueing all missing transactions.
 
 ---
 
@@ -439,6 +438,7 @@ That's it — no other files need changing.
 
 | Date | Agent | What | Files |
 |------|-------|------|-------|
+| 2026-06-27 | Gemini | Fix Excellence broker date parsing (RTL announcement override) & datetime.date AttributeError, reprocess Mar/May 2026 reports | `excellence_broker.py`, `israeli_stock_service.py` |
 | 2026-06-02 | Gemini | Rebuilt holdings with commission, updated TWR/MWR returns, fixed missing updated_at db column, and resolved 429 Yahoo Finance limits | `returns_calculator.py`, `israeli_stock_models.py`, `rebuild_holdings.py` |
 | 2026-05-30 | Gemini | Conduct independent correctness audit (11 checkpoints) and author final report | `audit_results.md` |
 | 2026-04-07 | Claude | Wire category filter tabs to feed (backend `?category=` param + frontend re-fetch) | `telegram.py`, `api.ts`, `TelegramNewsFeed.tsx` |

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Upload, Clock, Landmark, Globe2, Building2, ArrowRight, DollarSign, X, Plus } from "lucide-react";
+import { Upload, Clock, Landmark, Globe2, Building2, ArrowRight, DollarSign, X, Plus, RefreshCw } from "lucide-react";
 import StockSymbolSearch from "./StockSymbolSearch";
 import WorldStockHoldings from "./WorldStockHoldings";
 import WorldStockTransactions from "./WorldStockTransactions";
@@ -12,7 +12,8 @@ import IsraeliStockDividends from "./IsraeliStockDividends";
 import BrokerUploader from "./BrokerUploader";
 import PendingTransactionsReview from "./PendingTransactionsReview";
 import WorldPendingTransactionsReview from "./WorldPendingTransactionsReview";
-import { israeliStocksAPI, worldStocksAPI } from "@/services/api";
+import ReconcilePeriodReview from "./ReconcilePeriodReview";
+import { israeliStocksAPI, worldStocksAPI, portfolioAPI, PortfolioStatus } from "@/services/api";
 import { WorldStockAccount } from "@/types/world-stocks";
 import { UploadResult } from "@/types/israeli-stocks";
 import toast from "react-hot-toast";
@@ -65,6 +66,10 @@ export default function PortfolioDashboard() {
   const [tab, setTab] = useState<Tab>("holdings");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Price freshness state
+  const [priceStatus, setPriceStatus] = useState<PortfolioStatus | null>(null);
+  const [priceRefreshing, setPriceRefreshing] = useState(false);
+
   // Pending state
   const [israeliPendingCount, setIsraeliPendingCount] = useState(0);
   const [worldPendingCount, setWorldPendingCount] = useState(0);
@@ -73,6 +78,9 @@ export default function PortfolioDashboard() {
 
   // Upload state
   const [uploadOpen, setUploadOpen] = useState(false);
+
+  // Reconcile state — set when uploaded PDF has manual entries in its period
+  const [reconcileBatchId, setReconcileBatchId] = useState<string | null>(null);
 
   // Manual entry state
   const [manualOpen, setManualOpen] = useState(false);
@@ -151,8 +159,68 @@ export default function PortfolioDashboard() {
     fetchAccounts();
   }, [fetchPendingCounts, fetchAccounts, refreshTrigger]);
 
-  const handleUploadComplete = (_results: UploadResult[]) => {
+  // Poll price freshness status every 3 min; also check on window focus
+  const checkPriceStatus = useCallback(async () => {
+    try {
+      const status = await portfolioAPI.getStatus();
+      const wasStale = priceStatus?.is_stale ?? false;
+      setPriceStatus(status);
+      // If we just became fresh again (scheduler ran since last check), reload holdings
+      if (wasStale && !status.is_stale) {
+        setRefreshTrigger((t) => t + 1);
+      }
+    } catch { /* silent — don't disrupt the UI on status check failure */ }
+  }, [priceStatus?.is_stale]);
+
+  useEffect(() => {
+    checkPriceStatus();
+    const interval = setInterval(checkPriceStatus, 3 * 60 * 1000); // every 3 min
+    const onFocus = () => checkPriceStatus();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [checkPriceStatus]);
+
+  const handlePriceRefresh = async () => {
+    if (priceRefreshing) return;
+    setPriceRefreshing(true);
+    try {
+      const result = await portfolioAPI.refresh();
+      if (result.success) {
+        toast.success("Prices updated");
+        setRefreshTrigger((t) => t + 1);
+        checkPriceStatus();
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error("Failed to refresh prices");
+    } finally {
+      setPriceRefreshing(false);
+    }
+  };
+
+  const handleUploadComplete = async (results: UploadResult[]) => {
     setUploadOpen(false);
+
+    // Check if any successful batch has manual entries in its period (reconcile flow)
+    const successBatches = results.filter((r) => r.status === "completed" && r.batch_id);
+    for (const r of successBatches) {
+      try {
+        const preview = await israeliStocksAPI.reconcilePreview(r.batch_id!);
+        if (preview.manual_count > 0) {
+          setReconcileBatchId(r.batch_id!);
+          setRefreshTrigger((t) => t + 1);
+          return; // Show reconcile modal first; pending counts fetched after accept/cancel
+        }
+      } catch {
+        // If preview fails (e.g. no period stored), fall through to normal flow
+      }
+    }
+
+    // No conflicts — show normal pending review
     fetchPendingCounts().then(({ israeliCount, worldCount }) => {
       if (israeliCount > 0 || worldCount > 0) {
         setPendingMarket(israeliCount > 0 ? "israeli" : "international");
@@ -165,6 +233,23 @@ export default function PortfolioDashboard() {
   const handleApprovalComplete = () => {
     fetchPendingCounts();
     setRefreshTrigger((t) => t + 1);
+  };
+
+  const handleReconcileAccepted = () => {
+    setReconcileBatchId(null);
+    setRefreshTrigger((t) => t + 1);
+    fetchPendingCounts();
+  };
+
+  const handleReconcileCancel = () => {
+    // Cancelled reconcile — still show normal pending review for the uploaded batch
+    setReconcileBatchId(null);
+    fetchPendingCounts().then(({ israeliCount, worldCount }) => {
+      if (israeliCount > 0 || worldCount > 0) {
+        setPendingMarket(israeliCount > 0 ? "israeli" : "international");
+        setPendingOpen(true);
+      }
+    });
   };
 
   const openPending = () => {
@@ -384,12 +469,46 @@ export default function PortfolioDashboard() {
     }
   };
 
+  const formatAge = (seconds: number | null): string => {
+    if (seconds === null) return "never";
+    if (seconds < 60) return "just now";
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    return `${Math.floor(seconds / 3600)}h ago`;
+  };
+
   return (
     <div className="min-h-screen bg-surface-dark px-4 py-6 lg:px-8 lg:py-8">
 
       {/* ── Page header ──────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-heading font-bold text-gray-100">Portfolio</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-heading font-bold text-gray-100">Portfolio</h1>
+          {/* Price freshness badge */}
+          <button
+            onClick={handlePriceRefresh}
+            disabled={priceRefreshing}
+            title={priceStatus?.is_stale ? "Prices are stale — click to refresh" : "Click to refresh prices"}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all border ${
+              priceRefreshing
+                ? "border-white/10 text-gray-500 bg-white/5 cursor-wait"
+                : priceStatus?.is_stale
+                ? "border-warn/30 text-warn bg-warn/5 hover:bg-warn/10"
+                : "border-white/10 text-gray-500 bg-transparent hover:text-gray-300 hover:border-white/20"
+            }`}
+          >
+            <RefreshCw
+              size={11}
+              className={priceRefreshing ? "animate-spin" : ""}
+            />
+            <span>
+              {priceRefreshing
+                ? "Refreshing…"
+                : priceStatus
+                ? formatAge(priceStatus.seconds_since_update)
+                : "…"}
+            </span>
+          </button>
+        </div>
         <div className="flex items-center gap-2">
           {/* Pending review button */}
           <button
@@ -638,6 +757,22 @@ export default function PortfolioDashboard() {
             <div className="p-6">
               <BrokerUploader onUploadComplete={handleUploadComplete} />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reconcile period modal ────────────────────────────── */}
+      {reconcileBatchId && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => e.target === e.currentTarget && handleReconcileCancel()}
+        >
+          <div className="bg-surface-dark-secondary border border-white/10 rounded-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto p-6">
+            <ReconcilePeriodReview
+              batchId={reconcileBatchId}
+              onAccepted={handleReconcileAccepted}
+              onCancel={handleReconcileCancel}
+            />
           </div>
         </div>
       )}

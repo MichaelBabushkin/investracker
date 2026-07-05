@@ -2,7 +2,7 @@
 Israeli Report Upload Model
 Stores uploaded PDF files for Israeli stock investment reports
 """
-from sqlalchemy import Column, Integer, String, DateTime, LargeBinary, Index, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, Date, LargeBinary, Index, ForeignKey, UniqueConstraint
 from sqlalchemy.sql import func
 from app.core.database import Base
 
@@ -20,6 +20,8 @@ class IsraeliReportUpload(Base):
     broker = Column(String, nullable=False, default='excellence')  # Broker name
     upload_batch_id = Column(String, nullable=False, index=True)  # Links to PendingIsraeliTransaction batch
     upload_date = Column(DateTime, nullable=False, server_default=func.now())
+    report_period_start = Column(Date, nullable=True)   # First day of the report month
+    report_period_end = Column(Date, nullable=True)     # Last day of the report month
     
     # Add indexes for common queries and unique constraint to prevent duplicate uploads
     __table_args__ = (
