@@ -606,9 +606,22 @@ class ExcellenceBrokerParser(BaseBrokerParser):
     def extract_date_from_pdf_text(self, text: str) -> Optional[datetime]:
         """Extract holding date from Excellence PDF header"""
         lines = text.split('\n')[:10]  # Check first 10 lines
+        
+        # Prioritize lines containing report status keywords ("נכון", "לתאריך" or their reversed versions)
+        priority_keywords = ["ןוכנ", "נכון", "ךיראתל", "לתאריך"]
+        
+        for line in lines:
+            if any(kw in line for kw in priority_keywords):
+                date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{4})', line)
+                if date_match:
+                    date_str = date_match.group(1)
+                    return self.parse_date_string(date_str)
+                    
+        # Fallback to the first date match in the header lines
         for line in lines:
             date_match = re.search(r'(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{4})', line)
             if date_match:
                 date_str = date_match.group(1)
                 return self.parse_date_string(date_str)
+                
         return None

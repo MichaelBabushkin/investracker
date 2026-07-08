@@ -9,6 +9,7 @@ export interface TradeEntry {
   symbol: string;
   transaction_date?: string;
   transaction_time?: string;
+  purchase_date?: string;
   quantity?: number;
   realized_pl?: number | string | null;
   logo_url?: string | null;
@@ -77,8 +78,9 @@ export default function TopTradesPanel({
                   <div>
                     <p className="font-semibold text-gray-100">{trade.symbol}</p>
                     <p className="text-xs text-gray-400">
-                      {formatDate(trade.transaction_date)}
-                      {trade.transaction_time ? ` • ${trade.transaction_time}` : ""}
+                      {trade.purchase_date && trade.purchase_date !== trade.transaction_date
+                        ? `${formatDate(trade.purchase_date)} - ${formatDate(trade.transaction_date)}`
+                        : `${formatDate(trade.transaction_date)}${trade.transaction_time ? ` • ${trade.transaction_time}` : ""}`}
                     </p>
                   </div>
                 </div>
@@ -124,8 +126,9 @@ export default function TopTradesPanel({
                   <div>
                     <p className="font-semibold text-gray-100">{trade.symbol}</p>
                     <p className="text-xs text-gray-400">
-                      {formatDate(trade.transaction_date)}
-                      {trade.transaction_time ? ` • ${trade.transaction_time}` : ""}
+                      {trade.purchase_date && trade.purchase_date !== trade.transaction_date
+                        ? `${formatDate(trade.purchase_date)} - ${formatDate(trade.transaction_date)}`
+                        : `${formatDate(trade.transaction_date)}${trade.transaction_time ? ` • ${trade.transaction_time}` : ""}`}
                     </p>
                   </div>
                 </div>

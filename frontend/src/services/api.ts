@@ -137,6 +137,13 @@ export const authAPI = {
   },
 };
 
+export interface PortfolioStatus {
+  last_updated: string | null;
+  is_stale: boolean;
+  seconds_since_update: number | null;
+  stale_threshold_minutes: number;
+}
+
 // Portfolio API
 export const portfolioAPI = {
   getPortfolios: async (skip = 0, limit = 100) => {
@@ -167,7 +174,133 @@ export const portfolioAPI = {
     const response = await api.delete(`/portfolios/${portfolioId}`);
     return response.data;
   },
+
+  getStatus: async (): Promise<PortfolioStatus> => {
+    const response = await api.get('/portfolio/status');
+    return response.data;
+  },
+
+  refresh: async (): Promise<{ success: boolean; message: string; last_updated: string | null }> => {
+    const response = await api.post('/portfolio/refresh');
+    return response.data;
+  },
+
+  getAnalytics: async (start: string, end: string, market: AnalyticsMarket = 'all') => {
+    const response = await api.get(`/portfolio/analytics?start=${start}&end=${end}&market=${market}`);
+    return response.data as PortfolioAnalytics;
+  },
+
+  getHistory: async (start: string, end: string, market: AnalyticsMarket = 'all', benchmarks: string = '') => {
+    const response = await api.get(
+      `/portfolio/analytics/history?start=${start}&end=${end}&market=${market}&benchmarks=${benchmarks}`
+    );
+    return response.data as { points: HistoryPoint[]; currency: string };
+  },
+
+  getStockAnalytics: async (symbol: string, market: 'israeli' | 'world', start: string, end: string) => {
+    const response = await api.get(
+      `/portfolio/analytics/stock?symbol=${encodeURIComponent(symbol)}&market=${market}&start=${start}&end=${end}`
+    );
+    return response.data as StockAnalytics;
+  },
+
+  getDividendHistory: async (start: string, end: string, market: AnalyticsMarket = 'all') => {
+    const response = await api.get(`/portfolio/analytics/dividends?start=${start}&end=${end}&market=${market}`);
+    return response.data as { items: DividendEvent[]; total_net_ils: number };
+  },
 };
+
+export type AnalyticsMarket = 'all' | 'israeli' | 'world';
+
+export interface StockAnalytics {
+  symbol: string;
+  market: 'israeli' | 'world';
+  points: Array<{ date: string; close: number; qty: number; value_ils: number }>;
+  trades: Array<{ date: string; type: string; quantity: number; price: number; total_value_ils: number; realized_pl_ils: number }>;
+  summary: {
+    current_qty: number;
+    start_value_ils: number;
+    end_value_ils: number;
+    realized_pl_ils: number;
+    dividends_net_ils: number;
+  };
+}
+
+export interface DividendEvent {
+  date: string;
+  symbol: string;
+  market: 'israeli' | 'world';
+  net_ils: number;
+  cumulative_ils: number;
+}
+
+export interface HistoryPoint {
+  date: string;
+  total_ils: number;
+  israeli_ils: number;
+  world_ils: number;
+  bm_ta125?: number;
+  bm_sp500?: number;
+}
+
+export interface AnalyticsTransaction {
+  date: string;
+  type: string;
+  symbol: string;
+  company_name: string;
+  quantity: number;
+  price: number;
+  total_value_ils: number;
+  commission: number;
+  realized_pl: number;
+  currency: string;
+  market: "israeli" | "world";
+  purchase_date?: string;
+}
+
+export interface PortfolioAnalytics {
+  period_start: string;
+  period_end: string;
+  realized_pl: {
+    israeli_ils: number;
+    world_ils: number;
+    total_ils: number;
+  };
+  dividends: {
+    israeli_gross_ils: number;
+    israeli_tax_ils: number;
+    israeli_net_ils: number;
+    world_gross_ils: number;
+    world_tax_ils: number;
+    world_net_ils: number;
+    total_net_ils: number;
+  };
+  commissions: {
+    israeli_ils: number;
+    world_ils: number;
+    total_ils: number;
+  };
+  transactions: AnalyticsTransaction[];
+  portfolio_values: {
+    start: { israeli_ils: number; world_ils: number; total_ils: number; source: string };
+    end: { israeli_ils: number; world_ils: number; total_ils: number; source: string };
+    change_ils: number;
+    return_pct: number | null;
+  } | null;
+  stats: {
+    total_trades: number;
+    buys: number;
+    sells: number;
+    buy_volume_ils: number;
+    sell_volume_ils: number;
+    total_volume_ils: number;
+    dividend_events: number;
+    total_tax_ils: number;
+    total_fees_ils: number;
+  };
+  top_trades: AnalyticsTransaction[];
+  worst_trades: AnalyticsTransaction[];
+}
 
 // Transaction API
 export const transactionAPI = {
@@ -596,6 +729,59 @@ export const israeliStocksAPI = {
       `/israeli-stocks/reports/${reportId}?delete_transactions=${deleteTransactions}`
     );
     return response.data;
+  },
+
+  // PDF Reconciliation
+  reconcilePreview: async (batchId: string) => {
+    const response = await api.get(
+      `/israeli-stocks/pending-transactions/batch/${batchId}/reconcile-preview`
+    );
+    return response.data as {
+      period_start: string;
+      period_end: string;
+      period_label: string;
+      manual_count: number;
+      pdf_count: number;
+      manual_transactions: Array<{
+        id: number;
+        transaction_date: string;
+        transaction_type: string;
+        symbol: string;
+        company_name: string;
+        quantity: number;
+        price: number;
+        total_value: number;
+        commission: number;
+        currency: string;
+        market: string;
+      }>;
+      pdf_transactions: Array<{
+        id: number;
+        transaction_date: string;
+        transaction_type: string;
+        symbol: string;
+        company_name: string;
+        quantity: number;
+        price: number;
+        total_value: number;
+        commission: number;
+        currency: string;
+        market: string;
+      }>;
+    };
+  },
+
+  acceptReport: async (batchId: string) => {
+    const response = await api.post(
+      `/israeli-stocks/pending-transactions/batch/${batchId}/accept-report`
+    );
+    return response.data as {
+      success: boolean;
+      period_label: string;
+      deleted_manual_count: number;
+      approved_from_pdf: number;
+      errors: string[] | null;
+    };
   },
 };
 
