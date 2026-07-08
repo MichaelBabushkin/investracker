@@ -51,16 +51,22 @@ function ChartTooltip({ active, payload, label }: any) {
       <div className="text-base font-bold text-gray-100 tabular-nums mb-2">
         {fmtILS(total)}
       </div>
-      <div className="flex flex-col gap-1">
-        <div className="flex justify-between gap-4 text-xs">
-          <span className="text-brand-400">🇮🇱 Israeli</span>
-          <span className="tabular-nums text-gray-200">{fmtILS(p.israeli_ils)}</span>
+      {(p.israeli_ils > 0 || p.world_ils > 0) && (
+        <div className="flex flex-col gap-1">
+          {p.israeli_ils > 0 && (
+            <div className="flex justify-between gap-4 text-xs">
+              <span className="text-brand-400">🇮🇱 Israeli</span>
+              <span className="tabular-nums text-gray-200">{fmtILS(p.israeli_ils)}</span>
+            </div>
+          )}
+          {p.world_ils > 0 && (
+            <div className="flex justify-between gap-4 text-xs">
+              <span className="text-info">🌍 World</span>
+              <span className="tabular-nums text-gray-200">{fmtILS(p.world_ils)}</span>
+            </div>
+          )}
         </div>
-        <div className="flex justify-between gap-4 text-xs">
-          <span className="text-info">🌍 World</span>
-          <span className="tabular-nums text-gray-200">{fmtILS(p.world_ils)}</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

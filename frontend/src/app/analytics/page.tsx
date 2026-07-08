@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, Landmark, Globe2, Calendar, ChevronDown } from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { portfolioAPI, PortfolioAnalytics, AnalyticsTransaction, HistoryPoint } from "@/services/api";
+import { portfolioAPI, PortfolioAnalytics, AnalyticsTransaction, HistoryPoint, AnalyticsMarket } from "@/services/api";
 import PortfolioHistoryChart from "@/components/PortfolioHistoryChart";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -16,51 +16,53 @@ function toISODate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function startOfMonth(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
-}
-
-function endOfMonth(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0);
-}
-
-type Preset = "this_month" | "last_month" | "3m" | "6m" | "12m" | "ytd" | "custom";
+type Preset = "1d" | "5d" | "1m" | "6m" | "ytd" | "1y" | "5y" | "all" | "custom";
 
 const PRESETS: Array<{ id: Preset; label: string }> = [
-  { id: "this_month", label: "This month" },
-  { id: "last_month", label: "Last month" },
-  { id: "3m", label: "3 months" },
-  { id: "6m", label: "6 months" },
-  { id: "12m", label: "12 months" },
+  { id: "1d", label: "1D" },
+  { id: "5d", label: "5D" },
+  { id: "1m", label: "1M" },
+  { id: "6m", label: "6M" },
   { id: "ytd", label: "YTD" },
+  { id: "1y", label: "1Y" },
+  { id: "5y", label: "5Y" },
+  { id: "all", label: "All" },
   { id: "custom", label: "Custom" },
 ];
 
 function presetDates(preset: Preset): { start: string; end: string } {
   const today = new Date();
+  const end = toISODate(today);
   switch (preset) {
-    case "this_month":
-      return { start: toISODate(startOfMonth(today)), end: toISODate(today) };
-    case "last_month": {
-      const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      return { start: toISODate(first), end: toISODate(endOfMonth(first)) };
+    case "1d":
+      return { start: end, end };
+    case "5d": {
+      const s = new Date(today); s.setDate(s.getDate() - 7);   // ~5 trading days
+      return { start: toISODate(s), end };
     }
-    case "3m": {
-      const s = new Date(today); s.setMonth(s.getMonth() - 3);
-      return { start: toISODate(s), end: toISODate(today) };
+    case "1m": {
+      const s = new Date(today); s.setMonth(s.getMonth() - 1);
+      return { start: toISODate(s), end };
     }
     case "6m": {
       const s = new Date(today); s.setMonth(s.getMonth() - 6);
-      return { start: toISODate(s), end: toISODate(today) };
-    }
-    case "12m": {
-      const s = new Date(today); s.setFullYear(s.getFullYear() - 1);
-      return { start: toISODate(s), end: toISODate(today) };
+      return { start: toISODate(s), end };
     }
     case "ytd":
-      return { start: `${today.getFullYear()}-01-01`, end: toISODate(today) };
+      return { start: `${today.getFullYear()}-01-01`, end };
+    case "1y": {
+      const s = new Date(today); s.setFullYear(s.getFullYear() - 1);
+      return { start: toISODate(s), end };
+    }
+    case "5y": {
+      const s = new Date(today); s.setFullYear(s.getFullYear() - 5);
+      return { start: toISODate(s), end };
+    }
+    case "all":
+      // backend clamps to the first transaction date
+      return { start: "2000-01-01", end };
     default:
-      return { start: toISODate(startOfMonth(today)), end: toISODate(today) };
+      return { start: `${today.getFullYear()}-01-01`, end };
   }
 }
 
@@ -144,9 +146,13 @@ const TYPE_STYLES: Record<string, string> = {
   CAPITAL_GAINS_TAX: "bg-gray-500/10 text-gray-400",
 };
 
+const PAGE_SIZE = 20;
+
 function TxTable({ transactions }: { transactions: AnalyticsTransaction[] }) {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [marketFilter, setMarketFilter] = useState<string>("all");
+  const [page, setPage] = useState(0);
+  const [showAll, setShowAll] = useState(false);
 
   const types = Array.from(new Set(transactions.map((t) => t.type)));
   const filtered = transactions.filter((t) => {
@@ -154,6 +160,13 @@ function TxTable({ transactions }: { transactions: AnalyticsTransaction[] }) {
     if (marketFilter !== "all" && t.market !== marketFilter) return false;
     return true;
   });
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const visible = showAll ? filtered : filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
+  // Reset to first page when filters change the row set
+  useEffect(() => { setPage(0); }, [typeFilter, marketFilter, transactions]);
 
   if (transactions.length === 0) {
     return (
@@ -224,7 +237,7 @@ function TxTable({ transactions }: { transactions: AnalyticsTransaction[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {filtered.map((tx, i) => (
+            {visible.map((tx, i) => (
               <tr key={i} className="hover:bg-white/[0.02] transition-colors">
                 <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{fmtDate(tx.date)}</td>
                 <td className="px-4 py-3">
@@ -270,14 +283,54 @@ function TxTable({ transactions }: { transactions: AnalyticsTransaction[] }) {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {filtered.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between text-xs">
+          <button
+            onClick={() => setShowAll((v) => !v)}
+            className="px-2.5 py-1 rounded-lg text-gray-500 hover:text-gray-300 bg-white/[0.02] transition-colors"
+          >
+            {showAll ? "Show pages" : `Show all ${filtered.length}`}
+          </button>
+          {!showAll && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={safePage === 0}
+                className="px-2.5 py-1 rounded-lg bg-white/[0.02] text-gray-400 hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                ← Prev
+              </button>
+              <span className="text-gray-500 tabular-nums">
+                {safePage + 1} / {pageCount}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                disabled={safePage >= pageCount - 1}
+                className="px-2.5 py-1 rounded-lg bg-white/[0.02] text-gray-400 hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                Next →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+const MARKETS: Array<{ id: AnalyticsMarket; label: string }> = [
+  { id: "all", label: "All Markets" },
+  { id: "israeli", label: "🇮🇱 Israeli" },
+  { id: "world", label: "🌍 World" },
+];
+
 export default function AnalyticsPage() {
-  const [preset, setPreset] = useState<Preset>("this_month");
+  const [preset, setPreset] = useState<Preset>("1m");
+  const [market, setMarket] = useState<AnalyticsMarket>("all");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [showCustom, setShowCustom] = useState(false);
@@ -291,12 +344,12 @@ export default function AnalyticsPage() {
     ? { start: customStart, end: customEnd }
     : presetDates(preset);
 
-  const fetchAnalytics = useCallback(async (start: string, end: string) => {
+  const fetchAnalytics = useCallback(async (start: string, end: string, mk: AnalyticsMarket) => {
     if (!start || !end || start > end) return;
     setLoading(true);
     setError(null);
     try {
-      const result = await portfolioAPI.getAnalytics(start, end);
+      const result = await portfolioAPI.getAnalytics(start, end, mk);
       setData(result);
     } catch (err: any) {
       setError(err?.response?.data?.detail ?? "Failed to load analytics");
@@ -305,12 +358,12 @@ export default function AnalyticsPage() {
     }
   }, []);
 
-  const fetchHistory = useCallback(async (start: string, end: string) => {
+  const fetchHistory = useCallback(async (start: string, end: string, mk: AnalyticsMarket) => {
     if (!start || !end || start > end) return;
     setHistoryLoading(true);
     setHistoryPoints(null);
     try {
-      const result = await portfolioAPI.getHistory(start, end);
+      const result = await portfolioAPI.getHistory(start, end, mk);
       setHistoryPoints(result.points);
     } catch {
       setHistoryPoints([]);
@@ -319,19 +372,23 @@ export default function AnalyticsPage() {
     }
   }, []);
 
-  // Fetch both when preset changes
+  // Fetch both when preset or market changes
   useEffect(() => {
     if (preset !== "custom") {
       const { start, end } = presetDates(preset);
-      fetchAnalytics(start, end);
-      fetchHistory(start, end);
+      fetchAnalytics(start, end, market);
+      fetchHistory(start, end, market);
+    } else if (customStart && customEnd && customStart <= customEnd) {
+      fetchAnalytics(customStart, customEnd, market);
+      fetchHistory(customStart, customEnd, market);
     }
-  }, [preset, fetchAnalytics, fetchHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset, market, fetchAnalytics, fetchHistory]);
 
   const handleCustomApply = () => {
     if (customStart && customEnd && customStart <= customEnd) {
-      fetchAnalytics(customStart, customEnd);
-      fetchHistory(customStart, customEnd);
+      fetchAnalytics(customStart, customEnd, market);
+      fetchHistory(customStart, customEnd, market);
     }
   };
 
@@ -361,26 +418,45 @@ export default function AnalyticsPage() {
             )}
           </div>
 
-          {/* Period selector */}
-          <div className="flex flex-wrap gap-1.5">
-            {PRESETS.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => {
-                  setPreset(p.id);
-                  setShowCustom(p.id === "custom");
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  preset === p.id
-                    ? "bg-brand-400/10 text-brand-400 border border-brand-400/30"
-                    : "bg-surface-dark-secondary text-gray-400 border border-white/5 hover:text-gray-200"
-                }`}
-              >
-                {p.id === "custom" && preset === "custom" ? (
-                  <span className="flex items-center gap-1">{p.label} <ChevronDown size={10} /></span>
-                ) : p.label}
-              </button>
-            ))}
+          <div className="flex flex-col items-start sm:items-end gap-2">
+            {/* Market selector */}
+            <div className="flex gap-1 p-0.5 bg-surface-dark-secondary border border-white/5 rounded-lg">
+              {MARKETS.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setMarket(m.id)}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    market === m.id
+                      ? "bg-surface-dark-tertiary text-gray-100"
+                      : "text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Period selector */}
+            <div className="flex flex-wrap gap-1.5">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setPreset(p.id);
+                    setShowCustom(p.id === "custom");
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    preset === p.id
+                      ? "bg-brand-400/10 text-brand-400 border border-brand-400/30"
+                      : "bg-surface-dark-secondary text-gray-400 border border-white/5 hover:text-gray-200"
+                  }`}
+                >
+                  {p.id === "custom" && preset === "custom" ? (
+                    <span className="flex items-center gap-1">{p.label} <ChevronDown size={10} /></span>
+                  ) : p.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -420,7 +496,7 @@ export default function AnalyticsPage() {
           <MetricCard
             label="Start Value"
             value={fmtILS(pv?.start.total_ils)}
-            sub={pv ? `Israeli ₪${(pv.start.israeli_ils / 1000).toFixed(0)}K · World ₪${(pv.start.world_ils / 1000).toFixed(0)}K` : undefined}
+            sub={pv && market === "all" ? `Israeli ₪${(pv.start.israeli_ils / 1000).toFixed(0)}K · World ₪${(pv.start.world_ils / 1000).toFixed(0)}K` : undefined}
             icon={Landmark}
             loading={loading}
             unavailable={!loading && data !== null && pv === null}
@@ -428,7 +504,7 @@ export default function AnalyticsPage() {
           <MetricCard
             label="End Value"
             value={fmtILS(pv?.end.total_ils)}
-            sub={pv ? `Israeli ₪${(pv.end.israeli_ils / 1000).toFixed(0)}K · World ₪${(pv.end.world_ils / 1000).toFixed(0)}K` : undefined}
+            sub={pv && market === "all" ? `Israeli ₪${(pv.end.israeli_ils / 1000).toFixed(0)}K · World ₪${(pv.end.world_ils / 1000).toFixed(0)}K` : undefined}
             icon={Landmark}
             loading={loading}
             unavailable={!loading && data !== null && pv === null}
@@ -448,7 +524,7 @@ export default function AnalyticsPage() {
           <MetricCard
             label="Realized P&L"
             value={data ? fmtILS(data.realized_pl.total_ils) : "—"}
-            sub={data
+            sub={data && market === "all"
               ? `Israeli ₪${data.realized_pl.israeli_ils.toFixed(0)} · World ₪${data.realized_pl.world_ils.toFixed(0)}`
               : undefined}
             icon={data && data.realized_pl.total_ils >= 0 ? TrendingUp : TrendingDown}
@@ -470,7 +546,7 @@ export default function AnalyticsPage() {
           <MetricCard
             label="Commissions Paid"
             value={data ? fmtILS(-data.commissions.total_ils) : "—"}
-            sub={data
+            sub={data && market === "all"
               ? `Israeli ₪${data.commissions.israeli_ils.toFixed(0)} · World ₪${data.commissions.world_ils.toFixed(0)}`
               : undefined}
             icon={BarChart3}
@@ -505,7 +581,8 @@ export default function AnalyticsPage() {
 
         {/* ── Market breakdown ── */}
         {data && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          <div className={`grid grid-cols-1 ${market === "all" ? "sm:grid-cols-2" : ""} gap-4 mb-8`}>
+            {market !== "world" && (
             <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
               <div className="flex items-center gap-2 mb-4">
                 <Landmark size={14} className="text-brand-400" />
@@ -527,6 +604,8 @@ export default function AnalyticsPage() {
                 ))}
               </div>
             </div>
+            )}
+            {market !== "israeli" && (
             <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
               <div className="flex items-center gap-2 mb-4">
                 <Globe2 size={14} className="text-info" />
@@ -547,6 +626,81 @@ export default function AnalyticsPage() {
                   </div>
                 ))}
               </div>
+            </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Period activity stats ── */}
+        {data?.stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            {[
+              { label: "Trades", value: String(data.stats.total_trades), sub: `${data.stats.buys} buys · ${data.stats.sells} sells` },
+              { label: "Buy Volume", value: fmtILS(data.stats.buy_volume_ils, true), sub: undefined },
+              { label: "Sell Volume", value: fmtILS(data.stats.sell_volume_ils, true), sub: undefined },
+              { label: "Dividend Events", value: String(data.stats.dividend_events), sub: undefined },
+              { label: "Tax Paid", value: fmtILS(data.stats.total_tax_ils, true), sub: "dividends + trades" },
+              { label: "Fees Paid", value: fmtILS(data.stats.total_fees_ils, true), sub: "commissions" },
+            ].map(({ label, value, sub }) => (
+              <div key={label} className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4">
+                <div className="text-xs text-gray-500 mb-1">{label}</div>
+                <div className="text-lg font-semibold text-gray-100 tabular-nums">{value}</div>
+                {sub && <div className="text-[11px] text-gray-600 mt-0.5">{sub}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Top / worst trades ── */}
+        {data && (data.top_trades.length > 0 || data.worst_trades.length > 0) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp size={14} className="text-gain" />
+                <span className="text-sm font-semibold text-gray-200">Best Trades</span>
+              </div>
+              {data.top_trades.filter((t) => t.realized_pl > 0).length === 0 ? (
+                <p className="text-xs text-gray-600">No profitable closed trades in this period</p>
+              ) : (
+                <div className="flex flex-col divide-y divide-white/5">
+                  {data.top_trades.filter((t) => t.realized_pl > 0).map((t, i) => (
+                    <div key={i} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs text-gray-600 w-4">{i + 1}.</span>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-gray-200 truncate">{t.symbol}</div>
+                          <div className="text-[11px] text-gray-500">{fmtDate(t.date)} · {t.quantity.toLocaleString()} shares</div>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold tabular-nums text-gain">{fmtILS(t.realized_pl)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingDown size={14} className="text-loss" />
+                <span className="text-sm font-semibold text-gray-200">Worst Trades</span>
+              </div>
+              {data.worst_trades.length === 0 ? (
+                <p className="text-xs text-gray-600">No losing closed trades in this period 🎉</p>
+              ) : (
+                <div className="flex flex-col divide-y divide-white/5">
+                  {data.worst_trades.map((t, i) => (
+                    <div key={i} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs text-gray-600 w-4">{i + 1}.</span>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-gray-200 truncate">{t.symbol}</div>
+                          <div className="text-[11px] text-gray-500">{fmtDate(t.date)} · {t.quantity.toLocaleString()} shares</div>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold tabular-nums text-loss">{fmtILS(t.realized_pl)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

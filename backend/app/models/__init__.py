@@ -35,6 +35,9 @@ from .education_progress import EducationProgress
 # Telegram News Feed
 from .telegram_models import TelegramChannel, UserTelegramSubscription, TelegramMessage
 
+# Stock Prices
+from .stock_price_models import StockPrice, StockPriceHistory
+
 __all__ = [
     "User",
     # Israeli Stock Models
@@ -61,4 +64,7 @@ __all__ = [
     "TelegramChannel",
     "UserTelegramSubscription",
     "TelegramMessage",
+    # Stock Prices
+    "StockPrice",
+    "StockPriceHistory",
 ]

@@ -307,7 +307,27 @@ async def get_world_stock_holdings(
             })
             
             rows = result.fetchall()
-            
+
+            # Position-open date per ticker: first BUY after the running share
+            # count last hit zero, so "Since" matches the TWR/MWR scope
+            txn_result = conn.execute(text("""
+                SELECT ticker, transaction_type, quantity, transaction_date
+                FROM "world_stock_transactions"
+                WHERE user_id = :user_id
+                AND UPPER(transaction_type) IN ('BUY', 'SELL', 'PURCHASE')
+                ORDER BY transaction_date, id
+            """), {"user_id": target_user_id})
+            position_open: dict = {}
+            running_qty: dict = {}
+            for tk, tx_type, qty, tx_date in txn_result.fetchall():
+                q = float(qty or 0)
+                if tx_type.upper() in ('BUY', 'PURCHASE'):
+                    if running_qty.get(tk, 0.0) <= 1e-9:
+                        position_open[tk] = tx_date
+                    running_qty[tk] = running_qty.get(tk, 0.0) + q
+                else:
+                    running_qty[tk] = running_qty.get(tk, 0.0) - q
+
             holdings = []
             for row in rows:
                 holdings.append(WorldStockHoldingResponse(
@@ -323,7 +343,7 @@ async def get_world_stock_holdings(
                     portfolio_percentage=row[9],
                     currency=row[10],
                     exchange_rate=row[11],
-                    holding_date=row[12],
+                    holding_date=position_open.get(row[2], row[12]),
                     source_pdf=row[13],
                     created_at=row[14],
                     updated_at=row[15],

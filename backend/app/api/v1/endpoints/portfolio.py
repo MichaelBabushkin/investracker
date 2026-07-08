@@ -100,6 +100,24 @@ def trigger_portfolio_refresh(
 
 # ── Analytics helpers ──────────────────────────────────────────────────────────
 
+def _first_transaction_date(uid: str, market: str, db: Session) -> Optional[date]:
+    """Earliest transaction date across the selected market(s)."""
+    dates = []
+    if market in ("all", "israeli"):
+        d = db.execute(text(
+            "SELECT MIN(transaction_date) FROM israeli_stock_transactions WHERE user_id = :uid"
+        ), {"uid": uid}).scalar()
+        if d:
+            dates.append(d)
+    if market in ("all", "world"):
+        d = db.execute(text(
+            "SELECT MIN(transaction_date) FROM world_stock_transactions WHERE user_id = :uid"
+        ), {"uid": uid}).scalar()
+        if d:
+            dates.append(d)
+    return min(dates) if dates else None
+
+
 def _get_exchange_rate(target: date, db: Session) -> float:
     """Closest USD→ILS rate on or before target date; fallback to latest available."""
     row = db.execute(text("""
@@ -118,34 +136,22 @@ def _get_exchange_rate(target: date, db: Session) -> float:
     return float(row[0]) if row else 3.65
 
 
-def _fetch_historical_prices(tickers: list[str], target: date) -> dict[str, float]:
-    """Return {ticker: close_price} at or before target date. Silently returns {} on failure."""
-    if not tickers:
-        return {}
-    try:
-        import yfinance as yf
-        start = target - timedelta(days=7)
-        end = target + timedelta(days=1)
-        hist = yf.download(
-            tickers, start=str(start), end=str(end),
-            auto_adjust=True, progress=False, threads=True,
-        )
-        if hist.empty:
-            return {}
-        close = hist["Close"]
-        # yfinance returns a Series (not DataFrame) when there is only one ticker
-        if len(tickers) == 1:
-            series = close.dropna()
-            return {tickers[0]: float(series.iloc[-1])} if not series.empty else {}
-        prices = {}
-        for ticker in tickers:
-            if ticker in close.columns:
-                s = close[ticker].dropna()
-                if not s.empty:
-                    prices[ticker] = float(s.iloc[-1])
-        return prices
-    except Exception:
-        return {}
+def _price_at_or_before(series: dict[date, float], d: date, lookback: int = 7) -> Optional[float]:
+    """Last available close on or before d (weekends/holidays)."""
+    if d in series:
+        return series[d]
+    for delta in range(1, lookback + 1):
+        candidate = d - timedelta(days=delta)
+        if candidate in series:
+            return series[candidate]
+    return None
+
+
+def _fx_lookup(fx_series: dict[date, float], d: date, db: Session) -> float:
+    """USD→ILS at date d from the price-history cache, falling back to the
+    exchange_rates table extracted from broker PDFs."""
+    p = _price_at_or_before(fx_series, d)
+    return p if p else _get_exchange_rate(d, db)
 
 
 def _reconstruct_holdings(uid: str, cutoff: date, db: Session):
@@ -192,13 +198,25 @@ def _reconstruct_holdings(uid: str, cutoff: date, db: Session):
     return israeli, world
 
 
-def _portfolio_value_at(uid: str, target: date, db: Session, use_current: bool = False) -> Optional[dict]:
+def _portfolio_value_at(
+    uid: str,
+    target: date,
+    db: Session,
+    market: str = "all",
+    use_current: bool = False,
+) -> Optional[dict]:
     """
-    Compute portfolio ILS value at target date.
-    use_current=True pulls from stock_prices table instead of yfinance.
-    Returns None if prices are unavailable.
+    Portfolio ILS value at target date, computed from the local price cache
+    (stock_price_history). use_current=True uses the live stock_prices table
+    instead (for "today").
     """
+    from app.services import price_history_service as phs
+
     israeli_holdings, world_holdings = _reconstruct_holdings(uid, target, db)
+    if market == "israeli":
+        world_holdings = []
+    elif market == "world":
+        israeli_holdings = []
 
     if use_current:
         # Fetch all current prices in two batched queries
@@ -220,7 +238,6 @@ def _portfolio_value_at(uid: str, target: date, db: Session, use_current: bool =
             w_prices = {r[0]: float(r[1]) for r in rows if r[1] is not None}
 
         israeli_value = sum(float(qty) * il_prices[sym] for sym, _yf, qty in israeli_holdings if sym in il_prices)
-        world_value = 0.0
         fx = _get_exchange_rate(target, db)
         world_value = sum(float(qty) * w_prices[tkr] * fx for tkr, qty in world_holdings if tkr in w_prices)
 
@@ -231,28 +248,34 @@ def _portfolio_value_at(uid: str, target: date, db: Session, use_current: bool =
             "source": "live",
         }
 
-    # Fetch historical prices from yfinance
-    il_tickers = [yf for _, yf, _ in israeli_holdings]
-    w_tickers = [t for t, _ in world_holdings]
-    all_tickers = il_tickers + w_tickers
+    # Historical: read closes from the local cache (fills gaps on first use)
+    il_yf_tickers = [yf for _, yf, _ in israeli_holdings]
+    w_tickers = [t for t, _ in world_holdings if phs.valid_yf_ticker(t)]
+    window_start = target - timedelta(days=7)
 
-    prices = _fetch_historical_prices(all_tickers, target)
-    if not prices:
-        return None
+    phs.ensure_coverage(db, il_yf_tickers, 'israeli', window_start, target)
+    phs.ensure_coverage(db, w_tickers, 'world', window_start, target)
+    if w_tickers:
+        phs.ensure_fx_coverage(db, window_start, target)
 
-    fx = _get_exchange_rate(target, db)
+    series = phs.get_price_series(db, il_yf_tickers + w_tickers + [phs.FX_TICKER], window_start, target)
+    fx_series = series.get(phs.FX_TICKER, {})
+
     israeli_value = 0.0
     for symbol, yf_ticker, qty in israeli_holdings:
-        p = prices.get(yf_ticker)
+        p = _price_at_or_before(series.get(yf_ticker, {}), target)
         if p:
-            # yfinance .TA prices are in agorot → divide by 100 for ILS
-            israeli_value += float(qty) * (p / 100.0)
+            israeli_value += float(qty) * p     # cache stores ILS already
 
     world_value = 0.0
+    fx = _fx_lookup(fx_series, target, db) if world_holdings else 1.0
     for ticker, qty in world_holdings:
-        p = prices.get(ticker)
+        p = _price_at_or_before(series.get(ticker, {}), target)
         if p:
             world_value += float(qty) * p * fx
+
+    if israeli_value == 0.0 and world_value == 0.0 and (israeli_holdings or world_holdings):
+        return None
 
     return {
         "israeli_ils": round(israeli_value, 2),
@@ -266,12 +289,15 @@ def _portfolio_value_at(uid: str, target: date, db: Session, use_current: bool =
 def get_portfolio_analytics(
     start: str = Query(..., description="Period start date YYYY-MM-DD"),
     end: str = Query(..., description="Period end date YYYY-MM-DD"),
+    market: str = Query("all", pattern="^(all|israeli|world)$"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     Period analytics: realized P&L, dividends, commissions, transaction list,
-    and portfolio values at period start/end (via yfinance historical prices).
+    and portfolio values at period start/end — all from local data
+    (stock_price_history cache), no live provider calls in the request path.
+    World amounts (USD) are converted to ILS per transaction date.
     """
     try:
         start_date = date.fromisoformat(start)
@@ -279,100 +305,174 @@ def get_portfolio_analytics(
     except ValueError:
         raise HTTPException(status_code=400, detail="Dates must be YYYY-MM-DD")
 
+    from app.services import price_history_service as phs
+
     uid = str(current_user.id)
     today = date.today()
+    want_il = market in ("all", "israeli")
+    want_w = market in ("all", "world")
+
+    # Clamp to first transaction ("All" preset sends a far-past start date)
+    first_txn = _first_transaction_date(uid, market, db)
+    if first_txn and start_date < first_txn:
+        start_date = first_txn
+        start = str(start_date)
+
+    # FX series for converting world USD amounts to ILS per date
+    fx_series: dict = {}
+    if want_w:
+        phs.ensure_fx_coverage(db, start_date - timedelta(days=7), end_date)
+        fx_series = phs.get_price_series(
+            db, [phs.FX_TICKER], start_date - timedelta(days=7), end_date
+        ).get(phs.FX_TICKER, {})
 
     # ── Realized P&L ──────────────────────────────────────────────────────────
-    il_pl = db.execute(text("""
-        SELECT COALESCE(SUM(realized_pl), 0)
-        FROM israeli_stock_transactions
-        WHERE user_id = :uid
-          AND transaction_type = 'SELL'
-          AND transaction_date BETWEEN :s AND :e
-          AND realized_pl IS NOT NULL
-    """), {"uid": uid, "s": start_date, "e": end_date}).scalar() or 0
+    il_pl = 0.0
+    if want_il:
+        il_pl = db.execute(text("""
+            SELECT COALESCE(SUM(realized_pl), 0)
+            FROM israeli_stock_transactions
+            WHERE user_id = :uid
+              AND transaction_type = 'SELL'
+              AND transaction_date BETWEEN :s AND :e
+              AND realized_pl IS NOT NULL
+        """), {"uid": uid, "s": start_date, "e": end_date}).scalar() or 0
 
-    w_pl = db.execute(text("""
-        SELECT COALESCE(SUM(realized_pl), 0)
-        FROM world_stock_transactions
-        WHERE user_id = :uid
-          AND transaction_type = 'SELL'
-          AND transaction_date BETWEEN :s AND :e
-          AND realized_pl IS NOT NULL
-    """), {"uid": uid, "s": start_date, "e": end_date}).scalar() or 0
+    w_pl = 0.0
+    if want_w:
+        # world realized_pl is stored in USD → convert per sale date
+        w_pl_rows = db.execute(text("""
+            SELECT transaction_date, realized_pl, exchange_rate
+            FROM world_stock_transactions
+            WHERE user_id = :uid
+              AND transaction_type = 'SELL'
+              AND transaction_date BETWEEN :s AND :e
+              AND realized_pl IS NOT NULL
+        """), {"uid": uid, "s": start_date, "e": end_date}).fetchall()
+        for d, pl, ex in w_pl_rows:
+            rate = float(ex) if ex else _fx_lookup(fx_series, d, db)
+            w_pl += float(pl) * rate
 
     # ── Dividends ─────────────────────────────────────────────────────────────
-    il_div = db.execute(text("""
-        SELECT COALESCE(SUM(amount), 0), COALESCE(SUM(COALESCE(tax, 0)), 0)
-        FROM israeli_dividends
-        WHERE user_id = :uid AND payment_date BETWEEN :s AND :e
-    """), {"uid": uid, "s": start_date, "e": end_date}).fetchone()
-    il_div_gross, il_div_tax = float(il_div[0]), float(il_div[1])
+    il_div_gross = il_div_tax = 0.0
+    if want_il:
+        il_div = db.execute(text("""
+            SELECT COALESCE(SUM(amount), 0), COALESCE(SUM(COALESCE(tax, 0)), 0)
+            FROM israeli_dividends
+            WHERE user_id = :uid AND payment_date BETWEEN :s AND :e
+        """), {"uid": uid, "s": start_date, "e": end_date}).fetchone()
+        il_div_gross, il_div_tax = float(il_div[0]), float(il_div[1])
 
-    w_div = db.execute(text("""
-        SELECT COALESCE(SUM(amount), 0), COALESCE(SUM(COALESCE(tax, 0)), 0),
-               COALESCE(SUM(COALESCE(net_amount, amount)), 0)
-        FROM world_dividends
-        WHERE user_id = :uid AND payment_date BETWEEN :s AND :e
-    """), {"uid": uid, "s": start_date, "e": end_date}).fetchone()
-    w_div_gross, w_div_tax, w_div_net = float(w_div[0]), float(w_div[1]), float(w_div[2])
+    w_div_gross = w_div_tax = w_div_net = 0.0
+    if want_w:
+        # world dividends are USD → convert per payment date
+        w_div_rows = db.execute(text("""
+            SELECT payment_date, amount, COALESCE(tax, 0),
+                   COALESCE(net_amount, amount - COALESCE(tax, 0)), exchange_rate
+            FROM world_dividends
+            WHERE user_id = :uid AND payment_date BETWEEN :s AND :e
+        """), {"uid": uid, "s": start_date, "e": end_date}).fetchall()
+        for d, amount, tax, net, ex in w_div_rows:
+            rate = float(ex) if ex else _fx_lookup(fx_series, d, db)
+            w_div_gross += float(amount or 0) * rate
+            w_div_tax += float(tax or 0) * rate
+            w_div_net += float(net or 0) * rate
 
     # ── Commissions ───────────────────────────────────────────────────────────
-    il_comm = db.execute(text("""
-        SELECT COALESCE(SUM(COALESCE(commission, 0)), 0)
-        FROM israeli_stock_transactions
-        WHERE user_id = :uid AND transaction_date BETWEEN :s AND :e
-    """), {"uid": uid, "s": start_date, "e": end_date}).scalar() or 0
+    il_comm = 0.0
+    if want_il:
+        il_comm = db.execute(text("""
+            SELECT COALESCE(SUM(COALESCE(commission, 0)), 0)
+            FROM israeli_stock_transactions
+            WHERE user_id = :uid AND transaction_date BETWEEN :s AND :e
+        """), {"uid": uid, "s": start_date, "e": end_date}).scalar() or 0
 
-    w_comm = db.execute(text("""
-        SELECT COALESCE(SUM(COALESCE(commission, 0)), 0)
-        FROM world_stock_transactions
-        WHERE user_id = :uid AND transaction_date BETWEEN :s AND :e
-    """), {"uid": uid, "s": start_date, "e": end_date}).scalar() or 0
+    w_comm = 0.0
+    if want_w:
+        w_comm_rows = db.execute(text("""
+            SELECT transaction_date, COALESCE(commission, 0), exchange_rate
+            FROM world_stock_transactions
+            WHERE user_id = :uid AND transaction_date BETWEEN :s AND :e
+              AND COALESCE(commission, 0) <> 0
+        """), {"uid": uid, "s": start_date, "e": end_date}).fetchall()
+        for d, comm, ex in w_comm_rows:
+            rate = float(ex) if ex else _fx_lookup(fx_series, d, db)
+            w_comm += float(comm) * rate
 
-    # ── Transaction list ──────────────────────────────────────────────────────
-    il_txs = db.execute(text("""
-        SELECT transaction_date::text, transaction_type, symbol, company_name,
-               COALESCE(quantity, 0)::float, COALESCE(price, 0)::float,
-               COALESCE(total_value, 0)::float, COALESCE(commission, 0)::float,
-               COALESCE(realized_pl, 0)::float, currency
-        FROM israeli_stock_transactions
-        WHERE user_id = :uid AND transaction_date BETWEEN :s AND :e
-        ORDER BY transaction_date DESC
-    """), {"uid": uid, "s": start_date, "e": end_date}).fetchall()
-
-    w_txs = db.execute(text("""
-        SELECT transaction_date::text, transaction_type, ticker AS symbol,
-               ticker AS company_name,
-               COALESCE(quantity, 0)::float, COALESCE(price, 0)::float,
-               COALESCE(total_value, 0)::float, COALESCE(commission, 0)::float,
-               COALESCE(realized_pl, 0)::float, 'USD' AS currency
-        FROM world_stock_transactions
-        WHERE user_id = :uid AND transaction_date BETWEEN :s AND :e
-        ORDER BY transaction_date DESC
-    """), {"uid": uid, "s": start_date, "e": end_date}).fetchall()
-
+    # ── Transaction list + period stats (single pass) ─────────────────────────
     transactions = []
-    for row in il_txs:
-        transactions.append({
-            "date": row[0], "type": row[1], "symbol": row[2],
-            "company_name": row[3], "quantity": row[4], "price": row[5],
-            "total_value_ils": row[6], "commission": row[7],
-            "realized_pl": row[8], "currency": row[9], "market": "israeli",
-        })
-    for row in w_txs:
-        transactions.append({
-            "date": row[0], "type": row[1], "symbol": row[2],
-            "company_name": row[3], "quantity": row[4], "price": row[5],
-            "total_value_ils": row[6], "commission": row[7],
-            "realized_pl": row[8], "currency": row[9], "market": "world",
-        })
+    stats = {
+        "buys": 0, "sells": 0,
+        "buy_volume_ils": 0.0, "sell_volume_ils": 0.0,
+        "transaction_tax_ils": 0.0,
+    }
+    if want_il:
+        il_txs = db.execute(text("""
+            SELECT transaction_date::text, transaction_type, symbol, company_name,
+                   COALESCE(quantity, 0)::float, COALESCE(price, 0)::float,
+                   COALESCE(total_value, 0)::float, COALESCE(commission, 0)::float,
+                   COALESCE(realized_pl, 0)::float, currency,
+                   COALESCE(tax, 0)::float
+            FROM israeli_stock_transactions
+            WHERE user_id = :uid AND transaction_date BETWEEN :s AND :e
+            ORDER BY transaction_date DESC
+        """), {"uid": uid, "s": start_date, "e": end_date}).fetchall()
+        for row in il_txs:
+            transactions.append({
+                "date": row[0], "type": row[1], "symbol": row[2],
+                "company_name": row[3], "quantity": row[4], "price": row[5],
+                "total_value_ils": row[6], "commission": row[7],
+                "realized_pl": row[8], "currency": row[9], "market": "israeli",
+            })
+            if row[1] == 'BUY':
+                stats["buys"] += 1
+                stats["buy_volume_ils"] += row[6]
+            elif row[1] == 'SELL':
+                stats["sells"] += 1
+                stats["sell_volume_ils"] += row[6]
+            stats["transaction_tax_ils"] += row[10]
+
+    if want_w:
+        w_txs = db.execute(text("""
+            SELECT transaction_date::text, transaction_type, ticker AS symbol,
+                   COALESCE(company_name, ticker),
+                   COALESCE(quantity, 0)::float, COALESCE(price, 0)::float,
+                   COALESCE(total_value, 0)::float, COALESCE(commission, 0)::float,
+                   COALESCE(realized_pl, 0)::float, 'USD' AS currency,
+                   transaction_date AS tx_date, exchange_rate,
+                   COALESCE(tax, 0)::float
+            FROM world_stock_transactions
+            WHERE user_id = :uid AND transaction_date BETWEEN :s AND :e
+            ORDER BY tx_date DESC
+        """), {"uid": uid, "s": start_date, "e": end_date}).fetchall()
+        for row in w_txs:
+            rate = float(row[11]) if row[11] else _fx_lookup(fx_series, row[10], db)
+            value_ils = round(row[6] * rate, 2)
+            transactions.append({
+                "date": row[0], "type": row[1], "symbol": row[2],
+                "company_name": row[3], "quantity": row[4], "price": row[5],
+                "total_value_ils": value_ils, "commission": row[7],
+                "realized_pl": round(row[8] * rate, 2), "currency": row[9], "market": "world",
+            })
+            if row[1] == 'BUY':
+                stats["buys"] += 1
+                stats["buy_volume_ils"] += value_ils
+            elif row[1] == 'SELL':
+                stats["sells"] += 1
+                stats["sell_volume_ils"] += value_ils
+            stats["transaction_tax_ils"] += row[12] * rate
     transactions.sort(key=lambda t: t["date"], reverse=True)
 
+    # ── Top / worst trades by realized P&L ────────────────────────────────────
+    closed = [t for t in transactions if t["type"] == "SELL" and t["realized_pl"] != 0]
+    closed_sorted = sorted(closed, key=lambda t: t["realized_pl"], reverse=True)
+    top_trades = closed_sorted[:5]
+    worst_trades = [t for t in closed_sorted[-5:] if t["realized_pl"] < 0][::-1]
+
     # ── Portfolio values ───────────────────────────────────────────────────────
-    value_start = _portfolio_value_at(uid, start_date - timedelta(days=1), db, use_current=False)
+    value_start = _portfolio_value_at(uid, start_date - timedelta(days=1), db, market=market, use_current=False)
     value_end = _portfolio_value_at(
-        uid, end_date, db,
+        uid, end_date, db, market=market,
         use_current=(end_date >= today),
     )
 
@@ -412,6 +512,30 @@ def get_portfolio_analytics(
         },
         "transactions": transactions,
         "portfolio_values": portfolio_values,
+        "market": market,
+        "stats": {
+            "total_trades": stats["buys"] + stats["sells"],
+            "buys": stats["buys"],
+            "sells": stats["sells"],
+            "buy_volume_ils": round(stats["buy_volume_ils"], 2),
+            "sell_volume_ils": round(stats["sell_volume_ils"], 2),
+            "total_volume_ils": round(stats["buy_volume_ils"] + stats["sell_volume_ils"], 2),
+            "dividend_events": (
+                (db.execute(text(
+                    "SELECT COUNT(*) FROM israeli_dividends WHERE user_id = :uid AND payment_date BETWEEN :s AND :e"
+                ), {"uid": uid, "s": start_date, "e": end_date}).scalar() or 0 if want_il else 0)
+                + (db.execute(text(
+                    "SELECT COUNT(*) FROM world_dividends WHERE user_id = :uid AND payment_date BETWEEN :s AND :e"
+                ), {"uid": uid, "s": start_date, "e": end_date}).scalar() or 0 if want_w else 0)
+            ),
+            # dividend withholding + transaction-level tax
+            "total_tax_ils": round(
+                stats["transaction_tax_ils"] + il_div_tax + w_div_tax, 2
+            ),
+            "total_fees_ils": round(float(il_comm) + float(w_comm), 2),
+        },
+        "top_trades": top_trades,
+        "worst_trades": worst_trades,
     }
 
 
@@ -419,12 +543,14 @@ def get_portfolio_analytics(
 def get_portfolio_history(
     start: str = Query(...),
     end: str = Query(...),
+    market: str = Query("all", pattern="^(all|israeli|world)$"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Returns daily portfolio values for each trading day in [start, end].
-    One yfinance download per market fetches the entire price series at once.
+    Daily portfolio values for each trading day in [start, end], read from
+    the local stock_price_history cache. Missing ranges are bulk-fetched once
+    on first request; afterwards this is pure indexed SQL.
     """
     try:
         start_date = date.fromisoformat(start)
@@ -432,117 +558,91 @@ def get_portfolio_history(
     except ValueError:
         raise HTTPException(status_code=400, detail="Dates must be YYYY-MM-DD")
 
+    from app.services import price_history_service as phs
+
     uid = str(current_user.id)
-    today = date.today()
+    want_il = market in ("all", "israeli")
+    want_w = market in ("all", "world")
 
-    # ── 1. Collect every transaction the user ever made (up to end_date) ──────
-    il_all = db.execute(text("""
-        SELECT t.transaction_date, t.symbol,
-               COALESCE(s.yfinance_ticker, t.symbol || '.TA') AS yf_ticker,
-               t.transaction_type,
-               COALESCE(t.quantity, 0) AS qty
-        FROM israeli_stock_transactions t
-        LEFT JOIN israeli_stocks s ON s.symbol = t.symbol
-        WHERE t.user_id = :uid
-          AND t.transaction_type IN ('BUY', 'SELL')
-          AND t.transaction_date <= :e
-        ORDER BY t.transaction_date, t.id
-    """), {"uid": uid, "e": end_date}).fetchall()
+    # Clamp to first transaction ("All" preset sends a far-past start date)
+    first_txn = _first_transaction_date(uid, market, db)
+    if first_txn and start_date < first_txn:
+        start_date = first_txn
 
-    w_all = db.execute(text("""
-        SELECT transaction_date, ticker, transaction_type,
-               COALESCE(quantity, 0) AS qty
-        FROM world_stock_transactions
-        WHERE user_id = :uid
-          AND transaction_type IN ('BUY', 'SELL')
-          AND transaction_date <= :e
-        ORDER BY transaction_date, id
-    """), {"uid": uid, "e": end_date}).fetchall()
+    # ── 1. Collect transactions up to end_date (source of truth for quantities)
+    il_all = []
+    if want_il:
+        il_all = db.execute(text("""
+            SELECT t.transaction_date, t.symbol,
+                   COALESCE(s.yfinance_ticker, t.symbol || '.TA') AS yf_ticker,
+                   t.transaction_type,
+                   COALESCE(t.quantity, 0) AS qty
+            FROM israeli_stock_transactions t
+            LEFT JOIN israeli_stocks s ON s.symbol = t.symbol
+            WHERE t.user_id = :uid
+              AND t.transaction_type IN ('BUY', 'SELL')
+              AND t.transaction_date <= :e
+            ORDER BY t.transaction_date, t.id
+        """), {"uid": uid, "e": end_date}).fetchall()
 
-    # ── 2. Build lookup: (symbol → yf_ticker) and unique ticker sets ──────────
+    w_all = []
+    if want_w:
+        w_all = db.execute(text("""
+            SELECT transaction_date, ticker, transaction_type,
+                   COALESCE(quantity, 0) AS qty
+            FROM world_stock_transactions
+            WHERE user_id = :uid
+              AND transaction_type IN ('BUY', 'SELL')
+              AND transaction_date <= :e
+            ORDER BY transaction_date, id
+        """), {"uid": uid, "e": end_date}).fetchall()
+
+    # ── 2. Ticker sets — only what is actually held or traded in the window ───
     il_yf_map: dict[str, str] = {}     # symbol → yfinance ticker
     for row in il_all:
-        il_yf_map[row[1]] = row[2]    # symbol → yf_ticker
+        il_yf_map[row[1]] = row[2]
 
-    il_yf_tickers = list(set(il_yf_map.values()))
-    w_tickers_all = list(set(row[1] for row in w_all))
+    from collections import defaultdict as _dd
+    il_net_at_start: dict[str, float] = _dd(float)
+    il_active: set[str] = set()
+    for row in il_all:
+        if row[0] >= start_date:
+            il_active.add(row[1])
+        else:
+            il_net_at_start[row[1]] += float(row[4]) if row[3] == 'BUY' else -float(row[4])
+    il_active |= {s for s, q in il_net_at_start.items() if q > 1e-9}
 
-    # Filter obviously invalid world tickers before hitting yfinance
-    def _valid_ticker(t: str) -> bool:
-        if not t or len(t) > 12:
-            return False
-        if any(c in t for c in (' ', '/', '\\', '(', ')', 'א', 'ב', 'ג', 'ד')):
-            return False
-        try:
-            int(t)   # pure numbers are not valid tickers
-            return False
-        except ValueError:
-            pass
-        return True
+    w_net_at_start: dict[str, float] = _dd(float)
+    w_active: set[str] = set()
+    for row in w_all:
+        if row[0] >= start_date:
+            w_active.add(row[1])
+        else:
+            w_net_at_start[row[1]] += float(row[3]) if row[2] == 'BUY' else -float(row[3])
+    w_active |= {t for t, q in w_net_at_start.items() if q > 1e-9}
 
-    w_tickers_valid = [t for t in w_tickers_all if _valid_ticker(t)]
+    il_yf_tickers = list({il_yf_map[s] for s in il_active if s in il_yf_map})
+    w_tickers_valid = [t for t in w_active if phs.valid_yf_ticker(t)]
 
-    # ── 3. Download full price history in one call per market ─────────────────
-    def _download_history(tickers: list[str], s: date, e: date) -> dict[str, dict[date, float]]:
-        """Returns {ticker: {date: close_price}}"""
-        if not tickers:
-            return {}
-        try:
-            import yfinance as yf
-            import pandas as pd
-            fetch_end = min(e + timedelta(days=1), today + timedelta(days=1))
-            hist = yf.download(
-                tickers, start=str(s), end=str(fetch_end),
-                auto_adjust=True, progress=False, threads=True,
-            )
-            if hist.empty:
-                return {}
-            close = hist["Close"]
-            result: dict[str, dict[date, float]] = {}
-            if len(tickers) == 1:
-                # Series, not DataFrame
-                for idx, val in close.items():
-                    if pd.notna(val):
-                        d = idx.date() if hasattr(idx, 'date') else idx
-                        result.setdefault(tickers[0], {})[d] = float(val)
-            else:
-                for ticker in tickers:
-                    if ticker not in close.columns:
-                        continue
-                    for idx, val in close[ticker].items():
-                        if pd.notna(val):
-                            d = idx.date() if hasattr(idx, 'date') else idx
-                            result.setdefault(ticker, {})[d] = float(val)
-            return result
-        except Exception:
-            return {}
+    # ── 3. Ensure the cache covers the period, then read it (indexed SQL) ─────
+    window_start = start_date - timedelta(days=7)
+    phs.ensure_coverage(db, il_yf_tickers, 'israeli', window_start, end_date)
+    phs.ensure_coverage(db, w_tickers_valid, 'world', window_start, end_date)
+    if w_tickers_valid:
+        phs.ensure_fx_coverage(db, window_start, end_date)
 
-    il_prices = _download_history(il_yf_tickers, start_date - timedelta(days=7), end_date)
-    w_prices = _download_history(w_tickers_valid, start_date - timedelta(days=7), end_date)
-
-    # Also fetch USD/ILS rate history
-    fx_history = _download_history(["USDILS=X"], start_date - timedelta(days=7), end_date)
-    fx_series: dict[date, float] = fx_history.get("USDILS=X", {})
+    all_series = phs.get_price_series(
+        db, il_yf_tickers + w_tickers_valid + ([phs.FX_TICKER] if w_tickers_valid else []),
+        window_start, end_date,
+    )
+    il_prices = {t: all_series.get(t, {}) for t in il_yf_tickers}    # ILS
+    w_prices = {t: all_series.get(t, {}) for t in w_tickers_valid}   # USD
+    fx_series: dict[date, float] = all_series.get(phs.FX_TICKER, {})
 
     def _fx_at(d: date) -> float:
-        """Nearest available USD→ILS rate on or before d."""
-        if fx_series:
-            candidates = [(k, v) for k, v in fx_series.items() if k <= d]
-            if candidates:
-                return max(candidates, key=lambda x: x[0])[1]
-        # Fall back to DB
-        return _get_exchange_rate(d, db)
+        return _fx_lookup(fx_series, d, db)
 
-    def _price_at(price_dict: dict[date, float], d: date) -> Optional[float]:
-        """Nearest available price on or before d (handles weekends/holidays)."""
-        if d in price_dict:
-            return price_dict[d]
-        # Look back up to 5 days
-        for delta in range(1, 6):
-            candidate = d - timedelta(days=delta)
-            if candidate in price_dict:
-                return price_dict[candidate]
-        return None
+    _price_at = _price_at_or_before
 
     # ── 4. Compute running holdings tally ─────────────────────────────────────
     # Index transactions by date for fast forward-scan
@@ -563,7 +663,7 @@ def get_portfolio_history(
     for d_map in w_prices.values():
         all_price_dates.update(d_map.keys())
     if not all_price_dates:
-        return {"points": [], "currency": "ILS"}
+        return {"points": [], "currency": "ILS", "market": market}
 
     trading_days = sorted(d for d in all_price_dates if start_date <= d <= end_date)
 
@@ -599,7 +699,7 @@ def get_portfolio_history(
                 ticker, qty, tx_type = row[1], float(row[3]), row[2]
                 w_holdings[ticker] += qty if tx_type == 'BUY' else -qty
 
-        # Value Israeli holdings (agorot → ILS ÷ 100)
+        # Value Israeli holdings (cache stores ILS)
         il_value = 0.0
         for sym, qty in il_holdings.items():
             if qty <= 0:
@@ -609,13 +709,13 @@ def get_portfolio_history(
                 continue
             p = _price_at(il_prices.get(yf_ticker, {}), day)
             if p:
-                il_value += qty * (p / 100.0)
+                il_value += qty * p
 
         # Value world holdings (USD → ILS)
-        fx = _fx_at(day)
         w_value = 0.0
+        fx = _fx_at(day) if w_holdings else 1.0
         for ticker, qty in w_holdings.items():
-            if qty <= 0 or not _valid_ticker(ticker):
+            if qty <= 0:
                 continue
             p = _price_at(w_prices.get(ticker, {}), day)
             if p:
@@ -629,4 +729,4 @@ def get_portfolio_history(
         })
         prev_day = day
 
-    return {"points": points, "currency": "ILS"}
+    return {"points": points, "currency": "ILS", "market": market}

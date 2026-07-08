@@ -185,16 +185,18 @@ export const portfolioAPI = {
     return response.data;
   },
 
-  getAnalytics: async (start: string, end: string) => {
-    const response = await api.get(`/portfolio/analytics?start=${start}&end=${end}`);
+  getAnalytics: async (start: string, end: string, market: AnalyticsMarket = 'all') => {
+    const response = await api.get(`/portfolio/analytics?start=${start}&end=${end}&market=${market}`);
     return response.data as PortfolioAnalytics;
   },
 
-  getHistory: async (start: string, end: string) => {
-    const response = await api.get(`/portfolio/analytics/history?start=${start}&end=${end}`);
+  getHistory: async (start: string, end: string, market: AnalyticsMarket = 'all') => {
+    const response = await api.get(`/portfolio/analytics/history?start=${start}&end=${end}&market=${market}`);
     return response.data as { points: HistoryPoint[]; currency: string };
   },
 };
+
+export type AnalyticsMarket = 'all' | 'israeli' | 'world';
 
 export interface HistoryPoint {
   date: string;
@@ -246,6 +248,19 @@ export interface PortfolioAnalytics {
     change_ils: number;
     return_pct: number | null;
   } | null;
+  stats: {
+    total_trades: number;
+    buys: number;
+    sells: number;
+    buy_volume_ils: number;
+    sell_volume_ils: number;
+    total_volume_ils: number;
+    dividend_events: number;
+    total_tax_ils: number;
+    total_fees_ils: number;
+  };
+  top_trades: AnalyticsTransaction[];
+  worst_trades: AnalyticsTransaction[];
 }
 
 // Transaction API
