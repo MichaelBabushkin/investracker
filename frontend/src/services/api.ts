@@ -190,19 +190,57 @@ export const portfolioAPI = {
     return response.data as PortfolioAnalytics;
   },
 
-  getHistory: async (start: string, end: string, market: AnalyticsMarket = 'all') => {
-    const response = await api.get(`/portfolio/analytics/history?start=${start}&end=${end}&market=${market}`);
+  getHistory: async (start: string, end: string, market: AnalyticsMarket = 'all', benchmarks: string = '') => {
+    const response = await api.get(
+      `/portfolio/analytics/history?start=${start}&end=${end}&market=${market}&benchmarks=${benchmarks}`
+    );
     return response.data as { points: HistoryPoint[]; currency: string };
+  },
+
+  getStockAnalytics: async (symbol: string, market: 'israeli' | 'world', start: string, end: string) => {
+    const response = await api.get(
+      `/portfolio/analytics/stock?symbol=${encodeURIComponent(symbol)}&market=${market}&start=${start}&end=${end}`
+    );
+    return response.data as StockAnalytics;
+  },
+
+  getDividendHistory: async (start: string, end: string, market: AnalyticsMarket = 'all') => {
+    const response = await api.get(`/portfolio/analytics/dividends?start=${start}&end=${end}&market=${market}`);
+    return response.data as { items: DividendEvent[]; total_net_ils: number };
   },
 };
 
 export type AnalyticsMarket = 'all' | 'israeli' | 'world';
+
+export interface StockAnalytics {
+  symbol: string;
+  market: 'israeli' | 'world';
+  points: Array<{ date: string; close: number; qty: number; value_ils: number }>;
+  trades: Array<{ date: string; type: string; quantity: number; price: number; total_value_ils: number; realized_pl_ils: number }>;
+  summary: {
+    current_qty: number;
+    start_value_ils: number;
+    end_value_ils: number;
+    realized_pl_ils: number;
+    dividends_net_ils: number;
+  };
+}
+
+export interface DividendEvent {
+  date: string;
+  symbol: string;
+  market: 'israeli' | 'world';
+  net_ils: number;
+  cumulative_ils: number;
+}
 
 export interface HistoryPoint {
   date: string;
   total_ils: number;
   israeli_ils: number;
   world_ils: number;
+  bm_ta125?: number;
+  bm_sp500?: number;
 }
 
 export interface AnalyticsTransaction {
@@ -217,6 +255,7 @@ export interface AnalyticsTransaction {
   realized_pl: number;
   currency: string;
   market: "israeli" | "world";
+  purchase_date?: string;
 }
 
 export interface PortfolioAnalytics {

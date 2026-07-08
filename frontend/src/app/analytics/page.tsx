@@ -5,6 +5,9 @@ import { TrendingUp, TrendingDown, BarChart3, DollarSign, Landmark, Globe2, Cale
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { portfolioAPI, PortfolioAnalytics, AnalyticsTransaction, HistoryPoint, AnalyticsMarket } from "@/services/api";
 import PortfolioHistoryChart from "@/components/PortfolioHistoryChart";
+import MonthlyReturnsStrip from "@/components/MonthlyReturnsStrip";
+import DividendIncomeChart from "@/components/DividendIncomeChart";
+import StockDrilldownModal from "@/components/StockDrilldownModal";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -68,12 +71,12 @@ function presetDates(preset: Preset): { start: string; end: string } {
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
-function fmtILS(v: number | null | undefined, short = false): string {
+function fmtILS(v: number | null | undefined, short = false, decimals = 2): string {
   if (v == null) return "—";
   const abs = Math.abs(v);
-  if (short && abs >= 1_000_000) return `₪${(v / 1_000_000).toFixed(2)}M`;
-  if (short && abs >= 1_000) return `₪${(v / 1_000).toFixed(1)}K`;
-  return `₪${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (short && abs >= 1_000_000) return `₪${(v / 1_000_000).toFixed(decimals)}M`;
+  if (short && abs >= 1_000) return `₪${(v / 1_000).toFixed(decimals)}K`;
+  return `₪${v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
 }
 
 function fmtPct(v: number | null | undefined): string {
@@ -148,7 +151,13 @@ const TYPE_STYLES: Record<string, string> = {
 
 const PAGE_SIZE = 20;
 
-function TxTable({ transactions }: { transactions: AnalyticsTransaction[] }) {
+function TxTable({
+  transactions,
+  onStockClick,
+}: {
+  transactions: AnalyticsTransaction[];
+  onStockClick?: (symbol: string, market: "israeli" | "world") => void;
+}) {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [marketFilter, setMarketFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
@@ -246,10 +255,16 @@ function TxTable({ transactions }: { transactions: AnalyticsTransaction[] }) {
                   </span>
                 </td>
                 <td className="px-4 py-3 font-medium text-gray-200 whitespace-nowrap">
-                  <div>{tx.symbol}</div>
-                  {tx.company_name && tx.company_name !== tx.symbol && (
-                    <div className="text-xs text-gray-500 truncate max-w-[140px]">{tx.company_name}</div>
-                  )}
+                  <button
+                    onClick={() => onStockClick?.(tx.symbol, tx.market)}
+                    className="text-left hover:text-brand-400 transition-colors"
+                    title="View stock details"
+                  >
+                    <div>{tx.symbol}</div>
+                    {tx.company_name && tx.company_name !== tx.symbol && (
+                      <div className="text-xs text-gray-500 truncate max-w-[140px]">{tx.company_name}</div>
+                    )}
+                  </button>
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums text-gray-400">
                   {tx.quantity ? tx.quantity.toLocaleString() : "—"}
@@ -339,6 +354,8 @@ export default function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null);
   const [historyPoints, setHistoryPoints] = useState<HistoryPoint[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [benchmarks, setBenchmarks] = useState<string[]>([]);   // 'ta125' | 'sp500'
+  const [drilldown, setDrilldown] = useState<{ symbol: string; market: "israeli" | "world" } | null>(null);
 
   const activeDates = preset === "custom"
     ? { start: customStart, end: customEnd }
@@ -358,12 +375,12 @@ export default function AnalyticsPage() {
     }
   }, []);
 
-  const fetchHistory = useCallback(async (start: string, end: string, mk: AnalyticsMarket) => {
+  const fetchHistory = useCallback(async (start: string, end: string, mk: AnalyticsMarket, bms: string[]) => {
     if (!start || !end || start > end) return;
     setHistoryLoading(true);
     setHistoryPoints(null);
     try {
-      const result = await portfolioAPI.getHistory(start, end, mk);
+      const result = await portfolioAPI.getHistory(start, end, mk, bms.join(","));
       setHistoryPoints(result.points);
     } catch {
       setHistoryPoints([]);
@@ -372,25 +389,28 @@ export default function AnalyticsPage() {
     }
   }, []);
 
-  // Fetch both when preset or market changes
+  // Fetch both when preset, market, or benchmarks change
   useEffect(() => {
     if (preset !== "custom") {
       const { start, end } = presetDates(preset);
       fetchAnalytics(start, end, market);
-      fetchHistory(start, end, market);
+      fetchHistory(start, end, market, benchmarks);
     } else if (customStart && customEnd && customStart <= customEnd) {
       fetchAnalytics(customStart, customEnd, market);
-      fetchHistory(customStart, customEnd, market);
+      fetchHistory(customStart, customEnd, market, benchmarks);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preset, market, fetchAnalytics, fetchHistory]);
+  }, [preset, market, benchmarks, fetchAnalytics, fetchHistory]);
 
   const handleCustomApply = () => {
     if (customStart && customEnd && customStart <= customEnd) {
       fetchAnalytics(customStart, customEnd, market);
-      fetchHistory(customStart, customEnd, market);
+      fetchHistory(customStart, customEnd, market, benchmarks);
     }
   };
+
+  const toggleBenchmark = (id: string) =>
+    setBenchmarks((prev) => (prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]));
 
   const pv = data?.portfolio_values;
   const returnPositive = pv?.change_ils != null ? pv.change_ils >= 0 : undefined;
@@ -511,7 +531,7 @@ export default function AnalyticsPage() {
           />
           <MetricCard
             label="Portfolio Return"
-            value={pv ? `${fmtILS(pv.change_ils, true)} (${fmtPct(pv.return_pct)})` : "—"}
+            value={pv ? `${fmtILS(pv.change_ils, false, 2)} (${fmtPct(pv.return_pct)})` : "—"}
             icon={returnPositive === false ? TrendingDown : TrendingUp}
             positive={returnPositive}
             loading={loading}
@@ -557,11 +577,31 @@ export default function AnalyticsPage() {
 
         {/* ── Portfolio history chart ── */}
         <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5 mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h2 className="text-base font-heading font-semibold text-gray-100">Portfolio Value Over Time</h2>
-            {historyPoints && historyPoints.length > 0 && (
-              <span className="text-xs text-gray-500">{historyPoints.length} trading days</span>
-            )}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-600">Compare:</span>
+              {[
+                { id: "ta125", label: "TA-125", color: "#F59E0B" },
+                { id: "sp500", label: "S&P 500", color: "#818CF8" },
+              ].map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => toggleBenchmark(b.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    benchmarks.includes(b.id)
+                      ? "border-current"
+                      : "border-white/5 text-gray-500 hover:text-gray-300 bg-white/[0.02]"
+                  }`}
+                  style={benchmarks.includes(b.id) ? { color: b.color, background: `${b.color}1a` } : undefined}
+                >
+                  {b.label}
+                </button>
+              ))}
+              {historyPoints && historyPoints.length > 0 && (
+                <span className="text-xs text-gray-500 ml-2">{historyPoints.length} trading days</span>
+              )}
+            </div>
           </div>
           {historyLoading ? (
             <div className="flex flex-col gap-2">
@@ -577,6 +617,20 @@ export default function AnalyticsPage() {
               No price data available for this period
             </div>
           ) : null}
+        </div>
+
+        {/* ── Monthly returns + dividend income ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+          {historyPoints && historyPoints.length > 0 && data && (
+            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
+              <h2 className="text-sm font-heading font-semibold text-gray-200 mb-3">Monthly Returns</h2>
+              <MonthlyReturnsStrip points={historyPoints} transactions={data.transactions} />
+            </div>
+          )}
+          <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
+            <h2 className="text-sm font-heading font-semibold text-gray-200 mb-3">Dividend Income</h2>
+            <DividendIncomeChart start={activeDates.start} end={activeDates.end} market={market} />
+          </div>
         </div>
 
         {/* ── Market breakdown ── */}
@@ -664,16 +718,25 @@ export default function AnalyticsPage() {
               ) : (
                 <div className="flex flex-col divide-y divide-white/5">
                   {data.top_trades.filter((t) => t.realized_pl > 0).map((t, i) => (
-                    <div key={i} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
+                    <button
+                      key={i}
+                      onClick={() => setDrilldown({ symbol: t.symbol, market: t.market })}
+                      className="flex items-center justify-between py-2 first:pt-0 last:pb-0 text-left hover:bg-white/[0.02] rounded-lg px-1 -mx-1 transition-colors"
+                    >
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-xs text-gray-600 w-4">{i + 1}.</span>
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-200 truncate">{t.symbol}</div>
-                          <div className="text-[11px] text-gray-500">{fmtDate(t.date)} · {t.quantity.toLocaleString()} shares</div>
+                          <div className="text-[11px] text-gray-500">
+                            {t.purchase_date && t.purchase_date !== t.date
+                              ? `${fmtDate(t.purchase_date)} - ${fmtDate(t.date)}`
+                              : fmtDate(t.date)}{" "}
+                            · {t.quantity.toLocaleString()} shares
+                          </div>
                         </div>
                       </div>
                       <span className="text-sm font-semibold tabular-nums text-gain">{fmtILS(t.realized_pl)}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -688,16 +751,25 @@ export default function AnalyticsPage() {
               ) : (
                 <div className="flex flex-col divide-y divide-white/5">
                   {data.worst_trades.map((t, i) => (
-                    <div key={i} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
+                    <button
+                      key={i}
+                      onClick={() => setDrilldown({ symbol: t.symbol, market: t.market })}
+                      className="flex items-center justify-between py-2 first:pt-0 last:pb-0 text-left hover:bg-white/[0.02] rounded-lg px-1 -mx-1 transition-colors"
+                    >
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-xs text-gray-600 w-4">{i + 1}.</span>
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-200 truncate">{t.symbol}</div>
-                          <div className="text-[11px] text-gray-500">{fmtDate(t.date)} · {t.quantity.toLocaleString()} shares</div>
+                          <div className="text-[11px] text-gray-500">
+                            {t.purchase_date && t.purchase_date !== t.date
+                              ? `${fmtDate(t.purchase_date)} - ${fmtDate(t.date)}`
+                              : fmtDate(t.date)}{" "}
+                            · {t.quantity.toLocaleString()} shares
+                          </div>
                         </div>
                       </div>
                       <span className="text-sm font-semibold tabular-nums text-loss">{fmtILS(t.realized_pl)}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -716,9 +788,23 @@ export default function AnalyticsPage() {
               {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12" />)}
             </div>
           ) : data ? (
-            <TxTable transactions={data.transactions} />
+            <TxTable
+              transactions={data.transactions}
+              onStockClick={(symbol, mk) => setDrilldown({ symbol, market: mk })}
+            />
           ) : null}
         </div>
+
+        {/* ── Stock drill-down modal ── */}
+        {drilldown && (
+          <StockDrilldownModal
+            symbol={drilldown.symbol}
+            market={drilldown.market}
+            start={activeDates.start}
+            end={activeDates.end}
+            onClose={() => setDrilldown(null)}
+          />
+        )}
       </div>
     </ProtectedRoute>
   );

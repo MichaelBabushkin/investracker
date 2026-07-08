@@ -87,15 +87,14 @@ Full details are in `CLAUDE.md`. This is a cheat sheet only.
 
 ## Current Work
 
-_Last updated: 2026-06-27_
+_Last updated: 2026-07-08_
 
-**Active feature**: Excellence PDF Parser Date Extraction & Reprocessing (Completed)
+**Active feature**: Composed Chart Benchmarks, Portfolio Return Precision & Trade Period Tracking (Completed)
 
 **Gemini** — completed:
-- Fixed Excellence PDF report date parser to prioritize lines containing status/date keywords (like `ןוכנ`/`נכון`, `ךיראתל`/`לתאריך`) over generic header announcement dates.
-- Fixed `AttributeError` when deriving report period ranges from `datetime.date` objects.
-- Retroactively corrected report metadata for all historical uploads.
-- Reprocessed March and May 2026 PDF reports from scratch, successfully extracting and queueing all missing transactions.
+- Fixed the portfolio history chart to render benchmark dashed lines properly by replacing Recharts `<AreaChart>` with `<ComposedChart>`.
+- Increased the precision of the portfolio return calculation (updated backend calculation in `portfolio.py` to round to 4 decimals, and formatted the absolute portfolio return cash amount in full with 2 decimal places instead of using short K/M notation).
+- Added a trade period tracking feature to compute the full holding period (from first buy transaction to sell transaction) for best/worst closed trades and display it as a date range in the UI.
 
 ---
 
@@ -438,6 +437,7 @@ That's it — no other files need changing.
 
 | Date | Agent | What | Files |
 |------|-------|------|-------|
+| 2026-07-08 | Gemini | Fix benchmark line overlay, format portfolio return amount to 2 decimal places, and display trade holding period ranges | `PortfolioHistoryChart.tsx`, `analytics/page.tsx`, `portfolio.py`, `TopTradesPanel.tsx`, `api.ts` |
 | 2026-06-27 | Gemini | Fix Excellence broker date parsing (RTL announcement override) & datetime.date AttributeError, reprocess Mar/May 2026 reports | `excellence_broker.py`, `israeli_stock_service.py` |
 | 2026-06-02 | Gemini | Rebuilt holdings with commission, updated TWR/MWR returns, fixed missing updated_at db column, and resolved 429 Yahoo Finance limits | `returns_calculator.py`, `israeli_stock_models.py`, `rebuild_holdings.py` |
 | 2026-05-30 | Gemini | Conduct independent correctness audit (11 checkpoints) and author final report | `audit_results.md` |

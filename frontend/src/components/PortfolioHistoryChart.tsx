@@ -1,8 +1,9 @@
 "use client";
 
 import {
-  AreaChart,
+  ComposedChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -16,6 +17,11 @@ interface Props {
   points: HistoryPoint[];
   startValue?: number | null;
 }
+
+const BM_STYLE: Record<string, { label: string; color: string }> = {
+  bm_ta125: { label: "TA-125", color: "#F59E0B" },
+  bm_sp500: { label: "S&P 500", color: "#818CF8" },
+};
 
 function fmtILS(v: number): string {
   if (Math.abs(v) >= 1_000_000)
@@ -65,6 +71,16 @@ function ChartTooltip({ active, payload, label }: any) {
               <span className="tabular-nums text-gray-200">{fmtILS(p.world_ils)}</span>
             </div>
           )}
+          {(Object.keys(BM_STYLE) as Array<keyof typeof BM_STYLE>).map((k) => {
+            const v = (p as any)[k];
+            if (v == null) return null;
+            return (
+              <div key={k} className="flex justify-between gap-4 text-xs">
+                <span style={{ color: BM_STYLE[k].color }}>{BM_STYLE[k].label}</span>
+                <span className="tabular-nums text-gray-400">{fmtILS(v)}</span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -88,7 +104,13 @@ export default function PortfolioHistoryChart({ points, startValue }: Props) {
   const tickFormatter = (_: any, index: number) =>
     tickIndices.has(index) ? fmtDate(points[index].date) : "";
 
-  const values = points.map((p) => p.total_ils);
+  const activeBms = (Object.keys(BM_STYLE) as Array<keyof typeof BM_STYLE>).filter(
+    (k) => points.some((p) => (p as any)[k] != null)
+  );
+  const values = points.flatMap((p) => [
+    p.total_ils,
+    ...activeBms.map((k) => (p as any)[k]).filter((v: number | undefined) => v != null),
+  ]);
   const minVal = Math.min(...values);
   const maxVal = Math.max(...values);
   const padding = (maxVal - minVal) * 0.08 || maxVal * 0.05;
@@ -104,9 +126,9 @@ export default function PortfolioHistoryChart({ points, startValue }: Props) {
   const gradientColor = isPositive ? "#4ADE80" : "#F43F5E";
 
   return (
-    <div className="w-full" style={{ height: 280 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
+    <div className="w-full">
+      <ResponsiveContainer width="100%" height={280}>
+        <ComposedChart
           data={points}
           margin={{ top: 8, right: 8, left: 8, bottom: 4 }}
         >
@@ -169,8 +191,40 @@ export default function PortfolioHistoryChart({ points, startValue }: Props) {
               strokeWidth: 2,
             }}
           />
-        </AreaChart>
+
+          {activeBms.map((k) => (
+            <Line
+              key={k}
+              type="monotone"
+              dataKey={k}
+              stroke={BM_STYLE[k].color}
+              strokeWidth={1.5}
+              strokeDasharray="5 3"
+              dot={false}
+              activeDot={false}
+              connectNulls
+            />
+          ))}
+        </ComposedChart>
       </ResponsiveContainer>
+
+      {activeBms.length > 0 && (
+        <div className="flex items-center gap-4 mt-1 px-2">
+          <span className="flex items-center gap-1.5 text-[11px] text-gray-500">
+            <span className="inline-block w-4 h-0.5 rounded" style={{ background: lineColor }} />
+            Portfolio
+          </span>
+          {activeBms.map((k) => (
+            <span key={k} className="flex items-center gap-1.5 text-[11px] text-gray-500">
+              <span
+                className="inline-block w-4 h-0.5 rounded"
+                style={{ background: BM_STYLE[k].color }}
+              />
+              {BM_STYLE[k].label}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
