@@ -8,6 +8,7 @@ import PortfolioHistoryChart from "@/components/PortfolioHistoryChart";
 import MonthlyReturnsStrip from "@/components/MonthlyReturnsStrip";
 import DividendIncomeChart from "@/components/DividendIncomeChart";
 import StockDrilldownModal from "@/components/StockDrilldownModal";
+import AllTimeOverview from "@/components/AllTimeOverview";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -79,9 +80,9 @@ function fmtILS(v: number | null | undefined, short = false, decimals = 2): stri
   return `₪${v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
 }
 
-function fmtPct(v: number | null | undefined): string {
+function fmtPct(v: number | null | undefined, decimals = 2): string {
   if (v == null) return "—";
-  return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
+  return `${v >= 0 ? "+" : ""}${v.toFixed(decimals)}%`;
 }
 
 function fmtDate(s: string): string {
@@ -480,6 +481,9 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
+        {/* ── All-time overview (period-independent) ── */}
+        <AllTimeOverview />
+
         {/* Custom date range row */}
         {showCustom && preset === "custom" && (
           <div className="flex items-center gap-2 mb-6 p-4 bg-surface-dark-secondary border border-white/8 rounded-xl">
@@ -531,7 +535,7 @@ export default function AnalyticsPage() {
           />
           <MetricCard
             label="Portfolio Return"
-            value={pv ? `${fmtILS(pv.change_ils, false, 2)} (${fmtPct(pv.return_pct)})` : "—"}
+            value={pv ? `${fmtILS(pv.change_ils, false, 2)} (${fmtPct(pv.return_pct, 3)})` : "—"}
             icon={returnPositive === false ? TrendingDown : TrendingUp}
             positive={returnPositive}
             loading={loading}
