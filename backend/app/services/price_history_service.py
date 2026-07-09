@@ -13,6 +13,7 @@ Unit conventions match the rest of the DB:
 """
 import logging
 import re
+import time
 from datetime import date, timedelta
 from typing import Optional
 
@@ -31,6 +32,20 @@ _MIN_GAP_DAYS = 4
 # renamed, or garbage) — don't retry them on every request
 _failed_tickers: set[str] = set()
 
+# Small tail gaps (1-3 days) are usually weekends/holidays or data that isn't
+# published yet. Retry them, but at most once per TTL per ticker so charts of
+# recent days stay fresh without a yfinance call on every request.
+_TAIL_CHECK_TTL_SEC = 900
+_tail_checked: dict[str, float] = {}
+
+
+def _tail_due(ticker: str) -> bool:
+    now = time.time()
+    if now - _tail_checked.get(ticker, 0) < _TAIL_CHECK_TTL_SEC:
+        return False
+    _tail_checked[ticker] = now
+    return True
+
 
 def valid_yf_ticker(t: str) -> bool:
     """Filter out garbage tickers (Hebrew fragments, security numbers, names)."""
@@ -45,8 +60,18 @@ def valid_yf_ticker(t: str) -> bool:
     return True
 
 
-def _download(tickers: list[str], start: date, end: date) -> dict[str, dict[date, float]]:
-    """One bulk yfinance call. Returns {ticker: {date: close}}. Empty on failure."""
+def _download(
+    tickers: list[str],
+    start: date,
+    end: date,
+    mark_failures: bool = True,
+) -> dict[str, dict[date, float]]:
+    """One bulk yfinance call. Returns {ticker: {date: close}}. Empty on failure.
+
+    mark_failures should be True only for full-range fetches of new tickers:
+    a head/tail refresh returning nothing (weekend, pre-IPO) is not evidence
+    the ticker is dead.
+    """
     if not tickers:
         return {}
     tickers = [t for t in tickers if t not in _failed_tickers]
@@ -62,7 +87,8 @@ def _download(tickers: list[str], start: date, end: date) -> dict[str, dict[date
             auto_adjust=False, progress=False, threads=True,
         )
         if hist.empty:
-            _failed_tickers.update(tickers)
+            if mark_failures:
+                _failed_tickers.update(tickers)
             return {}
         close = hist["Close"]
         # Normalize to a DataFrame with one column per ticker: yfinance returns
@@ -80,9 +106,10 @@ def _download(tickers: list[str], start: date, end: date) -> dict[str, dict[date
                 if pd.notna(val):
                     result.setdefault(ticker, {})[idx.date()] = float(val)
         # Remember tickers that produced no data so we don't retry each request
-        for t in tickers:
-            if t not in result:
-                _failed_tickers.add(t)
+        if mark_failures:
+            for t in tickers:
+                if t not in result:
+                    _failed_tickers.add(t)
         return result
     except Exception as e:
         logger.warning(f"yfinance download failed for {tickers}: {e}")
@@ -103,16 +130,42 @@ def _coverage(db: Session, tickers: list[str]) -> dict[str, tuple[Optional[date]
 
 
 def _store(db: Session, market: str, prices: dict[str, dict[date, float]]) -> int:
-    """Upsert downloaded closes. Israeli agorot → ILS."""
+    """Upsert downloaded closes. Israeli agorot → ILS.
+
+    Guards against provider glitches (e.g. a broken intraday FX bar 80x off):
+    a close that jumps more than 5x vs the previous known close is dropped.
+    Existing rows are updated, so today's partial bar self-corrects on the
+    next refresh instead of being frozen forever.
+    """
     inserted = 0
     for ticker, series in prices.items():
         divisor = 100.0 if market == 'israeli' else 1.0
-        for d, close in series.items():
+        # Seed the plausibility check with the last stored close before the
+        # new series begins
+        first_new = min(series.keys())
+        row = db.execute(text("""
+            SELECT close_price FROM stock_price_history
+            WHERE ticker = :tk AND date < :d ORDER BY date DESC LIMIT 1
+        """), {"tk": ticker, "d": first_new}).fetchone()
+        prev = float(row[0]) if row else None
+
+        for d in sorted(series.keys()):
+            value = series[d] / divisor
+            if prev is not None and prev > 0:
+                ratio = value / prev
+                if ratio > 5 or ratio < 0.2:
+                    logger.warning(
+                        f"Rejecting implausible close for {ticker} {d}: "
+                        f"{value} (prev {prev})"
+                    )
+                    continue
             db.execute(text("""
                 INSERT INTO stock_price_history (ticker, market, date, close_price, created_at)
                 VALUES (:tk, :mk, :d, :p, now())
-                ON CONFLICT (ticker, date) DO NOTHING
-            """), {"tk": ticker, "mk": market, "d": d, "p": close / divisor})
+                ON CONFLICT (ticker, date)
+                DO UPDATE SET close_price = EXCLUDED.close_price
+            """), {"tk": ticker, "mk": market, "d": d, "p": value})
+            prev = value
             inserted += 1
     return inserted
 
@@ -149,7 +202,8 @@ def ensure_coverage(
         lo, hi = cov[t]
         if (lo - start).days >= _MIN_GAP_DAYS:
             need_head.append(t)
-        if (end - hi).days >= _MIN_GAP_DAYS:
+        tail_gap = (end - hi).days
+        if tail_gap >= _MIN_GAP_DAYS or (tail_gap >= 1 and _tail_due(t)):
             need_tail.append(t)
 
     dirty = False
@@ -158,11 +212,11 @@ def ensure_coverage(
         dirty |= _store(db, market, prices) > 0
     if need_head:
         earliest = min(cov[t][0] for t in need_head)
-        prices = _download(need_head, start, earliest - timedelta(days=1))
+        prices = _download(need_head, start, earliest - timedelta(days=1), mark_failures=False)
         dirty |= _store(db, market, prices) > 0
     if need_tail:
         latest = max(cov[t][1] for t in need_tail)
-        prices = _download(need_tail, latest + timedelta(days=1), end)
+        prices = _download(need_tail, latest + timedelta(days=1), end, mark_failures=False)
         dirty |= _store(db, market, prices) > 0
 
     if dirty:
@@ -204,8 +258,9 @@ def ensure_fx_coverage(db: Session, start: date, end: date) -> None:
     lo, hi = cov[FX_TICKER]
     dirty = False
     if (lo - start).days >= _MIN_GAP_DAYS:
-        dirty |= _store(db, 'fx', _download(tickers, start, lo - timedelta(days=1))) > 0
-    if (end - hi).days >= _MIN_GAP_DAYS:
-        dirty |= _store(db, 'fx', _download(tickers, hi + timedelta(days=1), end)) > 0
+        dirty |= _store(db, 'fx', _download(tickers, start, lo - timedelta(days=1), mark_failures=False)) > 0
+    tail_gap = (end - hi).days
+    if tail_gap >= _MIN_GAP_DAYS or (tail_gap >= 1 and _tail_due(FX_TICKER)):
+        dirty |= _store(db, 'fx', _download(tickers, hi + timedelta(days=1), end, mark_failures=False)) > 0
     if dirty:
         db.commit()

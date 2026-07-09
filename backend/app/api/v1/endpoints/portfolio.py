@@ -618,6 +618,29 @@ def get_portfolio_history(
     if first_txn and start_date < first_txn:
         start_date = first_txn
 
+    # ── 1D: daily closes can't chart a single day — return previous close
+    #        plus the current live value instead
+    if start_date >= end_date:
+        today = date.today()
+        prev = _portfolio_value_at(uid, end_date - timedelta(days=1), db, market=market, use_current=False)
+        cur = _portfolio_value_at(uid, end_date, db, market=market, use_current=(end_date >= today))
+        points = []
+        if prev and prev["total_ils"] > 0:
+            points.append({
+                "date": str(end_date - timedelta(days=1)),
+                "total_ils": prev["total_ils"],
+                "israeli_ils": prev["israeli_ils"],
+                "world_ils": prev["world_ils"],
+            })
+        if cur and cur["total_ils"] > 0:
+            points.append({
+                "date": str(end_date),
+                "total_ils": cur["total_ils"],
+                "israeli_ils": cur["israeli_ils"],
+                "world_ils": cur["world_ils"],
+            })
+        return {"points": points, "currency": "ILS", "market": market}
+
     # ── 1. Collect transactions up to end_date (source of truth for quantities)
     il_all = []
     if want_il:
@@ -999,3 +1022,345 @@ def get_dividend_history(
         it["cumulative_ils"] = round(running, 2)
 
     return {"items": items, "total_net_ils": round(running, 2), "market": market}
+
+
+@router.get("/analytics/overview")
+def get_portfolio_overview(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    All-time portfolio vitals, independent of any period selection.
+    Everything in ILS; world amounts converted per transaction date.
+    """
+    from app.services import price_history_service as phs
+    from scipy.optimize import brentq
+    from collections import defaultdict
+    import math
+
+    uid = str(current_user.id)
+    today = date.today()
+
+    first_txn = _first_transaction_date(uid, "all", db)
+    if not first_txn:
+        raise HTTPException(status_code=404, detail="No transactions")
+
+    # FX series covering full history (for world ILS conversion fallbacks)
+    phs.ensure_fx_coverage(db, first_txn - timedelta(days=7), today)
+    fx_series = phs.get_price_series(
+        db, [phs.FX_TICKER], first_txn - timedelta(days=7), today
+    ).get(phs.FX_TICKER, {})
+    fx_now = _fx_lookup(fx_series, today, db)
+
+    # ── Load every BUY/SELL in ILS ─────────────────────────────────────────────
+    il_rows = db.execute(text("""
+        SELECT transaction_date, symbol, transaction_type,
+               COALESCE(quantity, 0)::float, COALESCE(total_value, 0)::float,
+               COALESCE(realized_pl, 0)::float, COALESCE(commission, 0)::float,
+               COALESCE(tax, 0)::float
+        FROM israeli_stock_transactions
+        WHERE user_id = :uid AND transaction_type IN ('BUY', 'SELL')
+        ORDER BY transaction_date, id
+    """), {"uid": uid}).fetchall()
+
+    w_rows = db.execute(text("""
+        SELECT transaction_date, ticker, transaction_type,
+               COALESCE(quantity, 0)::float, COALESCE(total_value, 0)::float,
+               COALESCE(realized_pl, 0)::float, COALESCE(commission, 0)::float,
+               COALESCE(tax, 0)::float, exchange_rate
+        FROM world_stock_transactions
+        WHERE user_id = :uid AND transaction_type IN ('BUY', 'SELL')
+        ORDER BY transaction_date, id
+    """), {"uid": uid}).fetchall()
+
+    # Normalize: (date, market, symbol, type, qty, value_ils, realized_pl_ils, fees_ils, tax_ils)
+    txns = []
+    for r in il_rows:
+        txns.append((r[0], "israeli", r[1], r[2], r[3], r[4], r[5], r[6], r[7]))
+    for r in w_rows:
+        rate = float(r[8]) if r[8] else _fx_lookup(fx_series, r[0], db)
+        txns.append((r[0], "world", r[1], r[2], r[3], r[4] * rate, r[5] * rate, r[6] * rate, r[7] * rate))
+    txns.sort(key=lambda t: t[0])
+
+    total_buys = sum(t[5] for t in txns if t[3] == 'BUY')
+    total_sells = sum(t[5] for t in txns if t[3] == 'SELL')
+    net_invested = total_buys - total_sells
+    total_fees = sum(t[7] for t in txns)
+    txn_tax = sum(t[8] for t in txns)
+
+    # ── Current value (live prices) ────────────────────────────────────────────
+    holdings = []   # (market, symbol, value_ils, purchase_cost_ils)
+    for sym, val, cost in db.execute(text("""
+        SELECT h.symbol,
+               h.quantity * COALESCE(sp.current_price, h.last_price),
+               h.purchase_cost
+        FROM israeli_stock_holdings h
+        LEFT JOIN stock_prices sp ON sp.ticker = h.symbol AND sp.market = 'israeli'
+        WHERE h.user_id = :uid AND h.quantity > 0
+    """), {"uid": uid}).fetchall():
+        holdings.append(("israeli", sym, float(val or 0), float(cost or 0)))
+    for tk, val, cost in db.execute(text("""
+        SELECT h.ticker,
+               h.quantity * COALESCE(sp.current_price, h.last_price),
+               h.purchase_cost
+        FROM world_stock_holdings h
+        LEFT JOIN stock_prices sp ON sp.ticker = h.ticker AND sp.market = 'world'
+        WHERE h.user_id = :uid AND h.quantity > 0
+    """), {"uid": uid}).fetchall():
+        holdings.append(("world", tk, float(val or 0) * fx_now, float(cost or 0) * fx_now))
+
+    current_value = sum(h[2] for h in holdings)
+    israeli_value = sum(h[2] for h in holdings if h[0] == "israeli")
+    world_value = current_value - israeli_value
+
+    # ── Dividends (ILS) ────────────────────────────────────────────────────────
+    div_events = []   # (date, market, symbol, net_ils)
+    for d, sym, net in db.execute(text("""
+        SELECT payment_date, symbol, amount - COALESCE(tax, 0)
+        FROM israeli_dividends WHERE user_id = :uid
+    """), {"uid": uid}).fetchall():
+        div_events.append((d, "israeli", sym, float(net or 0)))
+    for d, tk, net, ex in db.execute(text("""
+        SELECT payment_date, ticker,
+               COALESCE(net_amount, amount - COALESCE(tax, 0)), exchange_rate
+        FROM world_dividends WHERE user_id = :uid
+    """), {"uid": uid}).fetchall():
+        rate = float(ex) if ex else _fx_lookup(fx_series, d, db)
+        div_events.append((d, "world", tk, float(net or 0) * rate))
+
+    div_all_time = sum(e[3] for e in div_events)
+    ttm_cutoff = today - timedelta(days=365)
+    div_ttm = sum(e[3] for e in div_events if e[0] >= ttm_cutoff)
+    div_tax_il = db.execute(text(
+        "SELECT COALESCE(SUM(COALESCE(tax,0)),0) FROM israeli_dividends WHERE user_id=:uid"
+    ), {"uid": uid}).scalar() or 0
+    div_tax_w_rows = db.execute(text(
+        "SELECT payment_date, COALESCE(tax,0), exchange_rate FROM world_dividends WHERE user_id=:uid AND COALESCE(tax,0) <> 0"
+    ), {"uid": uid}).fetchall()
+    div_tax = float(div_tax_il) + sum(
+        float(t) * (float(ex) if ex else _fx_lookup(fx_series, d, db)) for d, t, ex in div_tax_w_rows
+    )
+    total_tax = txn_tax + div_tax
+
+    # ── Total P&L ──────────────────────────────────────────────────────────────
+    total_pl = current_value - net_invested + div_all_time
+    total_pl_pct = (total_pl / net_invested * 100) if net_invested > 0 else None
+
+    # ── Annualized money-weighted return (IRR) ─────────────────────────────────
+    base = datetime.combine(first_txn, datetime.min.time())
+    flows = [((datetime.combine(t[0], datetime.min.time()) - base).days,
+              -t[5] if t[3] == 'BUY' else t[5]) for t in txns]
+    flows += [((datetime.combine(e[0], datetime.min.time()) - base).days, e[3]) for e in div_events]
+    days_now = max((datetime.utcnow() - base).days, 1)
+    flows.append((days_now, current_value))
+
+    def npv(rate):
+        return sum(cf / (1 + rate) ** (d / 365.0) for d, cf in flows)
+
+    irr_pct = None
+    try:
+        lo, hi = -0.9999, 10.0
+        if npv(lo) * npv(hi) < 0:
+            irr_pct = round(brentq(npv, lo, hi, maxiter=200, xtol=1e-8) * 100, 2)
+    except Exception:
+        pass
+
+    # ── All-time daily series → drawdown, volatility, beta, best/worst month ──
+    hist = get_portfolio_history(str(first_txn), str(today), "all", "", db, current_user)
+    points = hist["points"]
+
+    flow_by_date: dict = defaultdict(float)   # net money into securities per day
+    for t in txns:
+        flow_by_date[str(t[0])] += t[5] if t[3] == 'BUY' else -t[5]
+
+    daily_returns = []       # flow-adjusted
+    daily_dates = []
+    max_dd = 0.0
+    dd_peak_date = dd_trough_date = None
+    peak_val, peak_date = 0.0, None
+    prev = None
+    for p in points:
+        v = p["total_ils"]
+        if prev is not None and prev["total_ils"] > 1000:
+            f = flow_by_date.get(p["date"], 0.0)
+            daily_returns.append((v - prev["total_ils"] - f) / prev["total_ils"])
+            daily_dates.append(p["date"])
+        if v > peak_val:
+            peak_val, peak_date = v, p["date"]
+        elif peak_val > 0:
+            dd = (v - peak_val) / peak_val
+            if dd < max_dd:
+                max_dd, dd_peak_date, dd_trough_date = dd, peak_date, p["date"]
+        prev = p
+
+    vol_pct = None
+    if len(daily_returns) > 20:
+        mean = sum(daily_returns) / len(daily_returns)
+        var = sum((r - mean) ** 2 for r in daily_returns) / (len(daily_returns) - 1)
+        vol_pct = round(math.sqrt(var) * math.sqrt(252) * 100, 2)
+
+    # Beta vs benchmarks
+    beta = {}
+    if len(daily_returns) > 20:
+        bm_tickers = {"ta125": "^TA125.TA", "sp500": "^GSPC"}
+        phs.ensure_coverage(db, list(bm_tickers.values()), 'benchmark', first_txn, today)
+        bm_series_all = phs.get_price_series(db, list(bm_tickers.values()), first_txn, today)
+        ret_by_date = dict(zip(daily_dates, daily_returns))
+        for name, tk in bm_tickers.items():
+            s = bm_series_all.get(tk, {})
+            closes = sorted(s.items())
+            pairs = []
+            for (d0, c0), (d1, c1) in zip(closes, closes[1:]):
+                pr = ret_by_date.get(str(d1))
+                if pr is not None and c0 > 0:
+                    pairs.append((pr, c1 / c0 - 1))
+            if len(pairs) > 20:
+                mp = sum(p for p, _ in pairs) / len(pairs)
+                mb = sum(b for _, b in pairs) / len(pairs)
+                cov = sum((p - mp) * (b - mb) for p, b in pairs) / (len(pairs) - 1)
+                varb = sum((b - mb) ** 2 for _, b in pairs) / (len(pairs) - 1)
+                if varb > 0:
+                    beta[name] = round(cov / varb, 2)
+
+    # Best/worst month (Modified Dietz, same as the frontend strip)
+    last_of_month: dict = {}
+    for p in points:
+        last_of_month[p["date"][:7]] = p["total_ils"]
+    month_flows: dict = defaultdict(float)
+    for t in txns:
+        month_flows[str(t[0])[:7]] += t[5] if t[3] == 'BUY' else -t[5]
+    months = sorted(last_of_month)
+    best_month = worst_month = None
+    prev_v = points[0]["total_ils"] if points else 0
+    for m in months:
+        end_v = last_of_month[m]
+        f = month_flows.get(m, 0.0)
+        denom = prev_v + f / 2
+        if denom > 1000:
+            r = (end_v - prev_v - f) / denom * 100
+            if best_month is None or r > best_month["return_pct"]:
+                best_month = {"month": m, "return_pct": round(r, 2)}
+            if worst_month is None or r < worst_month["return_pct"]:
+                worst_month = {"month": m, "return_pct": round(r, 2)}
+        prev_v = end_v
+
+    # ── Win rate, profit factor ────────────────────────────────────────────────
+    sells = [t for t in txns if t[3] == 'SELL' and t[6] != 0]
+    wins = [t for t in sells if t[6] > 0]
+    losses = [t for t in sells if t[6] < 0]
+    gross_profit = sum(t[6] for t in wins)
+    gross_loss = -sum(t[6] for t in losses)
+    win_rate = round(len(wins) / len(sells) * 100, 1) if sells else None
+    profit_factor = round(gross_profit / gross_loss, 2) if gross_loss > 0 else None
+
+    # ── Average holding period (FIFO lot matching), winners vs losers ─────────
+    lots: dict = defaultdict(list)    # (market, symbol) → [[date, qty], ...]
+    win_days, win_w, loss_days, loss_w = 0.0, 0.0, 0.0, 0.0
+    for t in txns:
+        key = (t[1], t[2])
+        if t[3] == 'BUY':
+            lots[key].append([t[0], t[4]])
+        else:
+            remaining = t[4]
+            weighted = 0.0
+            matched = 0.0
+            while remaining > 1e-9 and lots[key]:
+                lot = lots[key][0]
+                take = min(remaining, lot[1])
+                weighted += take * (t[0] - lot[0]).days
+                matched += take
+                lot[1] -= take
+                remaining -= take
+                if lot[1] <= 1e-9:
+                    lots[key].pop(0)
+            if matched > 0:
+                if t[6] >= 0:
+                    win_days += weighted
+                    win_w += matched
+                else:
+                    loss_days += weighted
+                    loss_w += matched
+    avg_hold_winners = round(win_days / win_w, 1) if win_w else None
+    avg_hold_losers = round(loss_days / loss_w, 1) if loss_w else None
+
+    # ── Best / worst stock all-time (realized + unrealized + dividends) ───────
+    stock_pl: dict = defaultdict(float)
+    for t in txns:
+        if t[3] == 'SELL':
+            stock_pl[(t[1], t[2])] += t[6]
+    for mk, sym, val, cost in holdings:
+        stock_pl[(mk, sym)] += val - cost
+    for _, mk, sym, net in div_events:
+        stock_pl[(mk, sym)] += net
+    best_stock = worst_stock = None
+    if stock_pl:
+        (bmk, bsym), bpl = max(stock_pl.items(), key=lambda x: x[1])
+        (wmk, wsym), wpl = min(stock_pl.items(), key=lambda x: x[1])
+        best_stock = {"symbol": bsym, "market": bmk, "pl_ils": round(bpl, 2)}
+        worst_stock = {"symbol": wsym, "market": wmk, "pl_ils": round(wpl, 2)}
+
+    # ── Turnover ───────────────────────────────────────────────────────────────
+    years = max(days_now / 365.0, 0.25)
+    avg_value = (sum(p["total_ils"] for p in points) / len(points)) if points else 0
+    turnover_pct = round(((total_buys + total_sells) / 2 / years) / avg_value * 100, 1) if avg_value > 0 else None
+
+    # ── Concentration & exposure ───────────────────────────────────────────────
+    top_symbol = top_pct = top5_pct = None
+    if current_value > 0 and holdings:
+        ranked = sorted(holdings, key=lambda h: h[2], reverse=True)
+        top_symbol = ranked[0][1]
+        top_pct = round(ranked[0][2] / current_value * 100, 1)
+        top5_pct = round(sum(h[2] for h in ranked[:5]) / current_value * 100, 1)
+
+    return {
+        "inception": str(first_txn),
+        "days_active": days_now,
+        "invested": {
+            "total_buys_ils": round(total_buys, 2),
+            "total_sells_ils": round(total_sells, 2),
+            "net_invested_ils": round(net_invested, 2),
+            "current_value_ils": round(current_value, 2),
+        },
+        "total_pl": {
+            "ils": round(total_pl, 2),
+            "pct": round(total_pl_pct, 2) if total_pl_pct is not None else None,
+        },
+        "annualized_irr_pct": irr_pct,
+        "best_month": best_month,
+        "worst_month": worst_month,
+        "win_rate": {
+            "wins": len(wins), "losses": len(losses),
+            "rate_pct": win_rate, "profit_factor": profit_factor,
+        },
+        "holding_period": {
+            "avg_days_winners": avg_hold_winners,
+            "avg_days_losers": avg_hold_losers,
+        },
+        "best_stock": best_stock,
+        "worst_stock": worst_stock,
+        "turnover_annual_pct": turnover_pct,
+        "max_drawdown": {
+            "pct": round(max_dd * 100, 2),
+            "peak_date": dd_peak_date,
+            "trough_date": dd_trough_date,
+        },
+        "volatility_annual_pct": vol_pct,
+        "beta": beta,
+        "dividends": {
+            "all_time_ils": round(div_all_time, 2),
+            "ttm_ils": round(div_ttm, 2),
+            "ttm_yield_pct": round(div_ttm / current_value * 100, 2) if current_value > 0 else None,
+        },
+        "costs": {
+            "fees_ils": round(total_fees, 2),
+            "taxes_ils": round(total_tax, 2),
+            "pct_of_profit": round((total_fees + total_tax) / total_pl * 100, 1) if total_pl > 0 else None,
+        },
+        "concentration": {
+            "top_symbol": top_symbol, "top_pct": top_pct, "top5_pct": top5_pct,
+        },
+        "exposure": {
+            "israeli_pct": round(israeli_value / current_value * 100, 1) if current_value > 0 else None,
+            "world_pct": round(world_value / current_value * 100, 1) if current_value > 0 else None,
+        },
+    }

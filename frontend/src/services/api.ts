@@ -208,7 +208,39 @@ export const portfolioAPI = {
     const response = await api.get(`/portfolio/analytics/dividends?start=${start}&end=${end}&market=${market}`);
     return response.data as { items: DividendEvent[]; total_net_ils: number };
   },
+
+  getOverview: async () => {
+    const response = await api.get('/portfolio/analytics/overview');
+    return response.data as PortfolioOverview;
+  },
 };
+
+export interface PortfolioOverview {
+  inception: string;
+  days_active: number;
+  invested: {
+    total_buys_ils: number;
+    total_sells_ils: number;
+    net_invested_ils: number;
+    current_value_ils: number;
+  };
+  total_pl: { ils: number; pct: number | null };
+  annualized_irr_pct: number | null;
+  best_month: { month: string; return_pct: number } | null;
+  worst_month: { month: string; return_pct: number } | null;
+  win_rate: { wins: number; losses: number; rate_pct: number | null; profit_factor: number | null };
+  holding_period: { avg_days_winners: number | null; avg_days_losers: number | null };
+  best_stock: { symbol: string; market: string; pl_ils: number } | null;
+  worst_stock: { symbol: string; market: string; pl_ils: number } | null;
+  turnover_annual_pct: number | null;
+  max_drawdown: { pct: number; peak_date: string | null; trough_date: string | null };
+  volatility_annual_pct: number | null;
+  beta: { ta125?: number; sp500?: number };
+  dividends: { all_time_ils: number; ttm_ils: number; ttm_yield_pct: number | null };
+  costs: { fees_ils: number; taxes_ils: number; pct_of_profit: number | null };
+  concentration: { top_symbol: string | null; top_pct: number | null; top5_pct: number | null };
+  exposure: { israeli_pct: number | null; world_pct: number | null };
+}
 
 export type AnalyticsMarket = 'all' | 'israeli' | 'world';
 
