@@ -1408,6 +1408,7 @@ def get_stock_indicators(
 
     dates = sorted(series.keys())
     closes = [series[d]["c"] for d in dates]
+    opens = [series[d]["o"] for d in dates]
     highs = [series[d]["h"] for d in dates]
     lows = [series[d]["l"] for d in dates]
     volumes = [series[d]["v"] for d in dates]
@@ -1470,6 +1471,9 @@ def get_stock_indicators(
         out_points.append({
             "date": str(d),
             "close": rnd(closes[i]),
+            "open": rnd(opens[i]),
+            "high": rnd(highs[i]),
+            "low": rnd(lows[i]),
             "sma20": rnd(sma20[i]),
             "sma50": rnd(sma50[i]),
             "sma150": rnd(sma150[i]),

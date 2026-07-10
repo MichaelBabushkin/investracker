@@ -54,6 +54,9 @@ function PriceTooltip({ active, payload, currency }: any) {
   if (!active || !payload?.length) return null;
   const p: IndicatorPoint = payload[0].payload;
   const rows: Array<[string, number | null, string]> = [
+    ["Open", p.open, "#9CA3AF"],
+    ["High", p.high, "#9CA3AF"],
+    ["Low", p.low, "#9CA3AF"],
     ["Close", p.close, "#E5E7EB"],
     ["SMA 20", p.sma20, "#38BDF8"],
     ["SMA 50", p.sma50, "#F59E0B"],
@@ -82,6 +85,10 @@ export default function PriceWithOverlays({ points, currency, levels, trades, sy
     new Set(OVERLAYS.filter((o) => o.defaultOn).map((o) => o.key))
   );
   const [showTrades, setShowTrades] = useState(true);
+  const [chartType, setChartType] = useState<"line" | "candles">("line");
+
+  const hasOHLC = points.some((p) => p.open != null && p.high != null && p.low != null);
+  const candles = chartType === "candles" && hasOHLC;
 
   // Snap each trade to the first trading day on/after its date so the marker
   // sits exactly on the price line
@@ -108,6 +115,8 @@ export default function PriceWithOverlays({ points, currency, levels, trades, sy
   const vals: number[] = [];
   for (const p of points) {
     vals.push(p.close);
+    if (candles && p.high != null) vals.push(p.high);
+    if (candles && p.low != null) vals.push(p.low);
     if (showBB && p.bb_upper != null) vals.push(p.bb_upper);
     if (showBB && p.bb_lower != null) vals.push(p.bb_lower);
     for (const o of OVERLAYS) {
@@ -123,16 +132,37 @@ export default function PriceWithOverlays({ points, currency, levels, trades, sy
   const yMin = Math.min(...vals) - pad;
   const yMax = Math.max(...vals) + pad;
 
-  // BB band rendered as a stacked band: base (invisible) + range fill
+  // BB band rendered as a stacked band: base (invisible) + range fill.
+  // Candle ranges precomputed for the two range-bars (wick + body).
   const data = points.map((p) => ({
     ...p,
     bb_base: p.bb_lower,
     bb_range: p.bb_upper != null && p.bb_lower != null ? p.bb_upper - p.bb_lower : null,
+    wick: p.low != null && p.high != null ? [p.low, p.high] : null,
+    body: p.open != null
+      ? [Math.min(p.open, p.close), Math.max(p.open, p.close)]
+      : null,
+    up: p.open != null ? p.close >= p.open : true,
   }));
 
   return (
     <div>
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        {hasOHLC && (
+          <div className="flex gap-0.5 p-0.5 rounded-lg bg-white/[0.03] border border-white/5 mr-1">
+            {(["line", "candles"] as const).map((ct) => (
+              <button
+                key={ct}
+                onClick={() => setChartType(ct)}
+                className={`px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${
+                  chartType === ct ? "bg-surface-dark-tertiary text-gray-100" : "text-gray-500 hover:text-gray-300"
+                }`}
+              >
+                {ct === "line" ? "Line" : "Candles"}
+              </button>
+            ))}
+          </div>
+        )}
         {OVERLAYS.map((o) => (
           <button
             key={o.key}
@@ -212,8 +242,20 @@ export default function PriceWithOverlays({ points, currency, levels, trades, sy
                 label={{ value: "52w low", position: "insideBottomRight", fill: "#F43F5E", fontSize: 10 }} />
             )}
 
+            {/* Candlesticks: thin range bar = wick, wide range bar = body */}
+            <Bar yAxisId="price" dataKey="wick" isAnimationActive={false} maxBarSize={1.5} hide={!candles}>
+              {data.map((p, i) => (
+                <Cell key={i} fill={p.up ? "#4ADE80" : "#F43F5E"} fillOpacity={0.9} />
+              ))}
+            </Bar>
+            <Bar yAxisId="price" dataKey="body" isAnimationActive={false} maxBarSize={7} hide={!candles}>
+              {data.map((p, i) => (
+                <Cell key={i} fill={p.up ? "#4ADE80" : "#F43F5E"} fillOpacity={0.9} />
+              ))}
+            </Bar>
+
             <Line yAxisId="price" type="monotone" dataKey="close" stroke="#E5E7EB" strokeWidth={2} dot={false}
-              isAnimationActive={false}
+              isAnimationActive={false} hide={candles}
               activeDot={{ r: 3, fill: "#E5E7EB", stroke: "#0B0F1A", strokeWidth: 2 }} />
 
             {OVERLAYS.filter((o) => o.key !== "bb").map((o) => (

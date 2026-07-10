@@ -232,6 +232,9 @@ export type IndicatorPeriod = '3m' | '6m' | '1y' | '2y';
 export interface IndicatorPoint {
   date: string;
   close: number;
+  open: number | null;
+  high: number | null;
+  low: number | null;
   sma20: number | null;
   sma50: number | null;
   sma150: number | null;
