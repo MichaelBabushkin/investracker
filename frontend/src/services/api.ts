@@ -257,9 +257,22 @@ export interface StockIndicators {
   period: string;
   points: IndicatorPoint[];
   levels: { high_52w: number | null; low_52w: number | null };
-  signals: Array<{ id: string; label: string; state: SignalState; detail: string }>;
+  signals: Array<{
+    id: string;
+    label: string;
+    state: SignalState;
+    detail: string;
+    history?: SignalHistory | null;
+  }>;
   summary: { bullish: number; bearish: number; neutral: number };
   risk: { atr: number; atr_pct: number; suggested_stop: number } | null;
+}
+
+export interface SignalHistory {
+  events: number;
+  avg_fwd_pct: number;
+  win_rate_pct: number;
+  fwd_days: number;
 }
 
 export interface HoldingsRsi {

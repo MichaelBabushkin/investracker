@@ -1386,9 +1386,9 @@ def get_stock_indicators(
     today = date.today()
     display_days = {"3m": 92, "6m": 183, "1y": 365, "2y": 730}[period]
     display_start = today - timedelta(days=display_days)
-    # SMA200 needs ~200 trading days (~290 calendar) before the first visible
-    # point; fetch a generous warm-up window
-    fetch_start = display_start - timedelta(days=420)
+    # SMA200 needs ~200 trading days (~290 calendar) of warm-up before the
+    # first visible point, and the signal backtest wants ~3 years of events
+    fetch_start = today - timedelta(days=max(display_days + 420, 1095))
 
     # Resolve yfinance ticker
     if market == "israeli":
@@ -1434,6 +1434,14 @@ def get_stock_indicators(
         macd_line, signal_line, bb_upper, bb_lower, high_52w, low_52w,
     )
     signals.append(ti.build_volume_signal(closes, volumes, obv_series))
+
+    # Per-signal historical track record on this stock (forward returns)
+    backtest = ti.backtest_signals(
+        closes, rsi14, macd_line, signal_line, sma50, sma150, sma200,
+        bb_lower, bb_upper,
+    )
+    for s in signals:
+        s["history"] = backtest.get(s["id"])
 
     # Risk block: ATR-based stop suggestion (context, not a buy/sell signal)
     last_atr = atr14[-1]

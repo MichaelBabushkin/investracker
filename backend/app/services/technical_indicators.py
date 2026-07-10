@@ -309,3 +309,86 @@ def build_volume_signal(
     else:
         state, detail = "bearish", f"Falling price with falling volume flow (today {vol_ratio:.1f}× avg)"
     return {"id": "volume", "label": "Volume / OBV", "state": state, "detail": detail}
+
+
+# ── Signal backtest: how did each signal historically play out on THIS stock ──
+
+_FWD_DAYS = 21          # forward window ≈ one trading month
+_MIN_EVENTS = 3         # don't show stats built on 1-2 occurrences
+
+
+def _forward_stats(event_idx: list[int], closes: list[float]) -> Optional[dict]:
+    """Avg forward return + win rate over _FWD_DAYS after each event index."""
+    rets = []
+    for i in event_idx:
+        j = i + _FWD_DAYS
+        if j < len(closes) and closes[i] > 0:
+            rets.append(closes[j] / closes[i] - 1)
+    if len(rets) < _MIN_EVENTS:
+        return None
+    wins = sum(1 for r in rets if r > 0)
+    return {
+        "events": len(rets),
+        "avg_fwd_pct": round(sum(rets) / len(rets) * 100, 2),
+        "win_rate_pct": round(wins / len(rets) * 100, 0),
+        "fwd_days": _FWD_DAYS,
+    }
+
+
+def _cross_events(a: list[Optional[float]], b: list[Optional[float]], up: bool) -> list[int]:
+    """Indexes where series a crosses above (up) / below (down) series b."""
+    out = []
+    for i in range(1, len(a)):
+        if a[i] is None or b[i] is None or a[i - 1] is None or b[i - 1] is None:
+            continue
+        if up and a[i - 1] <= b[i - 1] and a[i] > b[i]:
+            out.append(i)
+        elif not up and a[i - 1] >= b[i - 1] and a[i] < b[i]:
+            out.append(i)
+    return out
+
+
+def backtest_signals(
+    closes: list[float],
+    rsi_series: list[Optional[float]],
+    macd_line: list[Optional[float]],
+    signal_line: list[Optional[float]],
+    sma50: list[Optional[float]],
+    sma150: list[Optional[float]],
+    sma200: list[Optional[float]],
+    bb_lower: list[Optional[float]],
+    bb_upper: list[Optional[float]],
+) -> dict[str, Optional[dict]]:
+    """
+    {signal_id: {events, avg_fwd_pct, win_rate_pct, fwd_days} | None}
+
+    Event definitions mirror what each chip *signals*:
+      rsi      → RSI crossing DOWN through 30 (the oversold entry the chip flags)
+      macd     → MACD crossing UP through its signal line
+      cross    → golden cross (SMA50 crossing up through SMA200)
+      sma150   → price reclaiming the SMA150 from below
+      bb       → close crossing down through the lower band
+      levels   → close making a new 52-week high (breakout persistence)
+    """
+    thirty = [30.0] * len(closes)
+    seventy = [70.0] * len(closes)
+
+    results: dict[str, Optional[dict]] = {}
+    results["rsi"] = _forward_stats(_cross_events(rsi_series, thirty, up=False), closes)
+    results["macd"] = _forward_stats(_cross_events(macd_line, signal_line, up=True), closes)
+    results["cross"] = _forward_stats(_cross_events(sma50, sma200, up=True), closes)
+    close_list: list[Optional[float]] = list(closes)
+    results["sma150"] = _forward_stats(_cross_events(close_list, sma150, up=True), closes)
+    results["bb"] = _forward_stats(_cross_events(close_list, bb_lower, up=False), closes)
+
+    # New 52-week highs (rolling), skipping the first year of warm-up
+    high_events = []
+    for i in range(252, len(closes)):
+        if closes[i] > max(closes[i - 252: i]):
+            high_events.append(i)
+    # De-cluster: keep only the first high of each 10-day run
+    decl = [i for k, i in enumerate(high_events) if k == 0 or i - high_events[k - 1] > 10]
+    results["levels"] = _forward_stats(decl, closes)
+
+    results["volume"] = None    # no meaningful event definition for OBV state
+    return results
