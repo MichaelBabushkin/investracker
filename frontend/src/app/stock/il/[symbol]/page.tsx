@@ -12,6 +12,7 @@ import StockDividends from '@/components/stock/StockDividends';
 import StockAnalystConsensus from '@/components/stock/StockAnalystConsensus';
 import StockAnalystInsights from '@/components/stock/StockAnalystInsights';
 import TelegramNewsFeed from '@/components/telegram/TelegramNewsFeed';
+import TechnicalIndicators from '@/components/indicators/TechnicalIndicators';
 import { stockAPI } from '@/services/api';
 import { StockDetail } from '@/types/stock-detail';
 
@@ -106,6 +107,8 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
         </div>
         <StockYourPosition portfolio={data.portfolio} currency={data.currency} />
       </div>
+
+      <TechnicalIndicators symbol={symbol} market="israeli" />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-6">

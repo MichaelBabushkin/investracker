@@ -12,6 +12,7 @@ import StockDividends from '@/components/stock/StockDividends';
 import StockAnalystConsensus from '@/components/stock/StockAnalystConsensus';
 import StockAnalystInsights from '@/components/stock/StockAnalystInsights';
 import TelegramNewsFeed from '@/components/telegram/TelegramNewsFeed';
+import TechnicalIndicators from '@/components/indicators/TechnicalIndicators';
 import { stockAPI } from '@/services/api';
 import { StockDetail } from '@/types/stock-detail';
 
@@ -106,6 +107,8 @@ export default function WorldStockPage({ params }: { params: { ticker: string } 
         </div>
         <StockYourPosition portfolio={data.portfolio} currency={data.currency} />
       </div>
+
+      <TechnicalIndicators symbol={ticker} market="world" />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-6">

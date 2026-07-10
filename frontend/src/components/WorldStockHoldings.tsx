@@ -16,10 +16,11 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { worldStocksAPI } from "@/services/api";
+import { worldStocksAPI, portfolioAPI } from "@/services/api";
 import { WorldStockHolding } from "@/types/world-stocks";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import StockLogo from "@/components/StockLogo";
+import RsiBadge from "@/components/indicators/RsiBadge";
 import Link from "next/link";
 
 interface WorldStockHoldingsProps {
@@ -34,6 +35,16 @@ export default function WorldStockHoldings({
   const [holdings, setHoldings] = useState<WorldStockHolding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rsiMap, setRsiMap] = useState<Record<string, number | null>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    portfolioAPI
+      .getHoldingsRsi()
+      .then((r) => !cancelled && setRsiMap(r.world))
+      .catch(() => { /* badges are optional decoration */ });
+    return () => { cancelled = true; };
+  }, [refreshTrigger]);
   const [viewMode, setViewMode] = useState<"table" | "chart">("table");
   const [summaryData, setSummaryData] = useState<{
     total_realized_pl: number;
@@ -423,8 +434,9 @@ export default function WorldStockHoldings({
                             className="flex-shrink-0 mr-3 group-hover:opacity-80 transition-opacity"
                           />
                           <div>
-                            <div className="text-sm font-medium text-gray-100 group-hover:text-brand-400 transition-colors">
+                            <div className="text-sm font-medium text-gray-100 group-hover:text-brand-400 transition-colors flex items-center gap-1.5">
                               {holding.symbol}
+                              <RsiBadge rsi={rsiMap[holding.symbol]} />
                             </div>
                             <div className="text-sm text-gray-400 max-w-xs truncate group-hover:text-brand-400/70 transition-colors">
                               {holding.company_name}

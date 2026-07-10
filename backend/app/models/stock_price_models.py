@@ -55,9 +55,13 @@ class StockPriceHistory(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     ticker = Column(String(30), nullable=False)   # yfinance ticker (TEVA.TA, AAPL, USDILS=X)
-    market = Column(String(20), nullable=False)   # 'israeli' | 'world' | 'fx'
+    market = Column(String(20), nullable=False)   # 'israeli' | 'world' | 'fx' | 'benchmark'
     date = Column(Date, nullable=False)
     close_price = Column(DECIMAL(18, 6), nullable=False)
+    open_price = Column(DECIMAL(18, 6), nullable=True)
+    high_price = Column(DECIMAL(18, 6), nullable=True)
+    low_price = Column(DECIMAL(18, 6), nullable=True)
+    volume = Column(BigInteger, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     __table_args__ = (

@@ -213,7 +213,59 @@ export const portfolioAPI = {
     const response = await api.get('/portfolio/analytics/overview');
     return response.data as PortfolioOverview;
   },
+
+  getStockIndicators: async (symbol: string, market: 'israeli' | 'world', period: IndicatorPeriod = '1y') => {
+    const response = await api.get(
+      `/portfolio/stock-indicators?symbol=${encodeURIComponent(symbol)}&market=${market}&period=${period}`
+    );
+    return response.data as StockIndicators;
+  },
+
+  getHoldingsRsi: async () => {
+    const response = await api.get('/portfolio/holdings-rsi');
+    return response.data as HoldingsRsi;
+  },
 };
+
+export type IndicatorPeriod = '6m' | '1y' | '2y';
+
+export interface IndicatorPoint {
+  date: string;
+  close: number;
+  sma20: number | null;
+  sma50: number | null;
+  sma150: number | null;
+  sma200: number | null;
+  ema9: number | null;
+  ema21: number | null;
+  bb_upper: number | null;
+  bb_lower: number | null;
+  rsi: number | null;
+  macd: number | null;
+  macd_signal: number | null;
+  macd_hist: number | null;
+  atr: number | null;
+  volume: number | null;
+}
+
+export type SignalState = 'bullish' | 'bearish' | 'neutral';
+
+export interface StockIndicators {
+  symbol: string;
+  market: 'israeli' | 'world';
+  currency: string;
+  period: string;
+  points: IndicatorPoint[];
+  levels: { high_52w: number | null; low_52w: number | null };
+  signals: Array<{ id: string; label: string; state: SignalState; detail: string }>;
+  summary: { bullish: number; bearish: number; neutral: number };
+  risk: { atr: number; atr_pct: number; suggested_stop: number } | null;
+}
+
+export interface HoldingsRsi {
+  israeli: Record<string, number | null>;
+  world: Record<string, number | null>;
+}
 
 export interface PortfolioOverview {
   inception: string;
