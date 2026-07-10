@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import StockDetailHeader from '@/components/stock/StockDetailHeader';
-import StockPriceChart from '@/components/stock/StockPriceChart';
 import StockYourPosition from '@/components/stock/StockYourPosition';
 import StockKeyStats from '@/components/stock/StockKeyStats';
 import StockAbout from '@/components/stock/StockAbout';
@@ -96,22 +95,18 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
 
       <StockDetailHeader data={data} market="il" />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          <StockPriceChart
-            ticker={symbol}
-            market="il"
-            currency={data.currency}
-            fetchHistory={(period: string) => stockAPI.getIsraeliHistory(symbol, period)}
-          />
-        </div>
-        <StockYourPosition portfolio={data.portfolio} currency={data.currency} />
-      </div>
-
-      <TechnicalIndicators symbol={symbol} market="israeli" />
+      {/* Unified chart: price + overlays + trades + oscillators, all synced */}
+      <TechnicalIndicators
+        symbol={symbol}
+        market="israeli"
+        trades={data.transactions
+          .filter((t) => t.date && (t.type === "BUY" || t.type === "SELL"))
+          .map((t) => ({ date: t.date!, type: t.type, quantity: t.quantity, price: t.price }))}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-6">
+          <StockYourPosition portfolio={data.portfolio} currency={data.currency} />
           <StockKeyStats stats={data.stats} price={data.price} currency={data.currency} />
           <StockAnalystConsensus analyst={data.analyst} currency={data.currency} currentPrice={data.price.current} />
           <StockAnalystInsights analyst={data.analyst} />

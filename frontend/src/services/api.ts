@@ -227,7 +227,7 @@ export const portfolioAPI = {
   },
 };
 
-export type IndicatorPeriod = '6m' | '1y' | '2y';
+export type IndicatorPeriod = '3m' | '6m' | '1y' | '2y';
 
 export interface IndicatorPoint {
   date: string;

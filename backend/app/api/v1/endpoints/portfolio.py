@@ -1370,7 +1370,7 @@ def get_portfolio_overview(
 def get_stock_indicators(
     symbol: str = Query(...),
     market: str = Query(..., pattern="^(israeli|world)$"),
-    period: str = Query("1y", pattern="^(6m|1y|2y)$"),
+    period: str = Query("1y", pattern="^(3m|6m|1y|2y)$"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -1384,7 +1384,7 @@ def get_stock_indicators(
     from app.services import technical_indicators as ti
 
     today = date.today()
-    display_days = {"6m": 183, "1y": 365, "2y": 730}[period]
+    display_days = {"3m": 92, "6m": 183, "1y": 365, "2y": 730}[period]
     display_start = today - timedelta(days=display_days)
     # SMA200 needs ~200 trading days (~290 calendar) before the first visible
     # point; fetch a generous warm-up window

@@ -31,7 +31,7 @@ function RsiTooltip({ active, payload }: any) {
   );
 }
 
-export default function RsiPanel({ points }: { points: IndicatorPoint[] }) {
+export default function RsiPanel({ points, syncId }: { points: IndicatorPoint[]; syncId?: string }) {
   const last = [...points].reverse().find((p) => p.rsi != null);
   return (
     <div>
@@ -47,15 +47,8 @@ export default function RsiPanel({ points }: { points: IndicatorPoint[] }) {
       </div>
       <div className="w-full" style={{ height: 120 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={points} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-            <XAxis
-              dataKey="date"
-              tickFormatter={fmtDate}
-              tick={{ fill: "#6B7280", fontSize: 10 }}
-              axisLine={false}
-              tickLine={false}
-              minTickGap={48}
-            />
+          <ComposedChart data={points} syncId={syncId} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+            <XAxis dataKey="date" tick={false} axisLine={false} tickLine={false} height={2} />
             <YAxis
               domain={[0, 100]}
               ticks={[30, 50, 70]}
