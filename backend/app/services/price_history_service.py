@@ -350,3 +350,55 @@ def ensure_ohlcv(
         prices = _download([ticker], start, end, mark_failures=False)
         if _store(db, market, prices) > 0:
             db.commit()
+
+
+# Earnings dates: refetch per ticker at most once a week
+_EARNINGS_TTL_DAYS = 7
+
+
+def get_earnings_dates(db: Session, ticker: str, start: date, end: date) -> list[date]:
+    """
+    Earnings dates for [start, end] from the cache; lazily refreshed from
+    yfinance (past + upcoming) at most once per week per ticker.
+    Returns [] for tickers without earnings data (ETFs, most TASE stocks).
+    """
+    if not valid_yf_ticker(ticker):
+        return []
+
+    last_fetch = db.execute(text(
+        "SELECT MAX(fetched_at) FROM stock_earnings_dates WHERE ticker = :tk"
+    ), {"tk": ticker}).scalar()
+
+    stale = last_fetch is None or (
+        (date.today() - last_fetch.date()).days >= _EARNINGS_TTL_DAYS
+    )
+    if stale:
+        try:
+            import yfinance as yf
+            edf = yf.Ticker(ticker).get_earnings_dates(limit=16)
+            if edf is not None and not edf.empty:
+                for ts in edf.index:
+                    db.execute(text("""
+                        INSERT INTO stock_earnings_dates (ticker, earnings_date, fetched_at)
+                        VALUES (:tk, :d, now())
+                        ON CONFLICT (ticker, earnings_date)
+                        DO UPDATE SET fetched_at = now()
+                    """), {"tk": ticker, "d": ts.date()})
+                db.commit()
+            else:
+                # Remember we tried (empty result) so we don't re-ask every request
+                db.execute(text("""
+                    INSERT INTO stock_earnings_dates (ticker, earnings_date, fetched_at)
+                    VALUES (:tk, '1900-01-01', now())
+                    ON CONFLICT (ticker, earnings_date) DO UPDATE SET fetched_at = now()
+                """), {"tk": ticker})
+                db.commit()
+        except Exception as e:
+            logger.warning(f"earnings fetch failed for {ticker}: {e}")
+
+    rows = db.execute(text("""
+        SELECT earnings_date FROM stock_earnings_dates
+        WHERE ticker = :tk AND earnings_date BETWEEN :s AND :e
+        ORDER BY earnings_date
+    """), {"tk": ticker, "s": start, "e": end}).fetchall()
+    return [r[0] for r in rows]

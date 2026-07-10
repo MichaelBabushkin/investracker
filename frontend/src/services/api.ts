@@ -269,6 +269,7 @@ export interface StockIndicators {
   }>;
   summary: { bullish: number; bearish: number; neutral: number };
   risk: { atr: number; atr_pct: number; suggested_stop: number } | null;
+  earnings: string[];
 }
 
 export interface SignalHistory {

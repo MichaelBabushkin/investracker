@@ -72,3 +72,18 @@ class StockPriceHistory(Base):
 
     def __repr__(self):
         return f"<StockPriceHistory {self.ticker} {self.date}: {self.close_price}>"
+
+
+class StockEarningsDate(Base):
+    """Earnings dates per ticker (past + upcoming), cached from yfinance."""
+    __tablename__ = "stock_earnings_dates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String(30), nullable=False)   # yfinance ticker
+    earnings_date = Column(Date, nullable=False)
+    fetched_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('ticker', 'earnings_date', name='uq_earnings_ticker_date'),
+        Index('idx_earnings_ticker', 'ticker'),
+    )

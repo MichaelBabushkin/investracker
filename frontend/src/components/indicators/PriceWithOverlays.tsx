@@ -30,6 +30,7 @@ interface Props {
   levels: { high_52w: number | null; low_52w: number | null };
   trades?: TradeMarker[];
   syncId?: string;
+  earnings?: string[];
 }
 
 const OVERLAYS = [
@@ -80,7 +81,7 @@ function PriceTooltip({ active, payload, currency }: any) {
   );
 }
 
-export default function PriceWithOverlays({ points, currency, levels, trades, syncId }: Props) {
+export default function PriceWithOverlays({ points, currency, levels, trades, syncId, earnings }: Props) {
   const [active, setActive] = useState<Set<string>>(
     new Set(OVERLAYS.filter((o) => o.defaultOn).map((o) => o.key))
   );
@@ -89,6 +90,14 @@ export default function PriceWithOverlays({ points, currency, levels, trades, sy
 
   const hasOHLC = points.some((p) => p.open != null && p.high != null && p.low != null);
   const candles = chartType === "candles" && hasOHLC;
+
+  // Earnings dates snapped to chart trading days (future dates fall outside
+  // the category axis and are shown as the "next earnings" chip instead)
+  const lastChartDate = points.length ? points[points.length - 1].date : "";
+  const earningsInChart = (earnings ?? [])
+    .filter((e) => e <= lastChartDate)
+    .map((e) => points.find((p) => p.date >= e)?.date)
+    .filter(Boolean) as string[];
 
   // Snap each trade to the first trading day on/after its date so the marker
   // sits exactly on the price line
@@ -233,6 +242,17 @@ export default function PriceWithOverlays({ points, currency, levels, trades, sy
               hide={!showBB}
             />
 
+            {earningsInChart.map((d, i) => (
+              <ReferenceLine
+                key={`e${i}`}
+                yAxisId="price"
+                x={d}
+                stroke="rgba(245,158,11,0.35)"
+                strokeDasharray="2 4"
+                label={{ value: "E", position: "insideTopLeft", fill: "#F59E0B", fontSize: 10 }}
+              />
+            ))}
+
             {levels.high_52w && (
               <ReferenceLine yAxisId="price" y={levels.high_52w} stroke="rgba(74,222,128,0.3)" strokeDasharray="4 4"
                 label={{ value: "52w high", position: "insideTopRight", fill: "#4ADE80", fontSize: 10 }} />
@@ -298,6 +318,11 @@ export default function PriceWithOverlays({ points, currency, levels, trades, sy
               <span className="w-2 h-2 rounded-full bg-loss inline-block" /> My sells
             </span>
           </>
+        )}
+        {earningsInChart.length > 0 && (
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-0.5 h-3 bg-warn/50 rounded" /> Earnings
+          </span>
         )}
       </div>
     </div>

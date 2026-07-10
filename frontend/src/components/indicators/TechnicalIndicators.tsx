@@ -35,6 +35,13 @@ export default function TechnicalIndicators({ symbol, market, trades }: Props) {
     return () => { cancelled = true; };
   }, [symbol, market, period]);
 
+  // Next upcoming earnings (beyond the chart's last date → countdown chip)
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const nextEarnings = (data?.earnings ?? []).find((e) => e >= todayIso) ?? null;
+  const daysToEarnings = nextEarnings
+    ? Math.round((new Date(nextEarnings + "T00:00:00").getTime() - Date.now()) / 86400000)
+    : null;
+
   // Last close + day change chip (replaces the old separate price chart header)
   const sym = data?.currency === "ILS" ? "₪" : "$";
   const pts = data?.points ?? [];
@@ -95,18 +102,31 @@ export default function TechnicalIndicators({ symbol, market, trades }: Props) {
       ) : data && data.points.length > 0 ? (
         <div className="flex flex-col gap-5">
           <SignalStrip data={data} />
-          {data.risk && (
+          {(data.risk || nextEarnings) && (
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-3.5 py-2.5 rounded-lg bg-surface-dark-tertiary/40 border border-white/5 text-xs">
-              <span className="text-gray-500">Risk (ATR 14):</span>
-              <span className="text-gray-300 tabular-nums">
-                daily range ≈ {sym}{data.risk.atr.toFixed(2)} ({data.risk.atr_pct.toFixed(1)}%)
-              </span>
-              <span className="text-gray-500">
-                suggested stop (2×ATR):{" "}
-                <span className="text-warn tabular-nums font-medium">
-                  {sym}{data.risk.suggested_stop.toFixed(2)}
+              {data.risk && (
+                <>
+                  <span className="text-gray-500">Risk (ATR 14):</span>
+                  <span className="text-gray-300 tabular-nums">
+                    daily range ≈ {sym}{data.risk.atr.toFixed(2)} ({data.risk.atr_pct.toFixed(1)}%)
+                  </span>
+                  <span className="text-gray-500">
+                    suggested stop (2×ATR):{" "}
+                    <span className="text-warn tabular-nums font-medium">
+                      {sym}{data.risk.suggested_stop.toFixed(2)}
+                    </span>
+                  </span>
+                </>
+              )}
+              {nextEarnings && (
+                <span className="text-gray-500">
+                  next earnings:{" "}
+                  <span className="text-info font-medium">
+                    {new Date(nextEarnings + "T00:00:00").toLocaleDateString("en-US", { day: "2-digit", month: "short" })}
+                    {daysToEarnings != null && daysToEarnings >= 0 && ` (in ${daysToEarnings}d)`}
+                  </span>
                 </span>
-              </span>
+              )}
             </div>
           )}
 
@@ -117,6 +137,7 @@ export default function TechnicalIndicators({ symbol, market, trades }: Props) {
             levels={data.levels}
             trades={trades}
             syncId={SYNC_ID}
+            earnings={data.earnings}
           />
           <RsiPanel points={data.points} syncId={SYNC_ID} />
           <MacdPanel points={data.points} syncId={SYNC_ID} />

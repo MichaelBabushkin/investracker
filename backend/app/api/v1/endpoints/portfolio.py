@@ -1444,6 +1444,10 @@ def get_stock_indicators(
     for s in signals:
         s["history"] = backtest.get(s["id"])
 
+    # Earnings dates inside the display window (chart markers)
+    earnings = [str(d) for d in phs.get_earnings_dates(db, yf_ticker, display_start, today + timedelta(days=45))
+                if d.year > 1900]
+
     # Risk block: ATR-based stop suggestion (context, not a buy/sell signal)
     last_atr = atr14[-1]
     last_close = closes[-1]
@@ -1500,6 +1504,7 @@ def get_stock_indicators(
         "signals": signals,
         "summary": summary,
         "risk": risk,
+        "earnings": earnings,
     }
 
 
