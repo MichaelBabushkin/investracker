@@ -15,6 +15,7 @@ import { worldStocksAPI } from "@/services/api";
 import { WorldStockTransaction } from "@/types/world-stocks";
 import TopTradesPanel from "./TopTradesPanel";
 import StockLogo from "@/components/StockLogo";
+import { AssetClass, isCrypto } from "@/utils/assetClass";
 import {
   ResponsiveContainer,
   BarChart,
@@ -30,12 +31,14 @@ import Link from "next/link";
 interface WorldStockTransactionsProps {
   refreshTrigger?: number;
   accountId?: number;
+  assetClass?: AssetClass;
   symbol?: string;
 }
 
 export default function WorldStockTransactions({
   refreshTrigger,
   accountId,
+  assetClass,
   symbol,
 }: WorldStockTransactionsProps) {
   const [transactions, setTransactions] = useState<WorldStockTransaction[]>([]);
@@ -49,7 +52,12 @@ export default function WorldStockTransactions({
       setLoading(true);
       setError(null);
       const data = await worldStocksAPI.getTransactions(accountId, symbol);
-      setTransactions(data);
+      setTransactions(
+        !assetClass
+          ? data
+          : data.filter((tx: any) =>
+              (isCrypto(tx.ticker || tx.symbol, tx.company_name) ? "crypto" : "equity") === assetClass)
+      );
     } catch (err: any) {
       setError(
         err.response?.data?.detail ||
@@ -59,7 +67,7 @@ export default function WorldStockTransactions({
     } finally {
       setLoading(false);
     }
-  }, [accountId, symbol]);
+  }, [accountId, symbol, assetClass]);
 
   useEffect(() => {
     fetchTransactions();

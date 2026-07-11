@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Upload, Clock, Landmark, Globe2, Building2, ArrowRight, DollarSign, X, Plus, RefreshCw } from "lucide-react";
+import { Upload, Clock, Landmark, Globe2, Building2, ArrowRight, DollarSign, X, Plus, RefreshCw, Bitcoin } from "lucide-react";
 import StockSymbolSearch from "./StockSymbolSearch";
 import WorldStockHoldings from "./WorldStockHoldings";
 import WorldStockTransactions from "./WorldStockTransactions";
@@ -18,12 +18,13 @@ import { WorldStockAccount } from "@/types/world-stocks";
 import { UploadResult } from "@/types/israeli-stocks";
 import toast from "react-hot-toast";
 
-type Market = "israeli" | "international" | "cash";
+type Market = "israeli" | "international" | "crypto" | "cash";
 type Tab = "holdings" | "transactions" | "dividends";
 
 const MARKET_TABS: Array<{ id: Market; name: string; icon: React.ElementType }> = [
   { id: "israeli", name: "Israeli Stocks", icon: Landmark },
   { id: "international", name: "International", icon: Globe2 },
+  { id: "crypto", name: "Crypto", icon: Bitcoin },
   { id: "cash", name: "Cash", icon: DollarSign },
 ];
 
@@ -725,13 +726,22 @@ export default function PortfolioDashboard() {
             <IsraeliStockDividends refreshTrigger={refreshTrigger} />
           )}
           {market === "international" && tab === "holdings" && (
-            <WorldStockHoldings refreshTrigger={refreshTrigger} accountId={selectedAccountId} />
+            <WorldStockHoldings refreshTrigger={refreshTrigger} accountId={selectedAccountId} assetClass="equity" />
           )}
           {market === "international" && tab === "transactions" && (
-            <WorldStockTransactions refreshTrigger={refreshTrigger} accountId={selectedAccountId} />
+            <WorldStockTransactions refreshTrigger={refreshTrigger} accountId={selectedAccountId} assetClass="equity" />
           )}
           {market === "international" && tab === "dividends" && (
-            <WorldStockDividends refreshTrigger={refreshTrigger} accountId={selectedAccountId} />
+            <WorldStockDividends refreshTrigger={refreshTrigger} accountId={selectedAccountId} assetClass="equity" />
+          )}
+          {market === "crypto" && tab === "holdings" && (
+            <WorldStockHoldings refreshTrigger={refreshTrigger} accountId={selectedAccountId} assetClass="crypto" />
+          )}
+          {market === "crypto" && tab === "transactions" && (
+            <WorldStockTransactions refreshTrigger={refreshTrigger} accountId={selectedAccountId} assetClass="crypto" />
+          )}
+          {market === "crypto" && tab === "dividends" && (
+            <WorldStockDividends refreshTrigger={refreshTrigger} accountId={selectedAccountId} assetClass="crypto" />
           )}
         </div>
       )}

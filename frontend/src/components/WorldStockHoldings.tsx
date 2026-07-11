@@ -21,15 +21,16 @@ import { WorldStockHolding } from "@/types/world-stocks";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import StockLogo from "@/components/StockLogo";
 import RsiBadge from "@/components/indicators/RsiBadge";
+import { AssetClass, isCrypto } from "@/utils/assetClass";
 import Link from "next/link";
 
 interface WorldStockHoldingsProps {
   refreshTrigger?: number;
   accountId?: number;
+  /** When set, only holdings of this asset class are shown (flat list, no
+      section headers) — used by the dashboard's International/Crypto tabs. */
+  assetClass?: AssetClass;
 }
-
-// Crypto ETFs are shown as their own section, separate from equities
-const CRYPTO_TICKERS = new Set(["ETHA", "IBIT"]);
 
 type DisplayRow =
   | { kind: "header"; label: string; icon: string; count: number; value: number; pl: number }
@@ -38,6 +39,7 @@ type DisplayRow =
 export default function WorldStockHoldings({
   refreshTrigger,
   accountId,
+  assetClass,
 }: WorldStockHoldingsProps) {
   const [holdings, setHoldings] = useState<WorldStockHolding[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,13 +127,16 @@ export default function WorldStockHoldings({
     return `${day}/${month}/${year}`;
   };
 
+  // Asset-class filter (automatic classification)
+  const visibleHoldings = Array.isArray(holdings)
+    ? holdings.filter(
+        (h) => !assetClass || (isCrypto(h.symbol, h.company_name) ? "crypto" : "equity") === assetClass
+      )
+    : [];
+
   // Calculate metrics
-  const totalValue = Array.isArray(holdings)
-    ? holdings.reduce((sum, holding) => sum + (holding.current_value || 0), 0)
-    : 0;
-  const totalUnrealizedPL = Array.isArray(holdings)
-    ? holdings.reduce((sum, holding) => sum + (holding.unrealized_gain || 0), 0)
-    : 0;
+  const totalValue = visibleHoldings.reduce((sum, holding) => sum + (holding.current_value || 0), 0);
+  const totalUnrealizedPL = visibleHoldings.reduce((sum, holding) => sum + (holding.unrealized_gain || 0), 0);
   const totalUnrealizedPLPercent =
     totalValue > 0
       ? (totalUnrealizedPL / (totalValue - totalUnrealizedPL)) * 100
@@ -142,8 +147,8 @@ export default function WorldStockHoldings({
   const totalCash = summaryData?.total_cash || 0;
 
   // Prepare pie chart data
-  const pieChartData = Array.isArray(holdings)
-    ? holdings
+  const pieChartData = Array.isArray(visibleHoldings)
+    ? visibleHoldings
         .map((holding, index) => ({
           name: holding.symbol,
           value: holding.current_value || 0,
@@ -223,7 +228,7 @@ export default function WorldStockHoldings({
     );
   }
 
-  if (!holdings || holdings.length === 0) {
+  if (!holdings || holdings.length === 0 || visibleHoldings.length === 0) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -247,9 +252,10 @@ export default function WorldStockHoldings({
     );
   }
 
-  // Split equities from crypto ETFs; section headers carry subtotals
-  const stockHoldings = holdings.filter((h) => !CRYPTO_TICKERS.has(h.symbol));
-  const cryptoHoldings = holdings.filter((h) => CRYPTO_TICKERS.has(h.symbol));
+  // Split equities from crypto ETFs (automatic classification); section
+  // headers carry subtotals. With an assetClass filter, show a flat list.
+  const stockHoldings = visibleHoldings.filter((h) => !isCrypto(h.symbol, h.company_name));
+  const cryptoHoldings = visibleHoldings.filter((h) => isCrypto(h.symbol, h.company_name));
 
   const subtotal = (hs: WorldStockHolding[]) => ({
     value: hs.reduce((s, h) => s + (h.current_value ?? 0), 0),
@@ -257,18 +263,20 @@ export default function WorldStockHoldings({
   });
 
   const displayRows: DisplayRow[] = [];
-  if (stockHoldings.length > 0 && cryptoHoldings.length > 0) {
+  if (!assetClass && stockHoldings.length > 0 && cryptoHoldings.length > 0) {
     displayRows.push({
       kind: "header", label: "International Stocks", icon: "🌍",
       count: stockHoldings.length, ...subtotal(stockHoldings),
     });
   }
   for (const h of stockHoldings) displayRows.push({ kind: "holding", holding: h });
-  if (cryptoHoldings.length > 0) {
+  if (!assetClass && cryptoHoldings.length > 0) {
     displayRows.push({
       kind: "header", label: "Crypto", icon: "₿",
       count: cryptoHoldings.length, ...subtotal(cryptoHoldings),
     });
+    for (const h of cryptoHoldings) displayRows.push({ kind: "holding", holding: h });
+  } else if (assetClass) {
     for (const h of cryptoHoldings) displayRows.push({ kind: "holding", holding: h });
   }
 
