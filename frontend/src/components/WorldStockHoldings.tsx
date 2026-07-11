@@ -28,6 +28,13 @@ interface WorldStockHoldingsProps {
   accountId?: number;
 }
 
+// Crypto ETFs are shown as their own section, separate from equities
+const CRYPTO_TICKERS = new Set(["ETHA", "IBIT"]);
+
+type DisplayRow =
+  | { kind: "header"; label: string; icon: string; count: number; value: number; pl: number }
+  | { kind: "holding"; holding: WorldStockHolding };
+
 export default function WorldStockHoldings({
   refreshTrigger,
   accountId,
@@ -240,6 +247,31 @@ export default function WorldStockHoldings({
     );
   }
 
+  // Split equities from crypto ETFs; section headers carry subtotals
+  const stockHoldings = holdings.filter((h) => !CRYPTO_TICKERS.has(h.symbol));
+  const cryptoHoldings = holdings.filter((h) => CRYPTO_TICKERS.has(h.symbol));
+
+  const subtotal = (hs: WorldStockHolding[]) => ({
+    value: hs.reduce((s, h) => s + (h.current_value ?? 0), 0),
+    pl: hs.reduce((s, h) => s + (h.unrealized_gain ?? 0), 0),
+  });
+
+  const displayRows: DisplayRow[] = [];
+  if (stockHoldings.length > 0 && cryptoHoldings.length > 0) {
+    displayRows.push({
+      kind: "header", label: "International Stocks", icon: "🌍",
+      count: stockHoldings.length, ...subtotal(stockHoldings),
+    });
+  }
+  for (const h of stockHoldings) displayRows.push({ kind: "holding", holding: h });
+  if (cryptoHoldings.length > 0) {
+    displayRows.push({
+      kind: "header", label: "Crypto", icon: "₿",
+      count: cryptoHoldings.length, ...subtotal(cryptoHoldings),
+    });
+    for (const h of cryptoHoldings) displayRows.push({ kind: "holding", holding: h });
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -422,7 +454,29 @@ export default function WorldStockHoldings({
                 </tr>
               </thead>
               <tbody className="bg-surface-dark-secondary divide-y divide-white/5">
-                {holdings.map((holding) => {
+                {displayRows.map((row, ri) => {
+                  if (row.kind === "header") {
+                    const plPos = row.pl >= 0;
+                    return (
+                      <tr key={`sec-${ri}`} className="bg-surface-dark/80">
+                        <td colSpan={6} className="px-6 py-2.5">
+                          <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                            {row.icon} {row.label}
+                            <span className="ml-2 font-normal text-gray-500 normal-case">
+                              {row.count} {row.count === 1 ? "position" : "positions"} · {formatCurrency(row.value)}
+                            </span>
+                          </span>
+                        </td>
+                        <td className="px-6 py-2.5 text-right">
+                          <span className={`text-xs font-semibold tabular-nums ${plPos ? "text-gain" : "text-loss"}`}>
+                            {plPos ? "+" : ""}{formatCurrency(row.pl)}
+                          </span>
+                        </td>
+                        <td colSpan={4} />
+                      </tr>
+                    );
+                  }
+                  const holding = row.holding;
                   return (
                     <tr key={holding.id} className="hover:bg-white/5">
                       <td className="px-6 py-4 whitespace-nowrap">
