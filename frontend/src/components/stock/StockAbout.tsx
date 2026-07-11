@@ -29,7 +29,7 @@ export default function StockAbout({ about }: StockAboutProps) {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm mt-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-4 gap-x-2 text-sm mt-6">
           <div>
             <div className="text-gray-500 mb-1">CEO</div>
             <div className="font-medium">{about.ceo}</div>
