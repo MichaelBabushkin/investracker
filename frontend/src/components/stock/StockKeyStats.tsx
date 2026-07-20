@@ -41,9 +41,9 @@ export default function StockKeyStats({ stats, price, currency }: StockKeyStatsP
         <CardTitle>Key Statistics</CardTitle>
       </CardHeader>
       <div>
-        <div className="grid grid-cols-1 gap-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
           {statItems.map((st, i) => (
-            <div key={i} className="flex justify-between items-center gap-3 border-b border-white/5 pb-2 last:border-0">
+            <div key={i} className="flex justify-between items-center gap-3 border-b border-white/5 pb-2">
               <span className="text-sm text-gray-400">{st.label}</span>
               <span className="text-sm font-medium whitespace-nowrap tabular-nums text-gray-100">{st.value}</span>
             </div>

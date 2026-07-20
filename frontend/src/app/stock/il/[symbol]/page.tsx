@@ -101,9 +101,9 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
           ...(data.portfolio.held && data.portfolio.quantity > 0
             ? [{ id: "position", label: "Position" }]
             : []),
-          { id: "chart", label: "Chart & Signals" },
           { id: "stats", label: "Stats & Activity" },
           { id: "about", label: "About" },
+          { id: "chart", label: "Chart & Signals" },
           { id: "news", label: "News" },
         ]}
       />
@@ -113,7 +113,27 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
         <StockYourPosition portfolio={data.portfolio} currency={data.currency} />
       </section>
 
-      {/* 2. The chart: price + overlays + trades + oscillators, all synced */}
+      {/* 2. Market data & opinions | 3. Your activity */}
+      <section id="stats" className="scroll-mt-14 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="lg:col-span-2 space-y-6">
+          <StockKeyStats stats={data.stats} price={data.price} currency={data.currency} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <StockTransactionHistory transactions={data.transactions} currency={data.currency} />
+            <StockDividends dividends={data.dividends} currency={data.currency} />
+          </div>
+        </div>
+        <div className="lg:col-span-1 space-y-6">
+          <StockAnalystConsensus analyst={data.analyst} currency={data.currency} currentPrice={data.price.current} />
+          <StockAnalystInsights analyst={data.analyst} />
+        </div>
+      </section>
+
+      {/* 4. Company background — reads better full-width, lowest priority */}
+      <section id="about" className="scroll-mt-14">
+        <StockAbout about={data.about} />
+      </section>
+
+      {/* 5. The chart: price + overlays + trades + oscillators, all synced */}
       <section id="chart" className="scroll-mt-14">
         <TechnicalIndicators
           symbol={symbol}
@@ -122,24 +142,6 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
             .filter((t) => t.date && (t.type === "BUY" || t.type === "SELL"))
             .map((t) => ({ date: t.date!, type: t.type, quantity: t.quantity, price: t.price }))}
         />
-      </section>
-
-      {/* 3. Market data & opinions | 4. Your activity */}
-      <section id="stats" className="scroll-mt-14 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <StockKeyStats stats={data.stats} price={data.price} currency={data.currency} />
-        <div className="space-y-6">
-          <StockAnalystConsensus analyst={data.analyst} currency={data.currency} currentPrice={data.price.current} />
-          <StockAnalystInsights analyst={data.analyst} />
-        </div>
-        <div className="space-y-6">
-          <StockTransactionHistory transactions={data.transactions} currency={data.currency} />
-          <StockDividends dividends={data.dividends} currency={data.currency} />
-        </div>
-      </section>
-
-      {/* 5. Company background — reads better full-width, lowest priority */}
-      <section id="about" className="scroll-mt-14">
-        <StockAbout about={data.about} />
       </section>
 
       <section id="news" className="scroll-mt-14">
