@@ -1996,8 +1996,8 @@ async def get_israeli_stock_detail(
 
             # Dividends
             div_rows = conn.execute(text("""
-                SELECT id, payment_date, ex_dividend_date, net_amount, shares_held
-                FROM israeli_stock_dividends
+                SELECT id, payment_date, amount, tax
+                FROM israeli_dividends
                 WHERE user_id = :user_id AND symbol = :symbol
                 ORDER BY payment_date DESC NULLS LAST
             """), params).fetchall()
@@ -2005,9 +2005,10 @@ async def get_israeli_stock_detail(
                 {
                     "id": r[0],
                     "payment_date": str(r[1]) if r[1] else None,
-                    "ex_dividend_date": str(r[2]) if r[2] else None,
-                    "net_amount": float(r[3] or 0),
-                    "per_share": round(float(r[3] or 0) / float(r[4]), 4) if r[4] and float(r[4]) > 0 else None,
+                    "ex_dividend_date": None,
+                    "net_amount": float(r[2] or 0) - float(r[3] or 0),
+                    "gross_amount": float(r[2] or 0),
+                    "per_share": None,
                 }
                 for r in div_rows
             ]

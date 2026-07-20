@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import StockDetailHeader from '@/components/stock/StockDetailHeader';
-import StockPriceChart from '@/components/stock/StockPriceChart';
 import StockYourPosition from '@/components/stock/StockYourPosition';
 import StockKeyStats from '@/components/stock/StockKeyStats';
 import StockAbout from '@/components/stock/StockAbout';
@@ -12,6 +11,8 @@ import StockDividends from '@/components/stock/StockDividends';
 import StockAnalystConsensus from '@/components/stock/StockAnalystConsensus';
 import StockAnalystInsights from '@/components/stock/StockAnalystInsights';
 import TelegramNewsFeed from '@/components/telegram/TelegramNewsFeed';
+import TechnicalIndicators from '@/components/indicators/TechnicalIndicators';
+import StockSectionNav from '@/components/stock/StockSectionNav';
 import { stockAPI } from '@/services/api';
 import { StockDetail } from '@/types/stock-detail';
 
@@ -95,32 +96,57 @@ export default function WorldStockPage({ params }: { params: { ticker: string } 
 
       <StockDetailHeader data={data} market="world" />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          <StockPriceChart
-            ticker={ticker}
-            market="world"
-            currency={data.currency}
-            fetchHistory={(period: string) => stockAPI.getWorldHistory(ticker, period)}
-          />
-        </div>
-        <StockYourPosition portfolio={data.portfolio} currency={data.currency} />
-      </div>
+      <StockSectionNav
+        items={[
+          ...(data.portfolio.held && data.portfolio.quantity > 0
+            ? [{ id: "position", label: "Position" }]
+            : []),
+          { id: "stats", label: "Stats & Activity" },
+          { id: "about", label: "About" },
+          { id: "chart", label: "Chart & Signals" },
+          { id: "news", label: "News" },
+        ]}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="space-y-6">
+      {/* 1. Your stake — the most personal fact, right under the header */}
+      <section id="position" className="scroll-mt-14">
+        <StockYourPosition portfolio={data.portfolio} currency={data.currency} />
+      </section>
+
+      {/* 2. Market data & opinions | 3. Your activity */}
+      <section id="stats" className="scroll-mt-14 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="lg:col-span-2 space-y-6">
           <StockKeyStats stats={data.stats} price={data.price} currency={data.currency} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <StockTransactionHistory transactions={data.transactions} currency={data.currency} />
+            <StockDividends dividends={data.dividends} currency={data.currency} />
+          </div>
+        </div>
+        <div className="lg:col-span-1 space-y-6">
           <StockAnalystConsensus analyst={data.analyst} currency={data.currency} currentPrice={data.price.current} />
           <StockAnalystInsights analyst={data.analyst} />
         </div>
+      </section>
+
+      {/* 4. Company background — reads better full-width, lowest priority */}
+      <section id="about" className="scroll-mt-14">
         <StockAbout about={data.about} />
-        <div className="space-y-6">
-          <StockTransactionHistory transactions={data.transactions} currency={data.currency} />
-          <StockDividends dividends={data.dividends} currency={data.currency} />
-        </div>
-      </div>
-      
-      <TelegramNewsFeed ticker={ticker} compact={true} />
+      </section>
+
+      {/* 5. The chart: price + overlays + trades + oscillators, all synced */}
+      <section id="chart" className="scroll-mt-14">
+        <TechnicalIndicators
+          symbol={ticker}
+          market="world"
+          trades={data.transactions
+            .filter((t) => t.date && (t.type === "BUY" || t.type === "SELL"))
+            .map((t) => ({ date: t.date!, type: t.type, quantity: t.quantity, price: t.price }))}
+        />
+      </section>
+
+      <section id="news" className="scroll-mt-14">
+        <TelegramNewsFeed ticker={ticker} compact={true} />
+      </section>
     </div>
   );
 }

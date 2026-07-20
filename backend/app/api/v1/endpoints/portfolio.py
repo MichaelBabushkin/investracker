@@ -1364,3 +1364,195 @@ def get_portfolio_overview(
             "world_pct": round(world_value / current_value * 100, 1) if current_value > 0 else None,
         },
     }
+
+
+@router.get("/stock-indicators")
+def get_stock_indicators(
+    symbol: str = Query(...),
+    market: str = Query(..., pattern="^(israeli|world)$"),
+    period: str = Query("1y", pattern="^(3m|6m|1y|2y)$"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Technical indicator pack for a single stock: SMA 20/50/150/200, EMA 9/21,
+    RSI(14), MACD(12/26/9), Bollinger(20,2σ), 52-week levels — plus per-
+    indicator bullish/bearish/neutral states for the signal strip.
+    Computed from cached daily closes (israeli in ILS, world in USD).
+    """
+    from app.services import price_history_service as phs
+    from app.services import technical_indicators as ti
+
+    today = date.today()
+    display_days = {"3m": 92, "6m": 183, "1y": 365, "2y": 730}[period]
+    display_start = today - timedelta(days=display_days)
+    # SMA200 needs ~200 trading days (~290 calendar) of warm-up before the
+    # first visible point, and the signal backtest wants ~3 years of events
+    fetch_start = today - timedelta(days=max(display_days + 420, 1095))
+
+    # Resolve yfinance ticker
+    if market == "israeli":
+        row = db.execute(text(
+            "SELECT yfinance_ticker FROM israeli_stocks WHERE symbol = :s"
+        ), {"s": symbol}).fetchone()
+        yf_ticker = row[0] if row and row[0] else f"{symbol}.TA"
+    else:
+        yf_ticker = symbol
+        if not phs.valid_yf_ticker(yf_ticker):
+            raise HTTPException(status_code=400, detail=f"Invalid ticker: {symbol}")
+
+    phs.ensure_ohlcv(db, yf_ticker, market, fetch_start, today)
+    series = phs.get_ohlcv_series(db, yf_ticker, fetch_start, today)
+    if len(series) < 30:
+        raise HTTPException(status_code=404, detail=f"Not enough price history for {symbol}")
+
+    dates = sorted(series.keys())
+    closes = [series[d]["c"] for d in dates]
+    opens = [series[d]["o"] for d in dates]
+    highs = [series[d]["h"] for d in dates]
+    lows = [series[d]["l"] for d in dates]
+    volumes = [series[d]["v"] for d in dates]
+
+    sma20 = ti.sma(closes, 20)
+    sma50 = ti.sma(closes, 50)
+    sma150 = ti.sma(closes, 150)
+    sma200 = ti.sma(closes, 200)
+    ema9 = ti.ema(closes, 9)
+    ema21 = ti.ema(closes, 21)
+    rsi14 = ti.rsi(closes, 14)
+    macd_line, signal_line, macd_hist = ti.macd(closes)
+    bb_upper, bb_mid, bb_lower = ti.bollinger(closes)
+    atr14 = ti.atr(highs, lows, closes, 14)
+    obv_series = ti.obv(closes, volumes)
+
+    # 52-week levels over the last ~252 trading days
+    tail = closes[-252:]
+    high_52w = max(tail) if tail else None
+    low_52w = min(tail) if tail else None
+
+    signals = ti.build_signals(
+        closes, sma50, sma150, sma200, rsi14,
+        macd_line, signal_line, bb_upper, bb_lower, high_52w, low_52w,
+    )
+    signals.append(ti.build_volume_signal(closes, volumes, obv_series))
+
+    # Per-signal historical track record on this stock (forward returns)
+    backtest = ti.backtest_signals(
+        closes, rsi14, macd_line, signal_line, sma50, sma150, sma200,
+        bb_lower, bb_upper,
+    )
+    for s in signals:
+        s["history"] = backtest.get(s["id"])
+
+    # Earnings dates inside the display window (chart markers)
+    earnings = [str(d) for d in phs.get_earnings_dates(db, yf_ticker, display_start, today + timedelta(days=45))
+                if d.year > 1900]
+
+    # Risk block: ATR-based stop suggestion (context, not a buy/sell signal)
+    last_atr = atr14[-1]
+    last_close = closes[-1]
+    risk = None
+    if last_atr is not None and last_close > 0:
+        risk = {
+            "atr": round(last_atr, 4),
+            "atr_pct": round(last_atr / last_close * 100, 2),
+            "suggested_stop": round(last_close - 2 * last_atr, 4),
+        }
+    summary = {
+        "bullish": sum(1 for s in signals if s["state"] == "bullish"),
+        "bearish": sum(1 for s in signals if s["state"] == "bearish"),
+        "neutral": sum(1 for s in signals if s["state"] == "neutral"),
+    }
+
+    def rnd(v: Optional[float], p: int = 4) -> Optional[float]:
+        return round(v, p) if v is not None else None
+
+    # Trim warm-up: only return the display window
+    out_points = []
+    for i, d in enumerate(dates):
+        if d < display_start:
+            continue
+        out_points.append({
+            "date": str(d),
+            "close": rnd(closes[i]),
+            "open": rnd(opens[i]),
+            "high": rnd(highs[i]),
+            "low": rnd(lows[i]),
+            "sma20": rnd(sma20[i]),
+            "sma50": rnd(sma50[i]),
+            "sma150": rnd(sma150[i]),
+            "sma200": rnd(sma200[i]),
+            "ema9": rnd(ema9[i]),
+            "ema21": rnd(ema21[i]),
+            "bb_upper": rnd(bb_upper[i]),
+            "bb_lower": rnd(bb_lower[i]),
+            "rsi": rnd(rsi14[i], 2),
+            "macd": rnd(macd_line[i]),
+            "macd_signal": rnd(signal_line[i]),
+            "macd_hist": rnd(macd_hist[i]),
+            "atr": rnd(atr14[i]),
+            "volume": volumes[i],
+        })
+
+    return {
+        "symbol": symbol,
+        "market": market,
+        "currency": "ILS" if market == "israeli" else "USD",
+        "period": period,
+        "points": out_points,
+        "levels": {"high_52w": rnd(high_52w), "low_52w": rnd(low_52w)},
+        "signals": signals,
+        "summary": summary,
+        "risk": risk,
+        "earnings": earnings,
+    }
+
+
+@router.get("/holdings-rsi")
+def get_holdings_rsi(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Batch RSI(14) for all of the user's current holdings — feeds the small
+    badge next to each holding row. {israeli: {symbol: rsi}, world: {ticker: rsi}}
+    """
+    from app.services import price_history_service as phs
+    from app.services import technical_indicators as ti
+
+    uid = str(current_user.id)
+    today = date.today()
+    start = today - timedelta(days=150)   # ≥ ~100 trading days for stable Wilder RSI
+
+    il_rows = db.execute(text("""
+        SELECT h.symbol, COALESCE(s.yfinance_ticker, h.symbol || '.TA')
+        FROM israeli_stock_holdings h
+        LEFT JOIN israeli_stocks s ON s.symbol = h.symbol
+        WHERE h.user_id = :uid AND h.quantity > 0
+    """), {"uid": uid}).fetchall()
+    w_rows = db.execute(text("""
+        SELECT ticker FROM world_stock_holdings
+        WHERE user_id = :uid AND quantity > 0
+    """), {"uid": uid}).fetchall()
+
+    il_map = {r[0]: r[1] for r in il_rows}                      # symbol → yf
+    w_tickers = [r[0] for r in w_rows if phs.valid_yf_ticker(r[0])]
+
+    phs.ensure_coverage(db, list(il_map.values()), 'israeli', start, today)
+    phs.ensure_coverage(db, w_tickers, 'world', start, today)
+    series = phs.get_price_series(
+        db, list(il_map.values()) + w_tickers, start, today
+    )
+
+    def last_rsi(yf_ticker: str) -> Optional[float]:
+        s = series.get(yf_ticker, {})
+        if len(s) < 20:
+            return None
+        closes = [s[d] for d in sorted(s.keys())]
+        r = ti.rsi(closes, 14)
+        return round(r[-1], 1) if r[-1] is not None else None
+
+    return {
+        "israeli": {sym: last_rsi(yf) for sym, yf in il_map.items()},
+        "world": {tk: last_rsi(tk) for tk in w_tickers},
+    }

@@ -65,8 +65,9 @@ def _download(
     start: date,
     end: date,
     mark_failures: bool = True,
-) -> dict[str, dict[date, float]]:
-    """One bulk yfinance call. Returns {ticker: {date: close}}. Empty on failure.
+) -> dict[str, dict[date, dict]]:
+    """One bulk yfinance call. Returns {ticker: {date: {c,o,h,l,v}}}.
+    Empty on failure.
 
     mark_failures should be True only for full-range fetches of new tickers:
     a head/tail refresh returning nothing (weekend, pre-IPO) is not evidence
@@ -90,21 +91,44 @@ def _download(
             if mark_failures:
                 _failed_tickers.update(tickers)
             return {}
-        close = hist["Close"]
-        # Normalize to a DataFrame with one column per ticker: yfinance returns
-        # a Series for a single string ticker, and a one-column DataFrame for a
-        # single-element list
-        if isinstance(close, pd.Series):
-            close = close.to_frame(name=tickers[0])
-        elif len(tickers) == 1 and tickers[0] not in close.columns:
-            close.columns = [tickers[0]]
-        result: dict[str, dict[date, float]] = {}
+
+        def _frame(field: str):
+            """Field frame normalized to one column per ticker (yfinance
+            returns a Series for a single string ticker, and a one-column
+            DataFrame for a single-element list)."""
+            top_level = (hist.columns.get_level_values(0)
+                         if isinstance(hist.columns, pd.MultiIndex) else hist.columns)
+            if field not in top_level:
+                return None
+            f = hist[field]
+            if isinstance(f, pd.Series):
+                f = f.to_frame(name=tickers[0])
+            elif len(tickers) == 1 and tickers[0] not in f.columns:
+                f.columns = [tickers[0]]
+            return f
+
+        frames = {key: _frame(field) for key, field in
+                  (("c", "Close"), ("o", "Open"), ("h", "High"), ("l", "Low"), ("v", "Volume"))}
+        close = frames["c"]
+        if close is None:
+            return {}
+
+        result: dict[str, dict[date, dict]] = {}
         for ticker in tickers:
             if ticker not in close.columns:
                 continue
             for idx, val in close[ticker].items():
-                if pd.notna(val):
-                    result.setdefault(ticker, {})[idx.date()] = float(val)
+                if not pd.notna(val):
+                    continue
+                d = idx.date()
+                bar = {"c": float(val)}
+                for key in ("o", "h", "l", "v"):
+                    f = frames[key]
+                    if f is not None and ticker in f.columns:
+                        fv = f[ticker].get(idx)
+                        if pd.notna(fv):
+                            bar[key] = float(fv)
+                result.setdefault(ticker, {})[d] = bar
         # Remember tickers that produced no data so we don't retry each request
         if mark_failures:
             for t in tickers:
@@ -150,7 +174,8 @@ def _store(db: Session, market: str, prices: dict[str, dict[date, float]]) -> in
         prev = float(row[0]) if row else None
 
         for d in sorted(series.keys()):
-            value = series[d] / divisor
+            bar = series[d]
+            value = bar["c"] / divisor
             if prev is not None and prev > 0:
                 ratio = value / prev
                 if ratio > 5 or ratio < 0.2:
@@ -160,11 +185,22 @@ def _store(db: Session, market: str, prices: dict[str, dict[date, float]]) -> in
                     )
                     continue
             db.execute(text("""
-                INSERT INTO stock_price_history (ticker, market, date, close_price, created_at)
-                VALUES (:tk, :mk, :d, :p, now())
+                INSERT INTO stock_price_history
+                    (ticker, market, date, close_price, open_price, high_price, low_price, volume, created_at)
+                VALUES (:tk, :mk, :d, :c, :o, :h, :l, :v, now())
                 ON CONFLICT (ticker, date)
-                DO UPDATE SET close_price = EXCLUDED.close_price
-            """), {"tk": ticker, "mk": market, "d": d, "p": value})
+                DO UPDATE SET close_price = EXCLUDED.close_price,
+                              open_price = EXCLUDED.open_price,
+                              high_price = EXCLUDED.high_price,
+                              low_price = EXCLUDED.low_price,
+                              volume = EXCLUDED.volume
+            """), {
+                "tk": ticker, "mk": market, "d": d, "c": value,
+                "o": bar.get("o") / divisor if bar.get("o") is not None else None,
+                "h": bar.get("h") / divisor if bar.get("h") is not None else None,
+                "l": bar.get("l") / divisor if bar.get("l") is not None else None,
+                "v": int(bar["v"]) if bar.get("v") is not None else None,
+            })
             prev = value
             inserted += 1
     return inserted
@@ -216,7 +252,9 @@ def ensure_coverage(
         dirty |= _store(db, market, prices) > 0
     if need_tail:
         latest = max(cov[t][1] for t in need_tail)
-        prices = _download(need_tail, latest + timedelta(days=1), end, mark_failures=False)
+        # Start a few days back: the most recent stored rows may be partial
+        # intraday bars — the upsert overwrites them with finalized closes
+        prices = _download(need_tail, latest - timedelta(days=3), end, mark_failures=False)
         dirty |= _store(db, market, prices) > 0
 
     if dirty:
@@ -264,3 +302,103 @@ def ensure_fx_coverage(db: Session, start: date, end: date) -> None:
         dirty |= _store(db, 'fx', _download(tickers, hi + timedelta(days=1), end, mark_failures=False)) > 0
     if dirty:
         db.commit()
+
+
+def get_ohlcv_series(
+    db: Session,
+    ticker: str,
+    start: date,
+    end: date,
+) -> dict[date, dict]:
+    """{date: {c, o, h, l, v}} from the cache (o/h/l/v may be None on old rows)."""
+    rows = db.execute(text("""
+        SELECT date, close_price, open_price, high_price, low_price, volume
+        FROM stock_price_history
+        WHERE ticker = :tk AND date BETWEEN :s AND :e
+        ORDER BY date
+    """), {"tk": ticker, "s": start, "e": end}).fetchall()
+    return {
+        r[0]: {
+            "c": float(r[1]),
+            "o": float(r[2]) if r[2] is not None else None,
+            "h": float(r[3]) if r[3] is not None else None,
+            "l": float(r[4]) if r[4] is not None else None,
+            "v": int(r[5]) if r[5] is not None else None,
+        }
+        for r in rows
+    }
+
+
+def ensure_ohlcv(
+    db: Session,
+    ticker: str,
+    market: str,
+    start: date,
+    end: date,
+) -> None:
+    """
+    Guarantee OHLCV columns are populated for [start, end]. Rows written
+    before the OHLCV migration have NULL high/low/volume — if any exist in
+    the range, refetch the whole range once and upsert (per-ticker, one-time).
+    """
+    ensure_coverage(db, [ticker], market, start, end)
+    null_count = db.execute(text("""
+        SELECT COUNT(*) FROM stock_price_history
+        WHERE ticker = :tk AND date BETWEEN :s AND :e AND high_price IS NULL
+    """), {"tk": ticker, "s": start, "e": end}).scalar() or 0
+    if null_count > 3:     # tolerate a few odd rows (some indices lack OHLC)
+        prices = _download([ticker], start, end, mark_failures=False)
+        if _store(db, market, prices) > 0:
+            db.commit()
+
+
+# Earnings dates: refetch per ticker at most once a week
+_EARNINGS_TTL_DAYS = 7
+
+
+def get_earnings_dates(db: Session, ticker: str, start: date, end: date) -> list[date]:
+    """
+    Earnings dates for [start, end] from the cache; lazily refreshed from
+    yfinance (past + upcoming) at most once per week per ticker.
+    Returns [] for tickers without earnings data (ETFs, most TASE stocks).
+    """
+    if not valid_yf_ticker(ticker):
+        return []
+
+    last_fetch = db.execute(text(
+        "SELECT MAX(fetched_at) FROM stock_earnings_dates WHERE ticker = :tk"
+    ), {"tk": ticker}).scalar()
+
+    stale = last_fetch is None or (
+        (date.today() - last_fetch.date()).days >= _EARNINGS_TTL_DAYS
+    )
+    if stale:
+        try:
+            import yfinance as yf
+            edf = yf.Ticker(ticker).get_earnings_dates(limit=16)
+            if edf is not None and not edf.empty:
+                for ts in edf.index:
+                    db.execute(text("""
+                        INSERT INTO stock_earnings_dates (ticker, earnings_date, fetched_at)
+                        VALUES (:tk, :d, now())
+                        ON CONFLICT (ticker, earnings_date)
+                        DO UPDATE SET fetched_at = now()
+                    """), {"tk": ticker, "d": ts.date()})
+                db.commit()
+            else:
+                # Remember we tried (empty result) so we don't re-ask every request
+                db.execute(text("""
+                    INSERT INTO stock_earnings_dates (ticker, earnings_date, fetched_at)
+                    VALUES (:tk, '1900-01-01', now())
+                    ON CONFLICT (ticker, earnings_date) DO UPDATE SET fetched_at = now()
+                """), {"tk": ticker})
+                db.commit()
+        except Exception as e:
+            logger.warning(f"earnings fetch failed for {ticker}: {e}")
+
+    rows = db.execute(text("""
+        SELECT earnings_date FROM stock_earnings_dates
+        WHERE ticker = :tk AND earnings_date BETWEEN :s AND :e
+        ORDER BY earnings_date
+    """), {"tk": ticker, "s": start, "e": end}).fetchall()
+    return [r[0] for r in rows]

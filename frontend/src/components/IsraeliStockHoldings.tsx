@@ -15,7 +15,8 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { israeliStocksAPI } from "@/services/api";
+import { israeliStocksAPI, portfolioAPI } from "@/services/api";
+import RsiBadge from "@/components/indicators/RsiBadge";
 import { IsraeliStockHolding } from "@/types/israeli-stocks";
 import StockLogo from "./StockLogo";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
@@ -29,6 +30,16 @@ export default function IsraeliStockHoldings({
   refreshTrigger,
 }: IsraeliStockHoldingsProps) {
   const [holdings, setHoldings] = useState<IsraeliStockHolding[]>([]);
+  const [rsiMap, setRsiMap] = useState<Record<string, number | null>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    portfolioAPI
+      .getHoldingsRsi()
+      .then((r) => { if (!cancelled) setRsiMap(r.israeli); })
+      .catch(() => { /* badges are optional decoration */ });
+    return () => { cancelled = true; };
+  }, [refreshTrigger]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -410,8 +421,9 @@ export default function IsraeliStockHoldings({
                                 className="flex-shrink-0 mr-3 group-hover:opacity-80 transition-opacity"
                               />
                               <div>
-                                <div className="text-sm font-medium text-gray-100 group-hover:text-brand-400 transition-colors">
+                                <div className="text-sm font-medium text-gray-100 group-hover:text-brand-400 transition-colors flex items-center gap-1.5">
                                   {holding.symbol}
+                                  <RsiBadge rsi={rsiMap[holding.symbol]} />
                                 </div>
                                 <div className="text-sm text-gray-400 max-w-xs truncate group-hover:text-brand-400/70 transition-colors">
                                   {holding.company_name}

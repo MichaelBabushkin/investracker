@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, Landmark, Globe2, Calendar, ChevronDown } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, Landmark, Globe2, Calendar, ChevronDown, RefreshCw } from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { portfolioAPI, PortfolioAnalytics, AnalyticsTransaction, HistoryPoint, AnalyticsMarket } from "@/services/api";
 import PortfolioHistoryChart from "@/components/PortfolioHistoryChart";
@@ -357,36 +357,47 @@ export default function AnalyticsPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [benchmarks, setBenchmarks] = useState<string[]>([]);   // 'ta125' | 'sp500'
   const [drilldown, setDrilldown] = useState<{ symbol: string; market: "israeli" | "world" } | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [, forceTick] = useState(0);   // re-render for the "Xm ago" label
 
   const activeDates = preset === "custom"
     ? { start: customStart, end: customEnd }
     : presetDates(preset);
 
-  const fetchAnalytics = useCallback(async (start: string, end: string, mk: AnalyticsMarket) => {
+  // Current selection, readable from the polling loop without stale closures
+  const selectionRef = useRef({ start: "", end: "", market, benchmarks });
+  selectionRef.current = { ...activeDates, market, benchmarks };
+
+  const fetchAnalytics = useCallback(async (start: string, end: string, mk: AnalyticsMarket, silent = false) => {
     if (!start || !end || start > end) return;
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const result = await portfolioAPI.getAnalytics(start, end, mk);
       setData(result);
     } catch (err: any) {
-      setError(err?.response?.data?.detail ?? "Failed to load analytics");
+      if (!silent) setError(err?.response?.data?.detail ?? "Failed to load analytics");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
-  const fetchHistory = useCallback(async (start: string, end: string, mk: AnalyticsMarket, bms: string[]) => {
+  const fetchHistory = useCallback(async (start: string, end: string, mk: AnalyticsMarket, bms: string[], silent = false) => {
     if (!start || !end || start > end) return;
-    setHistoryLoading(true);
-    setHistoryPoints(null);
+    if (!silent) {
+      setHistoryLoading(true);
+      setHistoryPoints(null);
+    }
     try {
       const result = await portfolioAPI.getHistory(start, end, mk, bms.join(","));
       setHistoryPoints(result.points);
     } catch {
-      setHistoryPoints([]);
+      if (!silent) setHistoryPoints([]);
     } finally {
-      setHistoryLoading(false);
+      if (!silent) setHistoryLoading(false);
     }
   }, []);
 
@@ -413,6 +424,57 @@ export default function AnalyticsPage() {
   const toggleBenchmark = (id: string) =>
     setBenchmarks((prev) => (prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id]));
 
+  const refetchCurrent = useCallback(() => {
+    const { start, end, market: mk, benchmarks: bms } = selectionRef.current;
+    fetchAnalytics(start, end, mk, true);       // silent: no skeleton flash
+    fetchHistory(start, end, mk, bms, true);
+  }, [fetchAnalytics, fetchHistory]);
+
+  // ── Live updates: poll price freshness every 60s; when the backend price
+  // task has written new prices, refetch — but only if the selected period
+  // includes today (historical periods never change)
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let known: string | null = null;
+
+    const tick = async () => {
+      try {
+        const s = await portfolioAPI.getStatus();
+        if (cancelled) return;
+        setLastUpdated(s.last_updated);
+        const includesToday = selectionRef.current.end >= toISODate(new Date());
+        if (known && s.last_updated && s.last_updated !== known && includesToday) {
+          refetchCurrent();
+        }
+        known = s.last_updated;
+      } catch { /* transient — try again next tick */ }
+      forceTick((t) => t + 1);            // refresh the "Xm ago" label
+      if (!cancelled) timer = setTimeout(tick, 60_000);
+    };
+    tick();
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [refetchCurrent]);
+
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const r = await portfolioAPI.refresh();    // triggers backend price fetch (60s cooldown)
+      if (r.last_updated) setLastUpdated(r.last_updated);
+      refetchCurrent();
+    } catch { /* keep last data */ } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const updatedAgo = (() => {
+    if (!lastUpdated) return null;
+    const mins = Math.max(0, Math.round((Date.now() - new Date(lastUpdated).getTime()) / 60000));
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    return `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
+  })();
+
   const pv = data?.portfolio_values;
   const returnPositive = pv?.change_ils != null ? pv.change_ils >= 0 : undefined;
   const plPositive = data ? data.realized_pl.total_ils >= 0 : undefined;
@@ -431,12 +493,31 @@ export default function AnalyticsPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-heading font-bold text-gray-100">Analytics</h1>
-            {periodLabel && (
-              <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
-                <Calendar size={12} />
-                {periodLabel}
-              </p>
-            )}
+            <div className="text-sm text-gray-500 mt-1 flex items-center gap-3 flex-wrap">
+              {periodLabel && (
+                <span className="flex items-center gap-1.5">
+                  <Calendar size={12} />
+                  {periodLabel}
+                </span>
+              )}
+              <span className="flex items-center gap-1.5 text-xs">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gain opacity-60" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-gain" />
+                </span>
+                <span className="text-gray-500">
+                  Live{updatedAgo ? ` · prices updated ${updatedAgo}` : ""}
+                </span>
+                <button
+                  onClick={handleManualRefresh}
+                  disabled={refreshing}
+                  title="Refresh prices now"
+                  className="p-1 rounded-md text-gray-500 hover:text-gray-200 hover:bg-white/5 transition-colors disabled:opacity-40"
+                >
+                  <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
+                </button>
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-col items-start sm:items-end gap-2">
@@ -482,7 +563,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* ── All-time overview (period-independent) ── */}
-        <AllTimeOverview />
+        <AllTimeOverview refreshKey={lastUpdated} />
 
         {/* Custom date range row */}
         {showCustom && preset === "custom" && (

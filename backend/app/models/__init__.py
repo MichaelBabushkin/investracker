@@ -36,7 +36,7 @@ from .education_progress import EducationProgress
 from .telegram_models import TelegramChannel, UserTelegramSubscription, TelegramMessage
 
 # Stock Prices
-from .stock_price_models import StockPrice, StockPriceHistory
+from .stock_price_models import StockPrice, StockPriceHistory, StockEarningsDate
 
 __all__ = [
     "User",
@@ -67,4 +67,5 @@ __all__ = [
     # Stock Prices
     "StockPrice",
     "StockPriceHistory",
+    "StockEarningsDate",
 ]

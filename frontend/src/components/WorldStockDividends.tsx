@@ -11,6 +11,7 @@ import {
 import { worldStocksAPI } from "@/services/api";
 import { WorldStockDividend } from "@/types/world-stocks";
 import StockLogo from "@/components/StockLogo";
+import { AssetClass, isCrypto } from "@/utils/assetClass";
 import {
   ResponsiveContainer,
   BarChart,
@@ -25,12 +26,14 @@ import {
 interface WorldStockDividendsProps {
   refreshTrigger?: number;
   accountId?: number;
+  assetClass?: AssetClass;
   symbol?: string;
 }
 
 export default function WorldStockDividends({
   refreshTrigger,
   accountId,
+  assetClass,
   symbol,
 }: WorldStockDividendsProps) {
   const [dividends, setDividends] = useState<WorldStockDividend[]>([]);
@@ -42,7 +45,12 @@ export default function WorldStockDividends({
       setLoading(true);
       setError(null);
       const data = await worldStocksAPI.getDividends(accountId, symbol);
-      setDividends(data);
+      setDividends(
+        !assetClass
+          ? data
+          : data.filter((d: any) =>
+              (isCrypto(d.ticker || d.symbol, d.company_name) ? "crypto" : "equity") === assetClass)
+      );
     } catch (err: any) {
       setError(
         err.response?.data?.detail || err.message || "Failed to load dividends"
@@ -50,7 +58,7 @@ export default function WorldStockDividends({
     } finally {
       setLoading(false);
     }
-  }, [accountId, symbol]);
+  }, [accountId, symbol, assetClass]);
 
   useEffect(() => {
     fetchDividends();

@@ -148,7 +148,7 @@ const TONE_CLS: Record<string, string> = {
   neutral: "text-gray-100",
 };
 
-export default function AllTimeOverview() {
+export default function AllTimeOverview({ refreshKey }: { refreshKey?: string | null }) {
   const [data, setData] = useState<PortfolioOverview | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -159,7 +159,7 @@ export default function AllTimeOverview() {
       .then((r) => !cancelled && setData(r))
       .catch(() => !cancelled && setFailed(true));
     return () => { cancelled = true; };
-  }, []);
+  }, [refreshKey]);
 
   if (failed) return null;
 

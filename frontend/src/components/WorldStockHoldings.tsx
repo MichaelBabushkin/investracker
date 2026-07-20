@@ -16,24 +16,44 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { worldStocksAPI } from "@/services/api";
+import { worldStocksAPI, portfolioAPI } from "@/services/api";
 import { WorldStockHolding } from "@/types/world-stocks";
 import { useConfirmDialog } from "@/components/ConfirmDialog";
 import StockLogo from "@/components/StockLogo";
+import RsiBadge from "@/components/indicators/RsiBadge";
+import { AssetClass, isCrypto } from "@/utils/assetClass";
 import Link from "next/link";
 
 interface WorldStockHoldingsProps {
   refreshTrigger?: number;
   accountId?: number;
+  /** When set, only holdings of this asset class are shown (flat list, no
+      section headers) — used by the dashboard's International/Crypto tabs. */
+  assetClass?: AssetClass;
 }
+
+type DisplayRow =
+  | { kind: "header"; label: string; icon: string; count: number; value: number; pl: number }
+  | { kind: "holding"; holding: WorldStockHolding };
 
 export default function WorldStockHoldings({
   refreshTrigger,
   accountId,
+  assetClass,
 }: WorldStockHoldingsProps) {
   const [holdings, setHoldings] = useState<WorldStockHolding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rsiMap, setRsiMap] = useState<Record<string, number | null>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    portfolioAPI
+      .getHoldingsRsi()
+      .then((r) => !cancelled && setRsiMap(r.world))
+      .catch(() => { /* badges are optional decoration */ });
+    return () => { cancelled = true; };
+  }, [refreshTrigger]);
   const [viewMode, setViewMode] = useState<"table" | "chart">("table");
   const [summaryData, setSummaryData] = useState<{
     total_realized_pl: number;
@@ -107,13 +127,16 @@ export default function WorldStockHoldings({
     return `${day}/${month}/${year}`;
   };
 
+  // Asset-class filter (automatic classification)
+  const visibleHoldings = Array.isArray(holdings)
+    ? holdings.filter(
+        (h) => !assetClass || (isCrypto(h.symbol, h.company_name) ? "crypto" : "equity") === assetClass
+      )
+    : [];
+
   // Calculate metrics
-  const totalValue = Array.isArray(holdings)
-    ? holdings.reduce((sum, holding) => sum + (holding.current_value || 0), 0)
-    : 0;
-  const totalUnrealizedPL = Array.isArray(holdings)
-    ? holdings.reduce((sum, holding) => sum + (holding.unrealized_gain || 0), 0)
-    : 0;
+  const totalValue = visibleHoldings.reduce((sum, holding) => sum + (holding.current_value || 0), 0);
+  const totalUnrealizedPL = visibleHoldings.reduce((sum, holding) => sum + (holding.unrealized_gain || 0), 0);
   const totalUnrealizedPLPercent =
     totalValue > 0
       ? (totalUnrealizedPL / (totalValue - totalUnrealizedPL)) * 100
@@ -124,8 +147,8 @@ export default function WorldStockHoldings({
   const totalCash = summaryData?.total_cash || 0;
 
   // Prepare pie chart data
-  const pieChartData = Array.isArray(holdings)
-    ? holdings
+  const pieChartData = Array.isArray(visibleHoldings)
+    ? visibleHoldings
         .map((holding, index) => ({
           name: holding.symbol,
           value: holding.current_value || 0,
@@ -205,7 +228,7 @@ export default function WorldStockHoldings({
     );
   }
 
-  if (!holdings || holdings.length === 0) {
+  if (!holdings || holdings.length === 0 || visibleHoldings.length === 0) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -227,6 +250,34 @@ export default function WorldStockHoldings({
         </div>
       </div>
     );
+  }
+
+  // Split equities from crypto ETFs (automatic classification); section
+  // headers carry subtotals. With an assetClass filter, show a flat list.
+  const stockHoldings = visibleHoldings.filter((h) => !isCrypto(h.symbol, h.company_name));
+  const cryptoHoldings = visibleHoldings.filter((h) => isCrypto(h.symbol, h.company_name));
+
+  const subtotal = (hs: WorldStockHolding[]) => ({
+    value: hs.reduce((s, h) => s + (h.current_value ?? 0), 0),
+    pl: hs.reduce((s, h) => s + (h.unrealized_gain ?? 0), 0),
+  });
+
+  const displayRows: DisplayRow[] = [];
+  if (!assetClass && stockHoldings.length > 0 && cryptoHoldings.length > 0) {
+    displayRows.push({
+      kind: "header", label: "International Stocks", icon: "🌍",
+      count: stockHoldings.length, ...subtotal(stockHoldings),
+    });
+  }
+  for (const h of stockHoldings) displayRows.push({ kind: "holding", holding: h });
+  if (!assetClass && cryptoHoldings.length > 0) {
+    displayRows.push({
+      kind: "header", label: "Crypto", icon: "₿",
+      count: cryptoHoldings.length, ...subtotal(cryptoHoldings),
+    });
+    for (const h of cryptoHoldings) displayRows.push({ kind: "holding", holding: h });
+  } else if (assetClass) {
+    for (const h of cryptoHoldings) displayRows.push({ kind: "holding", holding: h });
   }
 
   return (
@@ -411,7 +462,29 @@ export default function WorldStockHoldings({
                 </tr>
               </thead>
               <tbody className="bg-surface-dark-secondary divide-y divide-white/5">
-                {holdings.map((holding) => {
+                {displayRows.map((row, ri) => {
+                  if (row.kind === "header") {
+                    const plPos = row.pl >= 0;
+                    return (
+                      <tr key={`sec-${ri}`} className="bg-surface-dark/80">
+                        <td colSpan={6} className="px-6 py-2.5">
+                          <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                            {row.icon} {row.label}
+                            <span className="ml-2 font-normal text-gray-500 normal-case">
+                              {row.count} {row.count === 1 ? "position" : "positions"} · {formatCurrency(row.value)}
+                            </span>
+                          </span>
+                        </td>
+                        <td className="px-6 py-2.5 text-right">
+                          <span className={`text-xs font-semibold tabular-nums ${plPos ? "text-gain" : "text-loss"}`}>
+                            {plPos ? "+" : ""}{formatCurrency(row.pl)}
+                          </span>
+                        </td>
+                        <td colSpan={4} />
+                      </tr>
+                    );
+                  }
+                  const holding = row.holding;
                   return (
                     <tr key={holding.id} className="hover:bg-white/5">
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -423,8 +496,9 @@ export default function WorldStockHoldings({
                             className="flex-shrink-0 mr-3 group-hover:opacity-80 transition-opacity"
                           />
                           <div>
-                            <div className="text-sm font-medium text-gray-100 group-hover:text-brand-400 transition-colors">
+                            <div className="text-sm font-medium text-gray-100 group-hover:text-brand-400 transition-colors flex items-center gap-1.5">
                               {holding.symbol}
+                              <RsiBadge rsi={rsiMap[holding.symbol]} />
                             </div>
                             <div className="text-sm text-gray-400 max-w-xs truncate group-hover:text-brand-400/70 transition-colors">
                               {holding.company_name}
