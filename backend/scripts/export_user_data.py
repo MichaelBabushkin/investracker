@@ -109,6 +109,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--user", required=True)
     ap.add_argument("--skip-prices", action="store_true")
+    ap.add_argument("--skip-shared", action="store_true")
     args = ap.parse_args()
 
     lines = [
@@ -130,16 +131,17 @@ def main():
         lines.append("")
 
         # Shared tables: full mirror (delete all + insert with original ids)
-        for table in SHARED_TABLES:
-            if args.skip_prices and table == "stock_price_history":
-                continue
-            cols = columns_of(conn, table)
-            lines.append(f'DELETE FROM "{table}";')
-            rows = dump_rows(conn, table, cols)
-            lines.append(f"-- {table}: {len(rows)} rows")
-            lines.extend(rows)
-            lines.append("")
-            all_tables.append(table)
+        if not args.skip_shared:
+            for table in SHARED_TABLES:
+                if args.skip_prices and table == "stock_price_history":
+                    continue
+                cols = columns_of(conn, table)
+                lines.append(f'DELETE FROM "{table}";')
+                rows = dump_rows(conn, table, cols)
+                lines.append(f"-- {table}: {len(rows)} rows")
+                lines.extend(rows)
+                lines.append("")
+                all_tables.append(table)
 
         for table in USER_TABLES:
             cols = columns_of(conn, table)
