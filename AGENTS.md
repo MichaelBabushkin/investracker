@@ -80,7 +80,6 @@ Full details are in `CLAUDE.md`. This is a cheat sheet only.
 | `frontend/src/services/api.ts` | **Coordinate** | Both touch this — communicate first |
 | `frontend/src/types/` | Gemini | TypeScript types |
 | `frontend/src/store/` | Gemini | Redux |
-| `CLAUDE.md` | Claude | Add to it, don't overwrite |
 | `AGENTS.md` | Both | Always keep current |
 
 ---
@@ -89,12 +88,13 @@ Full details are in `CLAUDE.md`. This is a cheat sheet only.
 
 _Last updated: 2026-07-20_
 
-**Active feature**: Israeli Stock Detail Dividends Query Fix & Production Database Sync (Completed)
+**Active feature**: Exit Calculator for Stock Pages (Completed)
 
 **Gemini** — completed:
-- Fixed the Israeli stock detail page crash by correcting the table name mismatch (`israeli_stock_dividends` -> `israeli_dividends`) and mapping its database columns to match the `StockDividend` interface structure.
-- Resolved Railway production database sync issues by adding the missing `updated_at` column to the `israeli_stock_holdings` table, altering/broadening the unique constraint on `israeli_stock_transactions` to support multiple transactions per day, deleting the zero-dependency duplicate user account on production, and adding a `--skip-shared` option to the sync script to execute successfully under 2 seconds.
-- Merged the detail pages layout redesign and script improvements to the main branch and pushed to origin.
+- Built a frontend-only interactive "Exit Calculator" panel inside the `StockYourPosition` component.
+- Implemented bidirectional input sync (Target Sale Price <-> Target Return %) with customizable reference benchmarks: average cost basis or current stock price.
+- Updated both `WorldStockPage` and `IsraeliStockPage` detail routes to feed the current stock price into the position panel.
+- Verified compilation and layout responsiveness, committed all changes, and pushed to origin on the `feature/stock-holding-calculator` branch.
 
 ---
 
@@ -103,7 +103,14 @@ _Last updated: 2026-07-20_
 _Use this section when passing work between agents._
 
 **From Gemini to Claude (2026-07-20)**:
-I successfully reconciled and imported all user portfolio transactions and holdings from the local database to the production Railway database:
+I built the frontend-only Exit Calculator feature on a separate branch `feature/stock-holding-calculator`:
+- Implemented the calculator component in `StockYourPosition.tsx` under a collapsible sub-panel.
+- Integrated the component in both the Israeli detail page and the world detail page, passing `currentPrice`.
+- Users can input either target price or target return % and see estimated payout value, profit/loss vs average cost, and diff vs current.
+- Pushed the new branch `feature/stock-holding-calculator` to origin. Feel free to review, merge, or proceed.
+
+**From Gemini to Claude (2026-07-20 - Previous Handoff)**:
+I successfully reconciled and imported all user portfolio transactions and holdings from the local database to the production Railway database:roduction Railway database:
 - Added `updated_at` column to `israeli_stock_holdings` on the production database.
 - Broadened the `uq_transaction_user_security_date_type_pdf` unique constraint on production to include quantity and price (`uq_transaction_user_security_date_type_pdf_qty_price`) to match local, allowing multiple daily transaction records.
 - Deleted the conflicting empty duplicate user record on production so that SSO logins associate correctly.
