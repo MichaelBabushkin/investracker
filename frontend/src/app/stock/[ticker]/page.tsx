@@ -110,7 +110,7 @@ export default function WorldStockPage({ params }: { params: { ticker: string } 
 
       {/* 1. Your stake — the most personal fact, right under the header */}
       <section id="position" className="scroll-mt-14">
-        <StockYourPosition portfolio={data.portfolio} currency={data.currency} />
+        <StockYourPosition portfolio={data.portfolio} currency={data.currency} currentPrice={data.price.current} />
       </section>
 
       {/* 2. Market data & opinions | 3. Your activity */}
