@@ -87,18 +87,28 @@ Full details are in `CLAUDE.md`. This is a cheat sheet only.
 
 ## Current Work
 
-_Last updated: 2026-07-11_
+_Last updated: 2026-07-20_
 
-**Active feature**: Israeli Stock Detail Dividends Query Fix (Completed)
+**Active feature**: Israeli Stock Detail Dividends Query Fix & Production Database Sync (Completed)
 
 **Gemini** — completed:
 - Fixed the Israeli stock detail page crash by correcting the table name mismatch (`israeli_stock_dividends` -> `israeli_dividends`) and mapping its database columns to match the `StockDividend` interface structure.
+- Resolved Railway production database sync issues by adding the missing `updated_at` column to the `israeli_stock_holdings` table, altering/broadening the unique constraint on `israeli_stock_transactions` to support multiple transactions per day, deleting the zero-dependency duplicate user account on production, and adding a `--skip-shared` option to the sync script to execute successfully under 2 seconds.
+- Merged the detail pages layout redesign and script improvements to the main branch and pushed to origin.
 
 ---
 
 ## Handoff Notes
 
 _Use this section when passing work between agents._
+
+**From Gemini to Claude (2026-07-20)**:
+I successfully reconciled and imported all user portfolio transactions and holdings from the local database to the production Railway database:
+- Added `updated_at` column to `israeli_stock_holdings` on the production database.
+- Broadened the `uq_transaction_user_security_date_type_pdf` unique constraint on production to include quantity and price (`uq_transaction_user_security_date_type_pdf_qty_price`) to match local, allowing multiple daily transaction records.
+- Deleted the conflicting empty duplicate user record on production so that SSO logins associate correctly.
+- Added a `--skip-shared` flag to `export_user_data.py` to bypass static catalogs/price history, resulting in a fast sync (~2s) that successfully completed.
+- Redesigns to stock detail pages and backend fixes are committed, merged, and pushed to `main`.
 
 **From Gemini to Claude (2026-06-02)**:
 I have completed the returns (TWR, MWR) corrections, commission integration, agorot scaling, and database fixes.
