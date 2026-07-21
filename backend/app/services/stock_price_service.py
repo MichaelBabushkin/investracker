@@ -3,8 +3,9 @@ Stock Price Service
 Fetches and updates stock prices from external APIs (yfinance)
 Implements tiered update strategy for cost efficiency
 """
-import yfinance as yf
-import pandas as pd
+# yfinance/pandas are imported lazily inside the functions that fetch prices —
+# these run in the background price task, not on the web request path, so
+# there's no reason to hold ~150MB resident in the web process for them.
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import List, Dict, Optional, Tuple
@@ -154,6 +155,8 @@ class StockPriceService:
         Fetch prices for multiple tickers using yfinance.
         Returns dict of ticker -> price data
         """
+        import yfinance as yf
+        import pandas as pd
         if not tickers:
             return {}
         
@@ -454,6 +457,7 @@ def get_or_refresh_usd_ils_rate(engine) -> Optional[float]:
     and upserts it into the exchange_rates table.
     Returns the rate as a float, or None if unavailable.
     """
+    import yfinance as yf
     from datetime import date, timedelta
 
     cutoff = date.today() - timedelta(days=7)
@@ -657,6 +661,7 @@ def get_stock_detail(ticker: str, is_israeli: bool = False) -> dict:
     Returns a structured dict matching the StockDetail API response schema.
     For Israeli stocks pass is_israeli=True — ticker should already be the yfinance ticker (e.g. "TEVA.TA").
     """
+    import yfinance as yf
     # If is_israeli is True or ticker ends with .TA, try direct HTTP fetch first to ensure we get prices
     direct_detail = None
     if is_israeli or ticker.endswith('.TA'):
@@ -916,6 +921,8 @@ def get_stock_history(ticker: str, period: str = "1M") -> dict:
     period: one of 1D, 1W, 1M, 3M, 1Y, ALL
     Returns { ticker, period, data: [{date, open, high, low, close, volume}] }
     """
+    import yfinance as yf
+    import pandas as pd
     if ticker.endswith('.TA'):
         direct_hist = _fetch_history_direct(ticker, period)
         if direct_hist:

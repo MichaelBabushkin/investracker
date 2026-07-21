@@ -5,11 +5,13 @@ Calculate portfolio returns using TWR (Time-Weighted Return) and MWR (Money-Weig
 from decimal import Decimal
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
-import numpy as np
-from scipy.optimize import brentq
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import logging
+
+# scipy is imported lazily inside calculate_mwr — importing it at module load
+# pulls ~100MB of resident memory into every process for a solver used only
+# during returns recalculation.
 
 logger = logging.getLogger(__name__)
 
@@ -269,6 +271,7 @@ class ReturnsCalculator:
             return sum(cf / (1 + rate) ** (days / 365.0) for days, cf in cash_flows)
 
         try:
+            from scipy.optimize import brentq
             # Bracket the root: NPV is monotonically decreasing in rate for
             # investment-shaped flows. Expand the bracket until sign change.
             lo, hi = -0.9999, 10.0

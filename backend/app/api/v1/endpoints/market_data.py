@@ -4,9 +4,11 @@ Market Data endpoints — indices ticker bar.
 
 from fastapi import APIRouter, Depends, Query
 from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeoutError
-import yfinance as yf
 import time
 import logging
+
+# yfinance is imported lazily inside the handlers that use it — a top-level
+# import pulls pandas+numpy (~150MB resident) into the web process at startup.
 
 from app.core.deps import get_current_user
 
@@ -114,6 +116,7 @@ CATEGORIES: dict[str, dict] = {
 # Helper — always returns last known price (works for closed markets too)
 # ---------------------------------------------------------------------------
 def _fetch_one(symbol: str, name: str) -> dict | None:
+    import yfinance as yf
     try:
         t = yf.Ticker(symbol)
 
@@ -234,6 +237,7 @@ def clear_cache(_: dict = Depends(get_current_user)):
 def debug_symbol(symbol: str):
     """Debug endpoint — raw yfinance data for a single symbol. No auth required."""
     import traceback
+    import yfinance as yf
     result: dict = {"symbol": symbol, "steps": {}}
 
     try:

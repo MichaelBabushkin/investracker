@@ -8,7 +8,6 @@ import sys
 import re
 import json
 import uuid
-import pandas as pd
 import pdfplumber
 import psycopg2
 from datetime import datetime
@@ -962,8 +961,9 @@ class WorldStockService:
         Returns:
             List of world stock transaction dictionaries
         """
+        import pandas as pd
         all_world_transactions = []
-        
+
         # Hebrew transaction type prefixes that might be merged into stock name
         hebrew_prefixes = [
             'ביד/פה', 'סמ/שמ', 'למע/שמ', 'חסמ/שמ', 'ל"וח/ק', 'ל"וח/מ',
