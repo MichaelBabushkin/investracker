@@ -92,6 +92,7 @@ _Last updated: 2026-07-20_
 
 **Gemini** — completed:
 - Built a frontend-only interactive "Exit Calculator" panel inside the `StockYourPosition` component.
+- Refined the Exit Calculator UX/UI into a sleek, compact single-row design (horizontal bar on desktop, stacked on mobile) with inline inputs, inside-element prefixes/suffixes, and thin vertical dividers for results.
 - Implemented bidirectional input sync (Target Sale Price <-> Target Return %) with customizable reference benchmarks: average cost basis or current stock price.
 - Updated both `WorldStockPage` and `IsraeliStockPage` detail routes to feed the current stock price into the position panel.
 - Verified compilation and layout responsiveness, committed all changes, and pushed to origin on the `feature/stock-holding-calculator` branch.
