@@ -164,110 +164,89 @@ export default function StockYourPosition({ portfolio, currency, currentPrice }:
       </div>
 
       {isOpen && (
-        <div className="mt-4 pt-4 border-t border-white/5">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            {/* Inputs Column */}
-            <div className="lg:col-span-6 space-y-3.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span className="text-xs text-gray-400 font-medium">Estimate return relative to:</span>
-                <div className="flex gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleRefTypeChange('cost')}
-                    disabled={!portfolio.avg_cost_per_share}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors ${
-                      refType === 'cost'
-                        ? 'bg-brand-400/10 border-brand-400/30 text-brand-400'
-                        : 'border-white/5 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
-                    } disabled:opacity-30`}
-                  >
-                    Avg Cost ({formatCurrency(avgCost, currency as MarketCurrency)})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRefTypeChange('current')}
-                    disabled={!currentPrice}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors ${
-                      refType === 'current'
-                        ? 'bg-brand-400/10 border-brand-400/30 text-brand-400'
-                        : 'border-white/5 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
-                    } disabled:opacity-30`}
-                  >
-                    Current Price ({formatCurrency(current, currency as MarketCurrency)})
-                  </button>
+        <div className="mt-4 pt-3.5 border-t border-white/5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 text-xs">
+          {/* Left: Interactive inputs */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Segmented Control */}
+            <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/10 rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => handleRefTypeChange('cost')}
+                disabled={!portfolio.avg_cost_per_share}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all ${
+                  refType === 'cost'
+                    ? 'bg-brand-400 text-surface-dark font-semibold shadow-sm'
+                    : 'text-gray-400 hover:text-white'
+                } disabled:opacity-30`}
+              >
+                vs. Cost
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRefTypeChange('current')}
+                disabled={!currentPrice}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all ${
+                  refType === 'current'
+                    ? 'bg-brand-400 text-surface-dark font-semibold shadow-sm'
+                    : 'text-gray-400 hover:text-white'
+                } disabled:opacity-30`}
+              >
+                vs. Current
+              </button>
+            </div>
+
+            {/* Inputs Group */}
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500 font-medium">Target Price:</span>
+              <div className="relative rounded-md w-24">
+                <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none">
+                  <span className="text-gray-500 text-xs font-semibold">{currencySymbol}</span>
                 </div>
+                <input
+                  type="number"
+                  step="any"
+                  value={targetPrice}
+                  onChange={(e) => handlePriceChange(e.target.value)}
+                  className="bg-white/5 border border-white/10 focus:border-brand-400/50 rounded-md py-1 pl-5 pr-1.5 text-xs text-gray-100 focus:outline-none w-full tabular-nums text-right font-semibold"
+                  placeholder="0.00"
+                />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-gray-500 font-medium">Target Sale Price</label>
-                  <div className="relative rounded-lg shadow-sm w-full">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-gray-500 text-sm font-medium">{currencySymbol}</span>
-                    </div>
-                    <input
-                      type="number"
-                      step="any"
-                      value={targetPrice}
-                      onChange={(e) => handlePriceChange(e.target.value)}
-                      className="bg-white/5 border border-white/10 focus:border-brand-400/50 focus:ring-1 focus:ring-brand-400/50 rounded-lg py-1.5 pl-7 pr-3 text-sm text-gray-100 focus:outline-none w-full tabular-nums transition-all"
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
+              <span className="text-gray-500 font-medium">/</span>
 
-                <div className="space-y-1">
-                  <label className="text-[11px] text-gray-500 font-medium">Target Return</label>
-                  <div className="relative rounded-lg shadow-sm w-full">
-                    <input
-                      type="number"
-                      step="any"
-                      value={targetReturnPct}
-                      onChange={(e) => handleReturnChange(e.target.value)}
-                      className="bg-white/5 border border-white/10 focus:border-brand-400/50 focus:ring-1 focus:ring-brand-400/50 rounded-lg py-1.5 pl-3 pr-7 text-sm text-gray-100 focus:outline-none w-full tabular-nums transition-all"
-                      placeholder="0.00"
-                    />
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <span className="text-gray-500 text-sm font-medium">%</span>
-                    </div>
-                  </div>
+              <span className="text-gray-500 font-medium">Return:</span>
+              <div className="relative rounded-md w-20">
+                <input
+                  type="number"
+                  step="any"
+                  value={targetReturnPct}
+                  onChange={(e) => handleReturnChange(e.target.value)}
+                  className="bg-white/5 border border-white/10 focus:border-brand-400/50 rounded-md py-1 pl-1.5 pr-4 text-xs text-gray-100 focus:outline-none w-full tabular-nums text-right font-semibold"
+                  placeholder="0.00"
+                />
+                <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
+                  <span className="text-gray-500 text-xs font-semibold">%</span>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Results Column */}
-            <div className="lg:col-span-6 bg-white/[0.02] border border-white/5 rounded-xl p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Total Value</div>
-                <div className="text-base font-semibold text-gray-200 tabular-nums">
-                  {formatCurrency(totalSaleValue, currency as MarketCurrency)}
-                </div>
-                <div className="text-[10px] text-gray-500 mt-0.5">
-                  {portfolio.quantity.toLocaleString(undefined, { maximumFractionDigits: 2 })} shares
-                </div>
-              </div>
-
-              <div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Est. Profit (vs Cost)</div>
-                <div className={`text-base font-semibold tabular-nums ${profitVsCost >= 0 ? 'text-gain' : 'text-loss'}`}>
-                  {profitVsCost >= 0 ? '+' : '-'}
-                  {formatCurrency(Math.abs(profitVsCost), currency as MarketCurrency)}
-                </div>
-                <div className={`text-[10px] ${profitVsCost >= 0 ? 'text-gain/80' : 'text-loss/80'} mt-0.5 font-medium`}>
-                  {profitVsCost >= 0 ? '+' : ''}{profitVsCostPct.toFixed(2)}%
-                </div>
-              </div>
-
-              <div>
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Diff vs Current</div>
-                <div className={`text-base font-semibold tabular-nums ${profitVsCurrent >= 0 ? 'text-gain' : 'text-loss'}`}>
-                  {profitVsCurrent >= 0 ? '+' : '-'}
-                  {formatCurrency(Math.abs(profitVsCurrent), currency as MarketCurrency)}
-                </div>
-                <div className={`text-[10px] ${profitVsCurrent >= 0 ? 'text-gain/80' : 'text-loss/80'} mt-0.5 font-medium`}>
-                  {profitVsCurrent >= 0 ? '+' : ''}{profitVsCurrentPct.toFixed(2)}%
-                </div>
-              </div>
+          {/* Right: Dynamic output results */}
+          <div className="flex items-center gap-3.5 flex-wrap lg:justify-end text-[11px] font-medium text-gray-400">
+            <div>
+              Payout: <span className="text-gray-200 font-semibold tabular-nums">{formatCurrency(totalSaleValue, currency as MarketCurrency)}</span>
+            </div>
+            <div className="h-3.5 w-px bg-white/10" />
+            <div>
+              Est. Profit: <span className={`font-semibold tabular-nums ${profitVsCost >= 0 ? 'text-gain' : 'text-loss'}`}>
+                {profitVsCost >= 0 ? '+' : ''}{formatCurrency(profitVsCost, currency as MarketCurrency)} ({profitVsCost >= 0 ? '+' : ''}{profitVsCostPct.toFixed(2)}%)
+              </span>
+            </div>
+            <div className="h-3.5 w-px bg-white/10" />
+            <div>
+              Diff vs. Now: <span className={`font-semibold tabular-nums ${profitVsCurrent >= 0 ? 'text-gain' : 'text-loss'}`}>
+                {profitVsCurrent >= 0 ? '+' : ''}{formatCurrency(profitVsCurrent, currency as MarketCurrency)} ({profitVsCurrent >= 0 ? '+' : ''}{profitVsCurrentPct.toFixed(2)}%)
+              </span>
             </div>
           </div>
         </div>
