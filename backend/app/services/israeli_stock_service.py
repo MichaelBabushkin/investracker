@@ -2,6 +2,10 @@
 Israeli Stock Analysis Service
 Handles PDF processing, CSV extraction, and Israeli stock analysis for investment reports
 """
+# PEP 563: pandas type annotations become strings, and pandas itself is
+# imported lazily inside the CSV-parsing methods — keeping ~100MB out of the
+# web process at startup.
+from __future__ import annotations
 
 import os
 import sys
@@ -10,13 +14,15 @@ import glob
 import uuid
 import re
 import logging
-import pandas as pd
 import pdfplumber
 import psycopg2
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from dotenv import load_dotenv
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -361,6 +367,7 @@ class IsraeliStockService:
     
     def analyze_csv_files(self, csv_files: List[str], pdf_name: str, holding_date: Optional[datetime]) -> Tuple[List[Dict], List[Dict]]:
         """Analyze CSV files and extract Israeli stock data"""
+        import pandas as pd
         israeli_stocks = self.load_israeli_stocks()
         if not israeli_stocks:
             raise Exception("No Israeli stocks data available")
@@ -392,6 +399,7 @@ class IsraeliStockService:
     
     def analyze_csv_files_with_headings(self, csv_files: List[str], tables: List[Dict], pdf_name: str, holding_date: Optional[datetime]) -> Tuple[List[Dict], List[Dict]]:
         """Analyze CSV files using Hebrew heading information to determine table types"""
+        import pandas as pd
         israeli_stocks = self.load_israeli_stocks()
         if not israeli_stocks:
             raise Exception("No Israeli stocks data available")
@@ -459,8 +467,9 @@ class IsraeliStockService:
         This method extracts world stocks from the same PDF that contains Israeli stocks.
         Returns list of world stock transaction dictionaries.
         """
+        import pandas as pd
         all_world_transactions = []
-        
+
         # Hebrew transaction type prefixes that might be merged into stock name
         hebrew_prefixes = [
             'ביד/פה', 'סמ/שמ', 'למע/שמ', 'חסמ/שמ', 'ל"וח/ק', 'ל"וח/מ',
@@ -2176,6 +2185,7 @@ class IsraeliStockService:
     
     def analyze_csv_for_israeli_stocks(self, csv_files: List[str], user_id: str) -> Dict:
         """Analyze CSV files for Israeli stocks and save to database"""
+        import pandas as pd
         try:
             israeli_stocks = self.load_israeli_stocks()
             holdings = []

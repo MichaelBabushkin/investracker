@@ -2,11 +2,17 @@
 Base Broker Parser
 Abstract base class for all broker-specific parsers
 """
+# PEP 563: annotations are strings, so `pd.DataFrame`/`pd.Series` in signatures
+# no longer force pandas to load at import time. pandas (~100MB resident) is
+# only pulled in when a subclass actually parses a file.
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, TYPE_CHECKING
 from datetime import datetime
-import pandas as pd
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 class BaseBrokerParser(ABC):

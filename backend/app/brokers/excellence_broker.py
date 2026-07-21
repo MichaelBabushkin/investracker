@@ -3,11 +3,15 @@ Excellence/Meitav Broker Parser
 Handles PDF parsing for Excellence and Meitav investment reports
 """
 
+from __future__ import annotations
+
 import re
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, TYPE_CHECKING
 from datetime import datetime
-import pandas as pd
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 from .base_broker import BaseBrokerParser
 
@@ -102,8 +106,9 @@ class ExcellenceBrokerParser(BaseBrokerParser):
     
     def extract_deposits_withdrawals(self, df: pd.DataFrame, pdf_name: str, holding_date: Optional[datetime] = None) -> List[Dict]:
         """Extract deposits and withdrawals (security_no = 900) from Excellence format"""
+        import pandas as pd
         results = []
-        
+
         # Use dynamic column detection
         col_map = self.detect_column_indices(df)
         security_id_col = col_map.get('security_id', self.COL_SECURITY_ID)
@@ -140,7 +145,8 @@ class ExcellenceBrokerParser(BaseBrokerParser):
     def determine_table_type(self, df: pd.DataFrame, csv_file: str) -> str:
         """Determine if a CSV contains transactions or holdings data for Excellence"""
         import os
-        
+        import pandas as pd
+
         # Analyze content
         columns_str = ' '.join([str(col).lower() for col in df.columns])
         sample_data = ' '.join([str(val).lower() for val in df.iloc[:10].values.flatten() if pd.notna(val)])
@@ -203,6 +209,7 @@ class ExcellenceBrokerParser(BaseBrokerParser):
                          This prevents duplicates when uploading multiple monthly reports.
             col_map: Optional pre-computed column mapping. If None, will use default indices.
         """
+        import pandas as pd
         row_values = [str(val).strip() if pd.notna(val) else '' for val in row.values]
         row_values_no_commas = [s.replace(',', '') for s in row_values]
         
