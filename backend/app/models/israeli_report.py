@@ -15,7 +15,11 @@ class IsraeliReportUpload(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     filename = Column(String, nullable=False)
-    file_data = Column(LargeBinary, nullable=False)  # Store the actual PDF file
+    # PDF bytes live EITHER in R2 (storage_key set) OR inline in Postgres
+    # (file_data set) — never required together. New uploads use R2 when it's
+    # configured; file_data remains for rows uploaded before the migration.
+    file_data = Column(LargeBinary, nullable=True)   # legacy inline storage
+    storage_key = Column(String, nullable=True)      # R2 object key
     file_size = Column(Integer, nullable=False)  # Size in bytes
     broker = Column(String, nullable=False, default='excellence')  # Broker name
     upload_batch_id = Column(String, nullable=False, index=True)  # Links to PendingIsraeliTransaction batch
