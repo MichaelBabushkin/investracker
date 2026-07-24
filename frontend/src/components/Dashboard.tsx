@@ -81,46 +81,49 @@ export default function Dashboard() {
   const sparkColor = up ? "#4ADE80" : "#F43F5E";
   const hasAttention = !!data && (data.pending.total > 0 || data.upcoming_earnings.length > 0);
 
+  const actionCls = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-dark-secondary border border-white/5 hover:border-brand-400/30 text-gray-400 hover:text-brand-400 transition-colors text-xs font-medium";
+
   return (
     <div className="min-h-screen bg-surface-dark">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-        {/* Greeting */}
-        <h1 className="text-xl lg:text-2xl font-heading font-bold text-gray-100 mb-6">
-          Welcome back, {user?.first_name || "Investor"}
-        </h1>
+      <div className="px-4 sm:px-6 lg:px-8 py-6">
+        {/* Header: greeting + quick actions inline */}
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <h1 className="text-lg font-heading font-bold text-gray-100">
+            Welcome back, {user?.first_name || "Investor"}
+          </h1>
+          <div className="flex gap-2">
+            <button onClick={() => setShowUploader(true)} className={actionCls}><Upload size={14} /> Upload</button>
+            <Link href="/portfolio" className={actionCls}><Briefcase size={14} /> Portfolio</Link>
+            <Link href="/analytics" className={actionCls}><BarChart3 size={14} /> Analytics</Link>
+          </div>
+        </div>
 
-        {/* ── Hero: net worth + today + sparkline ── */}
+        {/* ── Hero: net worth + today + sparkline (full width) ── */}
         {loading ? (
-          <div className="animate-pulse bg-surface-dark-secondary border border-white/5 rounded-2xl h-40 mb-6" />
+          <div className="animate-pulse bg-surface-dark-secondary border border-white/5 rounded-xl h-28 mb-4" />
         ) : (
-          <div className="bg-surface-dark-secondary border border-white/5 rounded-2xl p-6 mb-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              <div>
-                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Net Worth</div>
-                <div className="text-4xl font-bold text-gray-100 tabular-nums">
+          <div className="bg-surface-dark-secondary border border-white/5 rounded-xl px-5 py-4 mb-4">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="md:w-72 flex-shrink-0">
+                <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Net Worth · Israeli + World</div>
+                <div className="text-3xl font-bold text-gray-100 tabular-nums leading-tight">
                   ₪{(data?.net_worth_ils ?? 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className={`inline-flex items-center gap-1 text-sm font-semibold ${up ? "text-gain" : "text-loss"}`}>
-                    {up ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
-                    {fmtILS(data?.today_change_ils ?? 0, { sign: true })}
-                    <span className="font-medium">
-                      ({(data?.today_change_pct ?? 0) >= 0 ? "+" : ""}{(data?.today_change_pct ?? 0).toFixed(2)}%)
-                    </span>
-                  </span>
-                  <span className="text-xs text-gray-600">today</span>
-                </div>
-                <div className="text-[11px] text-gray-600 mt-1">Israeli + World, in ILS</div>
+                <span className={`inline-flex items-center gap-1 text-sm font-semibold ${up ? "text-gain" : "text-loss"}`}>
+                  {up ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                  {fmtILS(data?.today_change_ils ?? 0, { sign: true })}
+                  <span className="font-medium">({(data?.today_change_pct ?? 0) >= 0 ? "+" : ""}{(data?.today_change_pct ?? 0).toFixed(2)}%)</span>
+                  <span className="text-xs text-gray-600 font-normal ml-1">today</span>
+                </span>
               </div>
-
-              {/* Sparkline */}
+              {/* Sparkline fills the remaining width */}
               {data && data.sparkline.length > 1 && (
-                <div className="w-full md:w-72 h-20">
+                <div className="flex-1 h-16 min-w-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={data.sparkline} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
                       <defs>
                         <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={sparkColor} stopOpacity={0.25} />
+                          <stop offset="0%" stopColor={sparkColor} stopOpacity={0.22} />
                           <stop offset="100%" stopColor={sparkColor} stopOpacity={0} />
                         </linearGradient>
                       </defs>
@@ -128,106 +131,85 @@ export default function Dashboard() {
                       <Area type="monotone" dataKey="value" stroke={sparkColor} strokeWidth={2} fill="url(#sparkFill)" dot={false} isAnimationActive={false} />
                     </AreaChart>
                   </ResponsiveContainer>
-                  <div className="text-[11px] text-gray-600 text-right -mt-1">last 30 days</div>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* ── Needs your attention ── */}
-        {hasAttention && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            {data!.pending.total > 0 && (
-              <Link
-                href="/portfolio"
-                className="flex items-center gap-3 p-4 rounded-xl bg-warn/[0.06] border border-warn/20 hover:border-warn/40 transition-colors"
-              >
-                <span className="w-10 h-10 rounded-lg bg-warn/15 flex items-center justify-center flex-shrink-0">
-                  <ClipboardCheck size={18} className="text-warn" />
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-gray-100">
-                    {data!.pending.total} transaction{data!.pending.total > 1 ? "s" : ""} to review
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {data!.pending.israeli > 0 && `${data!.pending.israeli} Israeli`}
-                    {data!.pending.israeli > 0 && data!.pending.world > 0 && " · "}
-                    {data!.pending.world > 0 && `${data!.pending.world} World`}
-                  </div>
-                </div>
-                <ChevronRight size={16} className="text-gray-600" />
-              </Link>
-            )}
-
-            {data!.upcoming_earnings.length > 0 && (
-              <div className="p-4 rounded-xl bg-info/[0.05] border border-info/15">
-                <div className="flex items-center gap-2 mb-2">
-                  <CalendarClock size={15} className="text-info" />
-                  <span className="text-sm font-semibold text-gray-200">Upcoming earnings</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {data!.upcoming_earnings.slice(0, 5).map((e) => (
-                    <Link
-                      key={e.symbol}
-                      href={`/stock/${e.symbol}`}
-                      className="text-xs px-2 py-1 rounded-md bg-white/[0.04] text-gray-300 hover:text-info transition-colors"
-                    >
-                      <span className="font-medium">{e.symbol}</span>
-                      <span className="text-gray-500 ml-1">in {e.days_until}d</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Top movers ── */}
-        {!loading && data && (data.top_movers.gainers.length > 0 || data.top_movers.losers.length > 0) && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        {/* ── Dense grid: attention | gainers | losers ── */}
+        {!loading && data && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Needs attention */}
             <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-1.5">
+              <div className="flex items-center gap-2 mb-2.5">
+                <ClipboardCheck size={14} className="text-warn" />
+                <span className="text-sm font-semibold text-gray-200">Needs attention</span>
+              </div>
+              {!hasAttention ? (
+                <p className="text-xs text-gray-600 py-2">You&apos;re all caught up ✓</p>
+              ) : (
+                <div className="space-y-2">
+                  {data.pending.total > 0 && (
+                    <Link href="/portfolio" className="flex items-center gap-2.5 rounded-lg hover:bg-white/[0.03] px-1 -mx-1 py-1 transition-colors group">
+                      <span className="w-7 h-7 rounded-lg bg-warn/15 flex items-center justify-center flex-shrink-0">
+                        <ClipboardCheck size={14} className="text-warn" />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-gray-200">{data.pending.total} transaction{data.pending.total > 1 ? "s" : ""} to review</div>
+                        <div className="text-[11px] text-gray-500">
+                          {data.pending.israeli > 0 && `${data.pending.israeli} Israeli`}
+                          {data.pending.israeli > 0 && data.pending.world > 0 && " · "}
+                          {data.pending.world > 0 && `${data.pending.world} World`}
+                        </div>
+                      </div>
+                      <ChevronRight size={15} className="text-gray-600 group-hover:text-gray-400" />
+                    </Link>
+                  )}
+                  {data.upcoming_earnings.length > 0 && (
+                    <div className="flex items-start gap-2.5 px-1 py-1">
+                      <span className="w-7 h-7 rounded-lg bg-info/15 flex items-center justify-center flex-shrink-0">
+                        <CalendarClock size={14} className="text-info" />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-[11px] text-gray-500 mb-1">Upcoming earnings</div>
+                        <div className="flex flex-wrap gap-1">
+                          {data.upcoming_earnings.slice(0, 6).map((e) => (
+                            <Link key={e.symbol} href={`/stock/${e.symbol}`} className="text-[11px] px-1.5 py-0.5 rounded bg-white/[0.05] text-gray-300 hover:text-info transition-colors">
+                              {e.symbol} <span className="text-gray-500">{e.days_until}d</span>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Gainers */}
+            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-1">
                 <TrendingUp size={14} className="text-gain" />
-                <span className="text-sm font-semibold text-gray-200">Today's gainers</span>
+                <span className="text-sm font-semibold text-gray-200">Today&apos;s gainers</span>
               </div>
               {data.top_movers.gainers.length > 0
                 ? data.top_movers.gainers.map((m) => <MoverRow key={m.symbol} m={m} />)
-                : <p className="text-xs text-gray-600 py-3">No gainers today</p>}
+                : <p className="text-xs text-gray-600 py-2">No gainers today</p>}
             </div>
+
+            {/* Losers */}
             <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-1.5">
+              <div className="flex items-center gap-2 mb-1">
                 <TrendingDown size={14} className="text-loss" />
-                <span className="text-sm font-semibold text-gray-200">Today's losers</span>
+                <span className="text-sm font-semibold text-gray-200">Today&apos;s losers</span>
               </div>
               {data.top_movers.losers.length > 0
                 ? data.top_movers.losers.map((m) => <MoverRow key={m.symbol} m={m} />)
-                : <p className="text-xs text-gray-600 py-3">No losers today</p>}
+                : <p className="text-xs text-gray-600 py-2">No losers today</p>}
             </div>
           </div>
         )}
-
-        {/* ── Quick actions ── */}
-        <div className="grid grid-cols-3 gap-3">
-          <button
-            onClick={() => setShowUploader(true)}
-            className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-surface-dark-secondary border border-white/5 hover:border-brand-400/30 text-gray-300 hover:text-brand-400 transition-colors text-sm font-medium"
-          >
-            <Upload size={16} /> Upload report
-          </button>
-          <Link
-            href="/portfolio"
-            className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-surface-dark-secondary border border-white/5 hover:border-brand-400/30 text-gray-300 hover:text-brand-400 transition-colors text-sm font-medium"
-          >
-            <Briefcase size={16} /> Portfolio
-          </Link>
-          <Link
-            href="/analytics"
-            className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-surface-dark-secondary border border-white/5 hover:border-brand-400/30 text-gray-300 hover:text-brand-400 transition-colors text-sm font-medium"
-          >
-            <BarChart3 size={16} /> Analytics
-          </Link>
-        </div>
       </div>
 
       {/* Upload modal */}

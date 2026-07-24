@@ -118,22 +118,22 @@ function MetricCard({
     "text-gray-100";
 
   return (
-    <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5 flex flex-col gap-3">
+    <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-3.5 flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
-        <Icon size={15} className="text-gray-600" />
+        <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">{label}</span>
+        <Icon size={13} className="text-gray-600" />
       </div>
       {loading ? (
         <>
-          <Skeleton className="h-8 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-6 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
         </>
       ) : unavailable ? (
         <div className="text-sm text-gray-600 italic">Unavailable — price data missing</div>
       ) : (
         <>
-          <div className={`text-2xl font-bold tabular-nums ${valueColor}`}>{value}</div>
-          {sub && <div className={`text-sm ${positive === true ? "text-gain/80" : positive === false ? "text-loss/80" : "text-gray-500"}`}>{sub}</div>}
+          <div className={`text-xl font-bold tabular-nums ${valueColor}`}>{value}</div>
+          {sub && <div className={`text-xs ${positive === true ? "text-gain/80" : positive === false ? "text-loss/80" : "text-gray-500"}`}>{sub}</div>}
         </>
       )}
     </div>
@@ -625,7 +625,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* ── Income / P&L cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
           <MetricCard
             label="Realized P&L"
             value={data ? fmtILS(data.realized_pl.total_ils) : "—"}
@@ -661,7 +661,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* ── Portfolio history chart ── */}
-        <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5 mb-8">
+        <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4 mb-5">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h2 className="text-base font-heading font-semibold text-gray-100">Portfolio Value Over Time</h2>
             <div className="flex items-center gap-2">
@@ -705,14 +705,14 @@ export default function AnalyticsPage() {
         </div>
 
         {/* ── Monthly returns + dividend income ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
           {historyPoints && historyPoints.length > 0 && data && (
-            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
+            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4">
               <h2 className="text-sm font-heading font-semibold text-gray-200 mb-3">Monthly Returns</h2>
               <MonthlyReturnsStrip points={historyPoints} transactions={data.transactions} />
             </div>
           )}
-          <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
+          <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4">
             <h2 className="text-sm font-heading font-semibold text-gray-200 mb-3">Dividend Income</h2>
             <DividendIncomeChart start={activeDates.start} end={activeDates.end} market={market} />
           </div>
@@ -720,9 +720,9 @@ export default function AnalyticsPage() {
 
         {/* ── Market breakdown ── */}
         {data && (
-          <div className={`grid grid-cols-1 ${market === "all" ? "sm:grid-cols-2" : ""} gap-4 mb-8`}>
+          <div className={`grid grid-cols-1 ${market === "all" ? "sm:grid-cols-2" : ""} gap-4 mb-5`}>
             {market !== "world" && (
-            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
+            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Landmark size={14} className="text-brand-400" />
                 <span className="text-sm font-semibold text-gray-200">Israeli Stocks</span>
@@ -745,7 +745,7 @@ export default function AnalyticsPage() {
             </div>
             )}
             {market !== "israeli" && (
-            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
+            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Globe2 size={14} className="text-info" />
                 <span className="text-sm font-semibold text-gray-200">World Stocks</span>
@@ -772,7 +772,7 @@ export default function AnalyticsPage() {
 
         {/* ── Period activity stats ── */}
         {data?.stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-5">
             {[
               { label: "Trades", value: String(data.stats.total_trades), sub: `${data.stats.buys} buys · ${data.stats.sells} sells` },
               { label: "Buy Volume", value: fmtILS(data.stats.buy_volume_ils, true), sub: undefined },
@@ -792,8 +792,8 @@ export default function AnalyticsPage() {
 
         {/* ── Top / worst trades ── */}
         {data && (data.top_trades.length > 0 || data.worst_trades.length > 0) && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp size={14} className="text-gain" />
                 <span className="text-sm font-semibold text-gray-200">Best Trades</span>
@@ -826,7 +826,7 @@ export default function AnalyticsPage() {
                 </div>
               )}
             </div>
-            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
+            <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-4">
                 <TrendingDown size={14} className="text-loss" />
                 <span className="text-sm font-semibold text-gray-200">Worst Trades</span>
@@ -863,7 +863,7 @@ export default function AnalyticsPage() {
         )}
 
         {/* ── Transactions table ── */}
-        <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-5">
+        <div className="bg-surface-dark-secondary border border-white/5 rounded-xl p-4">
           <h2 className="text-base font-heading font-semibold text-gray-100 mb-4">
             Transactions in period
             {data && <span className="ml-2 text-xs font-normal text-gray-500">({data.transactions.length} total)</span>}
