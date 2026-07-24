@@ -217,34 +217,41 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOp
         </ul>
       </nav>
 
-      {/* User Info */}
-      {user && (
-        <div className="border-t border-white/5 p-3">
-          <div className={`flex items-center ${isCollapsed ? "justify-center" : ""}`}>
-            <div className="w-9 h-9 rounded-full bg-brand-400/20 flex items-center justify-center text-brand-400 font-semibold text-sm">
-              {user.first_name?.[0] || user.email[0].toUpperCase()}
-            </div>
-            {!isCollapsed && (
-              <div className="ml-3 flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-200 truncate">
-                  {user.first_name || user.email.split("@")[0]}
-                </p>
-                <p className="text-xs text-gray-500 capitalize">{user.role?.toLowerCase()}</p>
-              </div>
-            )}
+      {/* User Info — always rendered so the footer never pops in; the name
+          shows a skeleton and the role is omitted until the user hydrates */}
+      <div className="border-t border-white/5 p-3">
+        <div className={`flex items-center ${isCollapsed ? "justify-center" : ""}`}>
+          <div className="w-9 h-9 rounded-full bg-brand-400/20 flex items-center justify-center text-brand-400 font-semibold text-sm flex-shrink-0">
+            {user ? (user.first_name?.[0] || user.email[0].toUpperCase()) : ""}
           </div>
-          <button
-            onClick={handleLogout}
-            className={`mt-2 w-full flex items-center ${
-              isCollapsed ? "justify-center" : "justify-start"
-            } px-3 py-2 rounded-lg text-gray-500 hover:bg-loss/10 hover:text-loss transition-all duration-150 group`}
-            title={isCollapsed ? "Logout" : undefined}
-          >
-            <LogOut size={18} className="group-hover:text-loss" />
-            {!isCollapsed && <span className="ml-3 text-sm">Logout</span>}
-          </button>
+          {!isCollapsed && (
+            <div className="ml-3 flex-1 min-w-0">
+              {user ? (
+                <>
+                  <p className="text-sm font-medium text-gray-200 truncate">
+                    {user.first_name || user.email.split("@")[0]}
+                  </p>
+                  {user.role && (
+                    <p className="text-xs text-gray-500 capitalize">{user.role.toLowerCase()}</p>
+                  )}
+                </>
+              ) : (
+                <div className="h-4 w-24 rounded bg-white/10 animate-pulse" />
+              )}
+            </div>
+          )}
         </div>
-      )}
+        <button
+          onClick={handleLogout}
+          className={`mt-2 w-full flex items-center ${
+            isCollapsed ? "justify-center" : "justify-start"
+          } px-3 py-2 rounded-lg text-gray-500 hover:bg-loss/10 hover:text-loss transition-all duration-150 group`}
+          title={isCollapsed ? "Logout" : undefined}
+        >
+          <LogOut size={18} className="group-hover:text-loss" />
+          {!isCollapsed && <span className="ml-3 text-sm">Logout</span>}
+        </button>
+      </div>
     </div>
   );
 
