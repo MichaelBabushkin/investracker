@@ -203,12 +203,24 @@ const MobileTopBar: React.FC<{ onMenuOpen: () => void }> = ({ onMenuOpen }) => (
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
   const { isAuthenticated, isInitialized } = useSelector(
     (state: RootState) => state.auth
   );
 
-  if (!isInitialized) return <>{children}</>;
-  if (!isAuthenticated) return <>{children}</>;
+  // The app shell (sidebar + padded content) is decided by ROUTE, which is
+  // known synchronously — not by async auth state. This prevents the layout
+  // shift where the sidebar popped in a moment after auth initialized.
+  //   /auth/*  → login/register: never show the shell
+  //   /        → landing self-manages (marketing page must be full-width when
+  //              logged out), so only wrap it once we know the user is authed
+  //   else     → authenticated app pages (all behind ProtectedRoute): render
+  //              the shell immediately so it's present from the first paint
+  const isAuthRoute = pathname?.startsWith("/auth");
+  const isLanding = pathname === "/";
+
+  if (isAuthRoute) return <>{children}</>;
+  if (isLanding && (!isInitialized || !isAuthenticated)) return <>{children}</>;
 
   return (
     <div className="min-h-screen bg-surface-dark">
