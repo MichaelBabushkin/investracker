@@ -1556,3 +1556,99 @@ def get_holdings_rsi(
         "israeli": {sym: last_rsi(yf) for sym, yf in il_map.items()},
         "world": {tk: last_rsi(tk) for tk in w_tickers},
     }
+
+
+@router.get("/cockpit")
+def get_cockpit(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Tailored payload for the Home "cockpit": true combined net worth (Israeli
+    ILS + World USD→ILS) with today's move and a 30-day sparkline, today's top
+    movers, upcoming earnings for held stocks, and pending-review counts.
+    One round-trip so Home stays fast.
+    """
+    uid = str(current_user.id)
+    today = date.today()
+
+    # ── Net worth + today's change + sparkline (reuse cached daily series) ────
+    hist = get_portfolio_history(
+        str(today - timedelta(days=45)), str(today), "all", "", db, current_user
+    )
+    pts = hist["points"]
+    net_worth = pts[-1]["total_ils"] if pts else 0.0
+    prev_val = pts[-2]["total_ils"] if len(pts) >= 2 else net_worth
+    today_change = round(net_worth - prev_val, 2)
+    today_change_pct = round((today_change / prev_val * 100), 2) if prev_val else 0.0
+    sparkline = [{"date": p["date"], "value": p["total_ils"]} for p in pts[-30:]]
+
+    fx = _get_exchange_rate(today, db)
+
+    # ── Today's movers (per-holding day change from stock_prices) ─────────────
+    movers = []
+    for market, htable, join_key in (
+        ("world", "world_stock_holdings", "ticker"),
+        ("israeli", "israeli_stock_holdings", "symbol"),
+    ):
+        rows = db.execute(text(f"""
+            SELECT h.{join_key} AS sym, h.company_name,
+                   COALESCE(h.quantity, 0)::float AS qty,
+                   sp.current_price::float, sp.previous_close::float,
+                   sp.price_change_pct::float
+            FROM {htable} h
+            JOIN stock_prices sp ON sp.ticker = h.{join_key} AND sp.market = :mk
+            WHERE h.user_id = :uid AND h.quantity > 0
+              AND sp.current_price IS NOT NULL AND sp.previous_close IS NOT NULL
+        """), {"uid": uid, "mk": market}).fetchall()
+        rate = fx if market == "world" else 1.0
+        for sym, name, qty, cur, prev, pct in rows:
+            if not prev:
+                continue
+            day_change_ils = qty * (cur - prev) * rate
+            movers.append({
+                "symbol": sym,
+                "name": name or sym,
+                "market": market,
+                "day_change_pct": round(pct if pct is not None else (cur / prev - 1) * 100, 2),
+                "day_change_ils": round(day_change_ils, 2),
+                "value_ils": round(qty * cur * rate, 2),
+            })
+    movers.sort(key=lambda m: m["day_change_pct"], reverse=True)
+    top_movers = {
+        "gainers": [m for m in movers if m["day_change_pct"] > 0][:3],
+        "losers": [m for m in movers[::-1] if m["day_change_pct"] < 0][:3],
+    }
+
+    # ── Upcoming earnings for held world stocks (next 14 days) ────────────────
+    earnings = [
+        {"symbol": r[0], "date": str(r[1]),
+         "days_until": (r[1] - today).days}
+        for r in db.execute(text("""
+            SELECT DISTINCT e.ticker, e.earnings_date
+            FROM stock_earnings_dates e
+            JOIN world_stock_holdings h ON h.ticker = e.ticker
+            WHERE h.user_id = :uid AND h.quantity > 0
+              AND e.earnings_date BETWEEN :s AND :e
+            ORDER BY e.earnings_date
+        """), {"uid": uid, "s": today, "e": today + timedelta(days=14)}).fetchall()
+    ]
+
+    # ── Pending review counts ─────────────────────────────────────────────────
+    il_pending = db.execute(text(
+        "SELECT COUNT(*) FROM pending_israeli_transactions WHERE user_id = :uid AND status = 'pending'"
+    ), {"uid": uid}).scalar() or 0
+    w_pending = db.execute(text(
+        "SELECT COUNT(*) FROM pending_world_transactions WHERE user_id = :uid AND status = 'pending'"
+    ), {"uid": uid}).scalar() or 0
+
+    return {
+        "net_worth_ils": round(net_worth, 2),
+        "today_change_ils": today_change,
+        "today_change_pct": today_change_pct,
+        "sparkline": sparkline,
+        "top_movers": top_movers,
+        "upcoming_earnings": earnings,
+        "pending": {"israeli": int(il_pending), "world": int(w_pending), "total": int(il_pending + w_pending)},
+        "currency": "ILS",
+    }

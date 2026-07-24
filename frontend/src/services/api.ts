@@ -225,7 +225,32 @@ export const portfolioAPI = {
     const response = await api.get('/portfolio/holdings-rsi');
     return response.data as HoldingsRsi;
   },
+
+  getCockpit: async () => {
+    const response = await api.get('/portfolio/cockpit');
+    return response.data as Cockpit;
+  },
 };
+
+export interface CockpitMover {
+  symbol: string;
+  name: string;
+  market: 'israeli' | 'world';
+  day_change_pct: number;
+  day_change_ils: number;
+  value_ils: number;
+}
+
+export interface Cockpit {
+  net_worth_ils: number;
+  today_change_ils: number;
+  today_change_pct: number;
+  sparkline: Array<{ date: string; value: number }>;
+  top_movers: { gainers: CockpitMover[]; losers: CockpitMover[] };
+  upcoming_earnings: Array<{ symbol: string; date: string; days_until: number }>;
+  pending: { israeli: number; world: number; total: number };
+  currency: string;
+}
 
 export type IndicatorPeriod = '3m' | '6m' | '1y' | '2y';
 
