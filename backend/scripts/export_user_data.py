@@ -3,7 +3,14 @@
 Export all reviewed portfolio data as a single idempotent SQL file for
 production (Railway Postgres).
 
-Semantics (single-user app → full mirror):
+⚠️  DANGER — SINGLE-USER SEED TOOL ONLY.
+    The generated SQL runs `DELETE FROM <shared table>` (ALL rows) and deletes
+    the target user's rows. This was fine when prod mirrored one dev machine,
+    but once prod has OTHER real users it will DESTROY their data. Do NOT apply
+    the output to a multi-user production database. Prod is the source of truth
+    from that point on.
+
+Semantics (single-user seed → full mirror):
   - The user row itself is upserted so the user_id exists in prod.
   - Per-user tables: DELETE the user's rows, then INSERT local state.
   - Shared tables (catalogs, rates, price history): DELETE ALL + INSERT with
@@ -70,6 +77,10 @@ def sql_literal(v) -> str:
         return "TRUE" if v else "FALSE"
     if isinstance(v, (int, float, Decimal)):
         return str(v)
+    if isinstance(v, (bytes, bytearray, memoryview)):   # bytea (e.g. file_data)
+        # Postgres hex bytea literal — str(memoryview) would emit "<memory ...>"
+        # and silently corrupt the column, so encode the real bytes.
+        return "'\\x" + bytes(v).hex() + "'::bytea"
     if isinstance(v, dict):                  # JSON columns (e.g. raw_data)
         s = json.dumps(v, ensure_ascii=False)
     elif isinstance(v, list):                # Postgres ARRAY columns (e.g. indices)
