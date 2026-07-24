@@ -1169,20 +1169,32 @@ class IsraeliStockService:
                     'error': 'duplicate',
                     'message': f'This PDF file "{filename}" has already been uploaded on {existing[1].strftime("%Y-%m-%d %H:%M") if existing[1] else "unknown date"}'
                 }
-            
+
+            # Store the PDF in R2 when configured, else inline in Postgres (legacy).
+            from app.services import storage_service
+            storage_key = None
+            inline_bytes = file_data
+            if storage_service.is_configured():
+                try:
+                    storage_key = storage_service.upload_pdf(user_id, filename, file_data)
+                    inline_bytes = None  # bytes now live in R2, keep Postgres lean
+                except Exception as e:
+                    print(f"WARN: R2 upload failed, falling back to DB storage: {e}")
+
             # No duplicate, proceed with insert
             insert_sql = """
             INSERT INTO "israeli_report_uploads" (
-                user_id, filename, file_data, file_size, broker, upload_batch_id,
+                user_id, filename, file_data, storage_key, file_size, broker, upload_batch_id,
                 report_period_start, report_period_end
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """
 
             cursor.execute(insert_sql, (
                 user_id,
                 filename,
-                psycopg2.Binary(file_data),
+                psycopg2.Binary(inline_bytes) if inline_bytes is not None else None,
+                storage_key,
                 file_size,
                 broker,
                 batch_id,

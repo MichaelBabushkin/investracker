@@ -60,6 +60,14 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB: int = int(os.getenv("MAX_FILE_SIZE_MB", "10"))
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./uploads")
 
+    # Object storage for uploaded PDFs (Cloudflare R2, S3-compatible).
+    # When these are unset the app transparently falls back to storing the PDF
+    # bytes in Postgres (the legacy behavior), so R2 is fully optional.
+    R2_ACCOUNT_ID: str = os.getenv("R2_ACCOUNT_ID", "")
+    R2_ACCESS_KEY_ID: str = os.getenv("R2_ACCESS_KEY_ID", "")
+    R2_SECRET_ACCESS_KEY: str = os.getenv("R2_SECRET_ACCESS_KEY", "")
+    R2_BUCKET: str = os.getenv("R2_BUCKET", "investracker-reports")
+
     # Telegram MTProto (Telethon)
     TELEGRAM_API_ID: int = int(os.getenv("TELEGRAM_API_ID", "0"))
     TELEGRAM_API_HASH: str = os.getenv("TELEGRAM_API_HASH", "")

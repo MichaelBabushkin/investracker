@@ -1771,11 +1771,20 @@ async def get_reports(
 ):
     """Get list of uploaded PDF reports for the current user"""
     from app.models.israeli_report import IsraeliReportUpload
-    
-    reports = db.query(IsraeliReportUpload).filter(
+
+    # Select only metadata columns — never pull file_data bytes into memory
+    # just to render the list.
+    reports = db.query(
+        IsraeliReportUpload.id,
+        IsraeliReportUpload.filename,
+        IsraeliReportUpload.file_size,
+        IsraeliReportUpload.broker,
+        IsraeliReportUpload.upload_batch_id,
+        IsraeliReportUpload.upload_date,
+    ).filter(
         IsraeliReportUpload.user_id == str(current_user.id)
     ).order_by(IsraeliReportUpload.upload_date.desc()).all()
-    
+
     return {
         "reports": [
             {
@@ -1808,9 +1817,21 @@ async def download_report(
     
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    
+
+    # PDF bytes live in R2 (storage_key) or inline (legacy file_data)
+    if report.storage_key:
+        from app.services import storage_service
+        try:
+            content = storage_service.download_pdf(report.storage_key)
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Failed to fetch report from storage: {e}")
+    elif report.file_data:
+        content = report.file_data
+    else:
+        raise HTTPException(status_code=404, detail="Report file is unavailable")
+
     return Response(
-        content=report.file_data,
+        content=content,
         media_type="application/pdf",
         headers={
             "Content-Disposition": f"attachment; filename={report.filename}"
@@ -1858,10 +1879,15 @@ async def delete_report(
         for transaction in pending_transactions:
             db.delete(transaction)
     
+    # Remove the R2 object if the PDF lives there (best-effort)
+    if report.storage_key:
+        from app.services import storage_service
+        storage_service.delete_pdf(report.storage_key)
+
     # Delete the report
     db.delete(report)
     db.commit()
-    
+
     return {
         "success": True,
         "message": f"Report '{filename}' deleted successfully",
