@@ -374,7 +374,7 @@ export default function WorldStockHoldings({
           </div>
 
           {/* Bottom strip */}
-          <div className="border-t border-white/[0.05] bg-white/[0.015] px-6 py-4">
+          <div className="border-t border-white/[0.05] bg-white/[0.015] px-4 py-3">
             <div className={`grid gap-4 ${(summaryData?.total_tax_withheld_ils ?? 0) > 0 ? "grid-cols-4" : "grid-cols-3"}`}>
               {[
                 { label: "Holdings", value: String(holdings.length), sub: "Positions", tone: null },
@@ -404,31 +404,31 @@ export default function WorldStockHoldings({
             <table className="min-w-full divide-y divide-white/5">
               <thead className="bg-surface-dark">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Symbol
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Quantity
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Purchase Price
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Current Price
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Purchase Cost
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Current Value
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Unrealized P/L
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Since
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                     <div className="flex items-center justify-end space-x-1">
                       <span>TWR</span>
                       <div className="relative group">
@@ -442,7 +442,7 @@ export default function WorldStockHoldings({
                       </div>
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                     <div className="flex items-center justify-end space-x-1">
                       <span>MWR</span>
                       <div className="relative group">
@@ -456,7 +456,7 @@ export default function WorldStockHoldings({
                       </div>
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -487,7 +487,7 @@ export default function WorldStockHoldings({
                   const holding = row.holding;
                   return (
                     <tr key={holding.id} className="hover:bg-white/5">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <Link href={`/stock/${holding.symbol}`} className="flex items-center group">
                           <StockLogo
                             symbol={holding.symbol}
@@ -506,25 +506,25 @@ export default function WorldStockHoldings({
                           </div>
                         </Link>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-100">
                         {formatNumber(holding.quantity)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-400">
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-400">
                         {holding.quantity && holding.purchase_cost
                           ? formatCurrency(holding.purchase_cost / holding.quantity)
                           : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-100">
                         {formatCurrency(holding.last_price)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-100">
                         {formatCurrency(holding.purchase_cost)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-100">
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-100">
                         {formatCurrency(holding.current_value)}
                       </td>
                       <td
-                        className={`px-6 py-4 whitespace-nowrap text-right text-sm font-semibold ${
+                        className={`px-4 py-3 whitespace-nowrap text-right text-sm font-semibold ${
                           (holding.unrealized_gain || 0) >= 0
                             ? "text-gain"
                             : "text-loss"
@@ -532,11 +532,11 @@ export default function WorldStockHoldings({
                       >
                         {formatCurrency(holding.unrealized_gain)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-400" title="Position opened">
+                      <td className="px-4 py-3 whitespace-nowrap text-center text-sm text-gray-400" title="Position opened">
                         {holding.holding_date ? formatDate(holding.holding_date) : "-"}
                       </td>
                       <td
-                        className={`px-6 py-4 whitespace-nowrap text-right text-sm font-medium ${
+                        className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${
                           (holding.twr || 0) >= 0 ? "text-gain" : "text-loss"
                         }`}
                         title="Time-Weighted Return"
@@ -551,7 +551,7 @@ export default function WorldStockHoldings({
                         )}
                       </td>
                       <td
-                        className={`px-6 py-4 whitespace-nowrap text-right text-sm font-medium ${
+                        className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${
                           (holding.mwr || 0) >= 0 ? "text-gain" : "text-loss"
                         }`}
                         title="Money-Weighted Return (IRR)"
@@ -565,7 +565,7 @@ export default function WorldStockHoldings({
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <td className="px-4 py-3 whitespace-nowrap text-center">
                         <button
                           onClick={() => handleDeleteHolding(holding.id)}
                           className="text-loss hover:text-loss transition-colors"

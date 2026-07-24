@@ -42,7 +42,7 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
 
   if (loading) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-pulse">
+      <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-4 animate-pulse">
         <div className="h-4 w-16 bg-white/10 rounded" />
         <div className="flex flex-col md:flex-row justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -57,17 +57,17 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
             <div className="h-4 w-24 bg-white/10 rounded" />
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2 bg-surface-dark-secondary rounded-xl border border-white/10 h-64" />
           <div className="bg-surface-dark-secondary rounded-xl border border-white/10 h-64" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-4">
             <div className="bg-surface-dark-secondary rounded-xl border border-white/10 h-80" />
             <div className="bg-surface-dark-secondary rounded-xl border border-white/10 h-48" />
           </div>
           <div className="bg-surface-dark-secondary rounded-xl border border-white/10 h-96" />
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="bg-surface-dark-secondary rounded-xl border border-white/10 h-48" />
             <div className="bg-surface-dark-secondary rounded-xl border border-white/10 h-48" />
           </div>
@@ -78,7 +78,7 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
 
   if (error || !data) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8 py-8 flex flex-col items-center justify-center gap-4 min-h-[60vh]">
+      <div className="px-4 sm:px-6 lg:px-8 py-6 flex flex-col items-center justify-center gap-4 min-h-[60vh]">
         <p className="text-loss text-sm">{error || 'Stock not found'}</p>
         <button onClick={() => router.back()} className="text-brand-400 text-sm hover:underline">← Go back</button>
       </div>
@@ -86,7 +86,7 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-4">
       <button
         onClick={() => router.back()}
         className="text-gray-400 hover:text-white transition-colors text-sm font-medium inline-flex items-center gap-1"
@@ -114,15 +114,15 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
       </section>
 
       {/* 2. Market data & opinions | 3. Your activity */}
-      <section id="stats" className="scroll-mt-14 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 space-y-6">
+      <section id="stats" className="scroll-mt-14 grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div className="lg:col-span-2 space-y-4">
           <StockKeyStats stats={data.stats} price={data.price} currency={data.currency} />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <StockTransactionHistory transactions={data.transactions} currency={data.currency} />
             <StockDividends dividends={data.dividends} currency={data.currency} />
           </div>
         </div>
-        <div className="lg:col-span-1 space-y-6">
+        <div className="lg:col-span-1 space-y-4">
           <StockAnalystConsensus analyst={data.analyst} currency={data.currency} currentPrice={data.price.current} />
           <StockAnalystInsights analyst={data.analyst} />
         </div>

@@ -21,21 +21,21 @@ export function MetricCard({ label, value, subValue, icon, trend, className }: M
   return (
     <div
       className={clsx(
-        "bg-surface-dark-secondary border border-surface-dark-border rounded-card p-5",
+        "bg-surface-dark-secondary border border-surface-dark-border rounded-card p-4",
         "hover:border-surface-dark-border/80 transition-all duration-200",
         className
       )}
     >
-      <div className="flex items-start justify-between mb-3">
-        <span className="text-sm text-gray-400 font-medium">{label}</span>
+      <div className="flex items-start justify-between mb-1.5">
+        <span className="text-xs text-gray-400 font-medium">{label}</span>
         {icon && (
           <span className="text-gray-500">{icon}</span>
         )}
       </div>
-      <div className="financial-value text-2xl font-bold text-gray-100 leading-none">
+      <div className="financial-value text-xl font-bold text-gray-100 leading-none">
         {value}
       </div>
-      <div className="flex items-center gap-2 mt-2">
+      <div className="flex items-center gap-2 mt-1.5">
         {trend && (
           <span
             className={clsx(

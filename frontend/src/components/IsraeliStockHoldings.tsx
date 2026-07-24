@@ -335,7 +335,7 @@ export default function IsraeliStockHoldings({
 
           {/* Bottom strip */}
           {(totalDeposits > 0 || availableCash !== 0) && (
-            <div className="border-t border-white/[0.05] bg-white/[0.015] grid grid-cols-3 px-6 py-4 gap-4">
+            <div className="border-t border-white/[0.05] bg-white/[0.015] grid grid-cols-3 px-4 py-3 gap-4">
               {[
                 { label: "Net Cash Flow", value: formatCurrency(netCashFlow), sub: "Invested capital", tone: null },
                 { label: "Available Cash", value: formatCurrency(availableCash), sub: "Ready to invest", tone: availableCash < 0 ? "warn" : null },
@@ -378,28 +378,28 @@ export default function IsraeliStockHoldings({
                 <table className="min-w-full divide-y divide-white/5">
                   <thead className="bg-surface-dark">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Stock
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Quantity
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Current Value
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Purchase Cost
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Return
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Portfolio %
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Last Price
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -412,7 +412,7 @@ export default function IsraeliStockHoldings({
                       );
                       return (
                         <tr key={holding.id} className="hover:bg-white/5">
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-4 py-3 whitespace-nowrap">
                             <Link href={`/stock/il/${holding.symbol}`} className="flex items-center group">
                               <StockLogo
                                 symbol={holding.symbol}
@@ -431,16 +431,16 @@ export default function IsraeliStockHoldings({
                               </div>
                             </Link>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-100">
                             {formatNumber(holding.quantity)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-100">
                             {formatCurrency(holding.current_value)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-100">
                             {formatCurrency(holding.purchase_cost)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
                             <div
                               className={`font-medium ${
                                 returnData.amount >= 0
@@ -460,15 +460,15 @@ export default function IsraeliStockHoldings({
                               {formatPercentage(returnData.percentage)}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-100">
                             {holding.portfolio_percentage
                               ? `${holding.portfolio_percentage.toFixed(2)}%`
                               : "N/A"}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-100">
                             {formatCurrency(holding.last_price)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">
                             <button
                               onClick={() => handleDeleteHolding(holding.id)}
                               className="text-loss hover:text-loss text-sm font-medium"
