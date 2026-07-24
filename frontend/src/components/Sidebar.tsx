@@ -88,8 +88,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOp
 
   const canAccessItem = (item: NavItem): boolean => {
     if (!item.requiredRole) return true;
-    if (!user) return false;
-    const userRole = user.role?.toLowerCase() || "viewer";
+    // During auth-init the user object isn't hydrated yet. The sidebar only
+    // renders on authenticated routes, so assume the baseline "viewer" role
+    // rather than hiding all nav — this shows the standard items immediately
+    // and avoids a flash where only "Home" appears. Higher-privilege items
+    // (e.g. Admin) still wait for the real role to load.
+    const userRole = user?.role?.toLowerCase() || "viewer";
     return (roleHierarchy[userRole] || 0) >= (roleHierarchy[item.requiredRole] || 0);
   };
 
