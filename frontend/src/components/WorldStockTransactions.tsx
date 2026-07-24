@@ -614,37 +614,37 @@ export default function WorldStockTransactions({
           <table className="min-w-full divide-y divide-white/5">
             <thead className="bg-surface-dark">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Symbol
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Quantity
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Price
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Proceeds
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Comm
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Basis
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Realized P/L
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   MTM P/L
                 </th>
-                <th className="px-6 py-3 w-10" />
+                <th className="px-4 py-2.5 w-10" />
               </tr>
             </thead>
             <tbody className="bg-surface-dark-secondary divide-y divide-white/5">
@@ -677,7 +677,7 @@ export default function WorldStockTransactions({
 
                 return (
                   <tr key={transaction.id} className="hover:bg-white/5">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-100">
                       <div>{formatDate(transaction.transaction_date)}</div>
                       {transaction.transaction_time && (
                         <div className="text-xs text-gray-400">
@@ -685,7 +685,7 @@ export default function WorldStockTransactions({
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <Link href={`/stock/${transaction.ticker || transaction.symbol}`} className="flex items-center group">
                         <StockLogo
                           symbol={transaction.symbol}
@@ -703,7 +703,7 @@ export default function WorldStockTransactions({
                         </div>
                       </Link>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getTransactionColor(
                           transaction.transaction_type || ""
@@ -715,10 +715,10 @@ export default function WorldStockTransactions({
                         </span>
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-100">
                       {isTax ? formatILS(Math.abs(quantity)) : isFx ? formatCurrency(Math.abs(quantity)) : formatNumber(Math.abs(quantity))}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-100">
                       {isILS && !isTax ? (
                         <span title="Exchange rate ILS/USD">{formatILS(tradePrice)}</span>
                       ) : isTax ? (
@@ -727,21 +727,21 @@ export default function WorldStockTransactions({
                         formatCurrency(tradePrice)
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-100">
                       {isILS ? (
                         <span title={isTax ? "Tax amount (ILS)" : "ILS amount converted"}>{formatILS(proceeds)}</span>
                       ) : (
                         formatCurrency(proceeds)
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-400">
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-400">
                       {formatCurrency(Math.abs(commission))}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-100">
                       {formatCurrency(Math.abs(basis))}
                     </td>
                     <td
-                      className={`px-6 py-4 whitespace-nowrap text-right text-sm font-semibold ${
+                      className={`px-4 py-3 whitespace-nowrap text-right text-sm font-semibold ${
                         realizedPL > 0
                           ? "text-gain"
                           : realizedPL < 0
@@ -752,7 +752,7 @@ export default function WorldStockTransactions({
                       {formatCurrency(realizedPL)}
                     </td>
                     <td
-                      className={`px-6 py-4 whitespace-nowrap text-right text-sm ${
+                      className={`px-4 py-3 whitespace-nowrap text-right text-sm ${
                         mtmPL > 0
                           ? "text-gain"
                           : mtmPL < 0
@@ -779,15 +779,15 @@ export default function WorldStockTransactions({
               <tr>
                 <td
                   colSpan={7}
-                  className="px-6 py-4 text-right text-sm font-semibold text-gray-300"
+                  className="px-4 py-3 text-right text-sm font-semibold text-gray-300"
                 >
                   Totals:
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-bold text-gray-100">
+                <td className="px-4 py-3 text-right text-sm font-bold text-gray-100">
                   {formatCurrency(Math.abs(metrics.totalBasis))}
                 </td>
                 <td
-                  className={`px-6 py-4 text-right text-sm font-bold ${
+                  className={`px-4 py-3 text-right text-sm font-bold ${
                     metrics.totalRealizedPL >= 0
                       ? "text-gain"
                       : "text-loss"
@@ -796,7 +796,7 @@ export default function WorldStockTransactions({
                   {formatCurrency(metrics.totalRealizedPL)}
                 </td>
                 <td
-                  className={`px-6 py-4 text-right text-sm font-bold ${
+                  className={`px-4 py-3 text-right text-sm font-bold ${
                     metrics.totalMTMPL >= 0 ? "text-gain" : "text-loss"
                   }`}
                 >

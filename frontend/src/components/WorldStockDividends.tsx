@@ -335,22 +335,22 @@ export default function WorldStockDividends({
           <table className="min-w-full divide-y divide-white/5">
             <thead className="bg-surface-dark">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Payment Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Symbol
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Description
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Gross Amount
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Withholding Tax
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Net Amount
                 </th>
               </tr>
@@ -358,10 +358,10 @@ export default function WorldStockDividends({
             <tbody className="bg-surface-dark-secondary divide-y divide-white/5">
               {dividends.map((dividend) => (
                 <tr key={dividend.id} className="hover:bg-white/5">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-100">
                     {formatDate(dividend.payment_date)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center">
                       <StockLogo
                         symbol={dividend.symbol}
@@ -374,18 +374,18 @@ export default function WorldStockDividends({
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <div className="text-sm text-gray-100 max-w-xs truncate">
                       {dividend.description || "-"}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-100">
+                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-100">
                     {formatCurrency(dividend.amount || dividend.gross_amount)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-loss">
+                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-loss">
                     {formatCurrency(dividend.withholding_tax)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gain">
+                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-gain">
                     {formatCurrency(dividend.net_amount)}
                   </td>
                 </tr>
@@ -395,17 +395,17 @@ export default function WorldStockDividends({
               <tr>
                 <td
                   colSpan={3}
-                  className="px-6 py-4 text-right text-sm font-semibold text-gray-300"
+                  className="px-4 py-3 text-right text-sm font-semibold text-gray-300"
                 >
                   Totals:
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-bold text-gray-100">
+                <td className="px-4 py-3 text-right text-sm font-bold text-gray-100">
                   {formatCurrency(totalGrossDividends)}
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-bold text-loss">
+                <td className="px-4 py-3 text-right text-sm font-bold text-loss">
                   {formatCurrency(totalWithholdingTax)}
                 </td>
-                <td className="px-6 py-4 text-right text-sm font-bold text-gain">
+                <td className="px-4 py-3 text-right text-sm font-bold text-gain">
                   {formatCurrency(totalNetDividends)}
                 </td>
               </tr>

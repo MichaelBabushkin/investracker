@@ -13,9 +13,9 @@ interface CardProps {
 
 const paddingMap = {
   none: "",
-  sm: "p-4",
-  md: "p-6",
-  lg: "p-8",
+  sm: "p-3",
+  md: "p-4",
+  lg: "p-5",
 };
 
 export function Card({ children, className, padding = "md", hover = false, onClick }: CardProps) {
@@ -43,7 +43,7 @@ interface CardHeaderProps {
 
 export function CardHeader({ children, className, action }: CardHeaderProps) {
   return (
-    <div className={clsx("flex items-center justify-between mb-4", className)}>
+    <div className={clsx("flex items-center justify-between mb-3", className)}>
       <div>{children}</div>
       {action && <div>{action}</div>}
     </div>
@@ -52,7 +52,7 @@ export function CardHeader({ children, className, action }: CardHeaderProps) {
 
 export function CardTitle({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <h3 className={clsx("font-heading text-lg font-semibold text-gray-100", className)}>
+    <h3 className={clsx("font-heading text-base font-semibold text-gray-100", className)}>
       {children}
     </h3>
   );
@@ -60,7 +60,7 @@ export function CardTitle({ children, className }: { children: React.ReactNode; 
 
 export function CardDescription({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <p className={clsx("text-sm text-gray-400 mt-1", className)}>
+    <p className={clsx("text-xs text-gray-400 mt-0.5", className)}>
       {children}
     </p>
   );
