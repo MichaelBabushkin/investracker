@@ -23,6 +23,14 @@ module.exports = {
           "dark-tertiary": "var(--bg-core-elevated)",
           "dark-border": "var(--surface-border)",
         },
+        // Tape: figures vs labels are a type decision, not a colour one.
+        figure: "var(--fg-figure)",
+        label: "var(--fg-label)",
+        // Tape: two rule weights — section dividers vs row hairlines.
+        rule: {
+          section: "var(--rule-section)",
+          row: "var(--rule-row)",
+        },
         brand: {
           50: "#F0FDF4",
           100: "#DCFCE7",
