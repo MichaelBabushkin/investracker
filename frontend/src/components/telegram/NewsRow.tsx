@@ -78,11 +78,17 @@ function MediaThumb({ proxyUrl, onOpen }: { proxyUrl: string; onOpen: (src: stri
     return () => { active = false; if (obj) URL.revokeObjectURL(obj); };
   }, [proxyUrl]);
 
-  if (err) return null;
+  if (err) {
+    return (
+      <div className="w-[112px] h-[72px] shrink-0 rounded-md border border-rule-row bg-surface-dark-tertiary flex items-center justify-center text-label">
+        <ImageIcon size={16} />
+      </div>
+    );
+  }
   return (
     <button
       onClick={() => src && onOpen(src, isVideo)}
-      className="relative w-[112px] h-[72px] shrink-0 rounded-md overflow-hidden border border-rule-row bg-surface-dark-tertiary group/thumb"
+      className="relative w-[112px] h-[72px] shrink-0 rounded-md overflow-hidden border border-rule-row bg-surface-dark-tertiary hover:border-brand-400/30 transition-colors"
       title="Open media"
     >
       {src ? (
@@ -112,16 +118,17 @@ function Lightbox({ src, isVideo, onClose }: { src: string; isVideo: boolean; on
   );
 }
 
-export default function NewsRow({ item, held }: { item: TelegramFeedItem; held: HeldSets }) {
+export default function NewsRow({ item, held, dense = false }: { item: TelegramFeedItem; held: HeldSets; dense?: boolean }) {
   const [lightbox, setLightbox] = useState<{ src: string; isVideo: boolean } | null>(null);
   const title = item.channel.title || item.channel.username;
   const views = fmtCount(item.views);
   const text = plainText(item.text);
   const tickers = detectTickers(item.text, held);
+  const showThumb = !dense && item.has_media && !!item.media_proxy_url;
 
   return (
     <>
-      <div className="grid grid-cols-[28px_1fr] sm:grid-cols-[28px_1fr_112px] gap-3 py-3 border-b border-rule-row">
+      <div className={`grid gap-3 py-2.5 border-b border-rule-row hover:bg-white/[0.015] transition-colors ${showThumb ? "grid-cols-[28px_1fr] sm:grid-cols-[28px_minmax(0,1fr)_112px]" : "grid-cols-[28px_1fr]"}`}>
         {/* Source mark */}
         <div className="pt-0.5">
           {item.channel.logo_url
@@ -130,18 +137,20 @@ export default function NewsRow({ item, held }: { item: TelegramFeedItem; held: 
         </div>
 
         {/* Text column — capped measure, metadata LTR, body bidi-isolated */}
-        <div className="min-w-0 max-w-[720px]">
+        <div className="min-w-0 max-w-[680px]">
           <div className="flex items-center gap-2 text-[11px] text-label mb-1">
-            <span className="text-figure font-medium truncate max-w-[200px]">{title}</span>
+            <span className="text-figure font-medium truncate max-w-[220px]">{title}</span>
             <span className="text-rule-section">·</span>
             <span className="tabular-nums">{timeAgo(item.posted_at)}</span>
             {item.has_media && <ImageIcon size={11} />}
             {views && <span className="inline-flex items-center gap-1 tabular-nums"><Eye size={11} />{views}</span>}
           </div>
-          {text && (
-            <p className="text-[13.5px] text-gray-300 leading-snug line-clamp-3" dir="auto" style={{ unicodeBidi: "isolate" }}>
+          {text ? (
+            <p className={`text-[13px] text-gray-300 leading-snug ${dense ? "line-clamp-2" : "line-clamp-3"}`} dir="auto" style={{ unicodeBidi: "isolate" }}>
               {text}
             </p>
+          ) : (
+            <p className="text-[13px] text-label italic">{item.has_media ? "Media post" : "—"}</p>
           )}
           {tickers.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-1.5">
@@ -163,9 +172,9 @@ export default function NewsRow({ item, held }: { item: TelegramFeedItem; held: 
         </div>
 
         {/* Media thumb — fixed aspect, never sets row height */}
-        {item.has_media && item.media_proxy_url && (
+        {showThumb && (
           <div className="hidden sm:block">
-            <MediaThumb proxyUrl={item.media_proxy_url} onOpen={(src, isVideo) => setLightbox({ src, isVideo })} />
+            <MediaThumb proxyUrl={item.media_proxy_url!} onOpen={(src, isVideo) => setLightbox({ src, isVideo })} />
           </div>
         )}
       </div>

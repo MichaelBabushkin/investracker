@@ -10,7 +10,7 @@ import StockTransactionHistory from '@/components/stock/StockTransactionHistory'
 import StockDividends from '@/components/stock/StockDividends';
 import StockAnalystConsensus from '@/components/stock/StockAnalystConsensus';
 import StockAnalystInsights from '@/components/stock/StockAnalystInsights';
-import TelegramNewsFeed from '@/components/telegram/TelegramNewsFeed';
+import NewsFeed from '@/components/telegram/NewsFeed';
 import TechnicalIndicators from '@/components/indicators/TechnicalIndicators';
 import StockSectionNav from '@/components/stock/StockSectionNav';
 import { stockAPI } from '@/services/api';
@@ -135,7 +135,7 @@ export default function IsraeliStockPage({ params }: { params: { symbol: string 
       </section>
 
       <section id="news" className="scroll-mt-16 pt-6 mt-6 border-t border-rule-section">
-        <TelegramNewsFeed ticker={symbol} compact={true} />
+        <NewsFeed layout="compact" ticker={symbol} title="News" seeAllHref="/news" pageSize={5} />
       </section>
     </div>
   );

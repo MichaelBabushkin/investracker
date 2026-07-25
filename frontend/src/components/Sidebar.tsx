@@ -125,7 +125,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOp
             <Image src="/images/small_logo.svg" alt="Investracker" width={32} height={32} className="w-8 h-8" />
           </div>
         ) : (
-          <Image src="/images/investracker_logo.svg" alt="Investracker" width={140} height={36} className="max-w-[140px] h-auto" />
+          <img src="/images/investracker_logo.svg" alt="Investracker" className="max-w-[140px] h-auto" />
         )}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}

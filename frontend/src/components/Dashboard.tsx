@@ -9,7 +9,7 @@ import { AreaChart, Area, ResponsiveContainer, YAxis } from "recharts";
 import { portfolioAPI, Cockpit, CockpitMover } from "@/services/api";
 import ReportUploader from "./ReportUploader";
 import StockLink from "@/components/StockLink";
-import HomeNews from "@/components/HomeNews";
+import NewsFeed from "@/components/telegram/NewsFeed";
 import { TapeSection } from "@/components/tape/Tape";
 
 /* ── Formatters ── */
@@ -179,7 +179,7 @@ export default function Dashboard() {
         {/* ── Market news ── */}
         {!loading && data && (
           <div className="mt-8">
-            <HomeNews />
+            <NewsFeed layout="compact" title="Market news" seeAllHref="/news" pageSize={6} />
           </div>
         )}
       </div>

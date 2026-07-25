@@ -22,7 +22,6 @@ import {
   FileText,
   Wrench,
 } from "lucide-react";
-import Image from "next/image";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -109,11 +108,10 @@ const MobileDrawer: React.FC<{ open: boolean; onClose: () => void }> = ({ open, 
       <aside className="absolute left-0 top-0 h-full w-64 bg-surface-dark-secondary border-r border-white/5 flex flex-col animate-slide-in-left">
         {/* Header with logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-white/5">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src="/images/investracker_logo.svg"
             alt="Investracker"
-            width={140}
-            height={36}
             className="h-8 w-auto"
           />
           <button
@@ -188,11 +186,10 @@ const MobileTopBar: React.FC<{ onMenuOpen: () => void }> = ({ onMenuOpen }) => (
     >
       <Menu size={22} />
     </button>
-    <Image
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img
       src="/images/investracker_logo.svg"
       alt="Investracker"
-      width={120}
-      height={30}
       className="h-6 w-auto"
     />
     <div className="w-9" />
