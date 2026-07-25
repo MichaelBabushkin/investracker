@@ -39,19 +39,18 @@ export default function StockSectionNav({ items }: { items: StockNavItem[] }) {
   };
 
   return (
-    <nav className="sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-2 bg-surface-dark/85 backdrop-blur-md border-b border-white/5">
-      <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+    <nav className="sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-10 px-4 sm:px-6 lg:px-10 bg-surface-dark/85 backdrop-blur-md border-b border-rule-section">
+      <div className="flex items-center gap-6 overflow-x-auto scrollbar-none">
         {items.map((item) => (
           <button
             key={item.id}
             onClick={() => jump(item.id)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-              active === item.id
-                ? "bg-brand-400/10 text-brand-400"
-                : "text-gray-500 hover:text-gray-200"
+            className={`relative py-2.5 text-[12px] font-medium whitespace-nowrap transition-colors ${
+              active === item.id ? "text-brand-400" : "text-label hover:text-figure"
             }`}
           >
             {item.label}
+            {active === item.id && <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-brand-400" />}
           </button>
         ))}
       </div>

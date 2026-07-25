@@ -1,7 +1,5 @@
 import React from 'react';
 import { StockTransaction } from '@/types/stock-detail';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { formatCurrency, formatDate, MarketCurrency } from '@/utils/formatters';
 
 interface StockTransactionHistoryProps {
@@ -9,52 +7,36 @@ interface StockTransactionHistoryProps {
   currency: string;
 }
 
+const TYPE_TONE: Record<string, string> = { BUY: 'text-gain', SELL: 'text-loss' };
+
 export default function StockTransactionHistory({ transactions, currency }: StockTransactionHistoryProps) {
   if (!transactions || transactions.length === 0) return null;
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle>Transaction History</CardTitle>
-      </CardHeader>
-      <div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-gray-400 border-b border-white/10 uppercase bg-surface-dark/50">
-              <tr>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3 text-right">Shares</th>
-                <th className="px-4 py-3 text-right">Price</th>
-                <th className="px-4 py-3 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((tx) => (
-                <tr key={tx.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3 tabular-nums">{formatDate(tx.date)}</td>
-                  <td className="px-4 py-3">
-                    <Badge
-                      variant={
-                        tx.type === 'BUY'
-                          ? 'gain'
-                          : tx.type === 'SELL'
-                          ? 'loss'
-                          : 'info'
-                      }
-                    >
-                      {tx.type}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">{tx.quantity}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(tx.price, currency as MarketCurrency)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(tx.total, currency as MarketCurrency)}</td>
-                </tr>
+    <div>
+      <div className="tape-label mb-2">Transaction history · {transactions.length}</div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full">
+          <thead>
+            <tr className="border-b-2 border-rule-section">
+              {['Date', 'Type', 'Shares', 'Price', 'Total'].map((h, i) => (
+                <th key={h} className={`tape-label py-1.5 pr-4 ${i >= 2 ? 'text-right' : 'text-left'}`}>{h}</th>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </tr>
+          </thead>
+          <tbody>
+            {transactions.map((tx) => (
+              <tr key={tx.id} className="border-b border-rule-row hover:bg-white/[0.02] transition-colors h-7">
+                <td className="pr-4 text-[13px] text-label whitespace-nowrap tabular-nums">{formatDate(tx.date)}</td>
+                <td className={`pr-4 text-[13px] font-semibold ${TYPE_TONE[tx.type] ?? 'text-label'}`}>{tx.type}</td>
+                <td className="pr-4 text-right text-[13px] text-figure tabular-nums">{tx.quantity}</td>
+                <td className="pr-4 text-right text-[13px] text-figure tabular-nums">{formatCurrency(tx.price, currency as MarketCurrency)}</td>
+                <td className="text-right text-[13px] text-figure tabular-nums">{formatCurrency(tx.total, currency as MarketCurrency)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </Card>
+    </div>
   );
 }

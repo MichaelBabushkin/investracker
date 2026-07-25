@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Award, TrendingDown as TrendingDownIcon } from "lucide-react";
 import { portfolioAPI, PortfolioOverview } from "@/services/api";
+import { TapeSection, TapeColumn, StatRow, Fig, Sub } from "@/components/tape/Tape";
 
 function fmtILS(v: number | null | undefined, short = true): string {
   if (v == null) return "—";
@@ -10,6 +10,11 @@ function fmtILS(v: number | null | undefined, short = true): string {
   if (short && abs >= 1_000_000) return `₪${(v / 1_000_000).toFixed(2)}M`;
   if (short && abs >= 1_000) return `₪${(v / 1_000).toFixed(1)}K`;
   return `₪${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+function signedILS(v: number | null | undefined, short = true): string {
+  if (v == null) return "—";
+  return `${v >= 0 ? "+" : ""}${fmtILS(v, short)}`;
 }
 
 function fmtMonth(m: string | undefined): string {
@@ -23,130 +28,6 @@ function fmtShortDate(s: string | null): string {
   if (!s) return "";
   return new Date(s + "T00:00:00").toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "2-digit" });
 }
-
-interface Tile {
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: "gain" | "loss" | "neutral" | "warn";
-}
-
-function buildTiles(o: PortfolioOverview): Tile[] {
-  const plPos = o.total_pl.ils >= 0;
-  const topHeavy = (o.concentration.top_pct ?? 0) > 15;
-  return [
-    {
-      label: "Net Invested",
-      value: fmtILS(o.invested.net_invested_ils),
-      sub: `${fmtILS(o.invested.total_buys_ils)} bought · ${fmtILS(o.invested.total_sells_ils)} sold`,
-    },
-    {
-      label: "Current Value",
-      value: fmtILS(o.invested.current_value_ils),
-      sub: `${o.days_active.toLocaleString()} days active`,
-    },
-    {
-      label: "Total P&L",
-      value: `${plPos ? "+" : ""}${fmtILS(o.total_pl.ils)}${o.total_pl.pct != null ? ` (${plPos ? "+" : ""}${o.total_pl.pct.toFixed(2)}%)` : ""}`,
-      sub: "incl. dividends",
-      tone: plPos ? "gain" : "loss",
-    },
-    {
-      label: "Annualized Return",
-      value: o.annualized_irr_pct != null ? `${o.annualized_irr_pct >= 0 ? "+" : ""}${o.annualized_irr_pct.toFixed(2)}%/yr` : "—",
-      sub: "money-weighted (IRR)",
-      tone: (o.annualized_irr_pct ?? 0) >= 0 ? "gain" : "loss",
-    },
-    {
-      label: "Best Month",
-      value: o.best_month ? `+${o.best_month.return_pct.toFixed(1)}%` : "—",
-      sub: fmtMonth(o.best_month?.month),
-      tone: "gain",
-    },
-    {
-      label: "Worst Month",
-      value: o.worst_month ? `${o.worst_month.return_pct.toFixed(1)}%` : "—",
-      sub: fmtMonth(o.worst_month?.month),
-      tone: "loss",
-    },
-    {
-      label: "Win Rate",
-      value: o.win_rate.rate_pct != null ? `${o.win_rate.rate_pct.toFixed(1)}%` : "—",
-      sub: `${o.win_rate.wins}W / ${o.win_rate.losses}L · PF ${o.win_rate.profit_factor ?? "—"}`,
-      tone: (o.win_rate.rate_pct ?? 0) >= 50 ? "gain" : "loss",
-    },
-    {
-      label: "Avg Holding Period",
-      value: o.holding_period.avg_days_winners != null ? `${Math.round(o.holding_period.avg_days_winners)}d wins` : "—",
-      sub: o.holding_period.avg_days_losers != null ? `${Math.round(o.holding_period.avg_days_losers)}d losses` : undefined,
-    },
-    {
-      label: "Best Stock",
-      value: o.best_stock ? o.best_stock.symbol : "—",
-      sub: o.best_stock ? `+${fmtILS(o.best_stock.pl_ils)} total` : undefined,
-      tone: "gain",
-    },
-    {
-      label: "Worst Stock",
-      value: o.worst_stock ? o.worst_stock.symbol : "—",
-      sub: o.worst_stock ? `${fmtILS(o.worst_stock.pl_ils)} total` : undefined,
-      tone: "loss",
-    },
-    {
-      label: "Turnover",
-      value: o.turnover_annual_pct != null ? `${o.turnover_annual_pct.toFixed(0)}%/yr` : "—",
-      sub: "traded vs avg value",
-    },
-    {
-      label: "Max Drawdown",
-      value: `${o.max_drawdown.pct.toFixed(1)}%`,
-      sub: o.max_drawdown.peak_date
-        ? `${fmtShortDate(o.max_drawdown.peak_date)} → ${fmtShortDate(o.max_drawdown.trough_date)}`
-        : undefined,
-      tone: "loss",
-    },
-    {
-      label: "Volatility",
-      value: o.volatility_annual_pct != null ? `${o.volatility_annual_pct.toFixed(1)}%/yr` : "—",
-      sub: "std dev of daily returns",
-    },
-    {
-      label: "Beta",
-      value: o.beta.sp500 != null ? `${o.beta.sp500.toFixed(2)} S&P` : "—",
-      sub: o.beta.ta125 != null ? `${o.beta.ta125.toFixed(2)} vs TA-125` : undefined,
-    },
-    {
-      label: "Dividends All-Time",
-      value: fmtILS(o.dividends.all_time_ils),
-      sub: `TTM ${fmtILS(o.dividends.ttm_ils)} · yield ${o.dividends.ttm_yield_pct ?? "—"}%`,
-      tone: "gain",
-    },
-    {
-      label: "Fees & Taxes",
-      value: fmtILS(o.costs.fees_ils + o.costs.taxes_ils),
-      sub: o.costs.pct_of_profit != null ? `${o.costs.pct_of_profit.toFixed(1)}% of profit` : undefined,
-      tone: "warn",
-    },
-    {
-      label: "Concentration",
-      value: o.concentration.top_symbol ? `${o.concentration.top_symbol} ${o.concentration.top_pct}%` : "—",
-      sub: o.concentration.top5_pct != null ? `top 5 = ${o.concentration.top5_pct}%` : undefined,
-      tone: topHeavy ? "warn" : "neutral",
-    },
-    {
-      label: "Exposure",
-      value: o.exposure.world_pct != null ? `${o.exposure.world_pct}% World` : "—",
-      sub: o.exposure.israeli_pct != null ? `${o.exposure.israeli_pct}% Israeli` : undefined,
-    },
-  ];
-}
-
-const TONE_CLS: Record<string, string> = {
-  gain: "text-gain",
-  loss: "text-loss",
-  warn: "text-warn",
-  neutral: "text-gray-100",
-};
 
 export default function AllTimeOverview({ refreshKey }: { refreshKey?: string | null }) {
   const [data, setData] = useState<PortfolioOverview | null>(null);
@@ -163,37 +44,125 @@ export default function AllTimeOverview({ refreshKey }: { refreshKey?: string | 
 
   if (failed) return null;
 
-  return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-3">
-        <Award size={14} className="text-brand-400" />
-        <h2 className="text-sm font-heading font-semibold text-gray-200">All-Time Overview</h2>
-        {data && (
-          <span className="text-xs text-gray-600">
-            since {new Date(data.inception + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-          </span>
-        )}
-      </div>
+  const since = data
+    ? new Date(data.inception + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })
+    : "";
+  const meta = data ? `since ${since} · ${data.days_active.toLocaleString()} days · 17 measures` : undefined;
 
-      {!data ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[...Array(12)].map((_, i) => (
-            <div key={i} className="animate-pulse bg-white/5 rounded-xl h-[72px]" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {buildTiles(data).map(({ label, value, sub, tone }) => (
-            <div key={label} className="bg-surface-dark-secondary border border-white/5 rounded-xl px-3.5 py-3">
-              <div className="text-[11px] text-gray-500 mb-1 truncate">{label}</div>
-              <div className={`text-sm font-semibold tabular-nums truncate ${TONE_CLS[tone ?? "neutral"]}`}>
-                {value}
-              </div>
-              {sub && <div className="text-[10px] text-gray-600 mt-0.5 truncate">{sub}</div>}
+  if (!data) {
+    return (
+      <TapeSection label="All-time" meta="loading…" first>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex flex-col gap-2">
+              <div className="animate-pulse bg-white/5 rounded h-6 w-24" />
+              {[...Array(5)].map((_, j) => (
+                <div key={j} className="animate-pulse bg-white/[0.03] rounded h-6" />
+              ))}
             </div>
           ))}
         </div>
-      )}
-    </div>
+      </TapeSection>
+    );
+  }
+
+  const o = data;
+  const plPos = o.total_pl.ils >= 0;
+  const winPos = (o.win_rate.rate_pct ?? 0) >= 50;
+  const topHeavy = (o.concentration.top_pct ?? 0) > 15;
+
+  return (
+    <TapeSection label="All-time" meta={meta} first>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6">
+        {/* 1 · GROWTH — how much you made */}
+        <TapeColumn
+          label="Growth"
+          hero={o.total_pl.pct != null ? `${plPos ? "+" : ""}${o.total_pl.pct.toFixed(2)}%` : "—"}
+          heroTone={plPos ? "gain" : "loss"}
+          heroSub={`${signedILS(o.total_pl.ils)} incl. dividends`}
+        >
+          <StatRow label="Net invested"><Fig>{fmtILS(o.invested.net_invested_ils)}</Fig></StatRow>
+          <StatRow label="Current value"><Fig>{fmtILS(o.invested.current_value_ils)}</Fig></StatRow>
+          <StatRow label="IRR · money-weighted">
+            <Fig>{o.annualized_irr_pct != null ? `${o.annualized_irr_pct >= 0 ? "+" : ""}${o.annualized_irr_pct.toFixed(2)}%/yr` : "—"}</Fig>
+          </StatRow>
+          <StatRow label="Best month">
+            <Fig>{o.best_month ? `+${o.best_month.return_pct.toFixed(1)}%` : "—"}</Fig>
+            {o.best_month && <Sub>{fmtMonth(o.best_month.month)}</Sub>}
+          </StatRow>
+          <StatRow label="Dividends all-time">
+            <Fig>{fmtILS(o.dividends.all_time_ils)}</Fig>
+            {o.dividends.ttm_yield_pct != null && <Sub>{o.dividends.ttm_yield_pct}%</Sub>}
+          </StatRow>
+        </TapeColumn>
+
+        {/* 2 · RISK — how much risk you took */}
+        <TapeColumn
+          label="Risk"
+          hero={`${o.max_drawdown.pct.toFixed(1)}%`}
+          heroTone="loss"
+          heroSub={o.max_drawdown.peak_date
+            ? `max drawdown · ${fmtShortDate(o.max_drawdown.peak_date)} → ${fmtShortDate(o.max_drawdown.trough_date)}`
+            : "max drawdown"}
+        >
+          <StatRow label="Worst month">
+            <Fig>{o.worst_month ? `${o.worst_month.return_pct.toFixed(1)}%` : "—"}</Fig>
+            {o.worst_month && <Sub>{fmtMonth(o.worst_month.month)}</Sub>}
+          </StatRow>
+          <StatRow label="Volatility">
+            <Fig>{o.volatility_annual_pct != null ? `${o.volatility_annual_pct.toFixed(1)}%/yr` : "—"}</Fig>
+          </StatRow>
+          <StatRow label="Beta · vs S&P · TA-125">
+            <Fig>{o.beta.sp500 != null ? o.beta.sp500.toFixed(2) : "—"}</Fig>
+            {o.beta.ta125 != null && <Sub>· {o.beta.ta125.toFixed(2)}</Sub>}
+          </StatRow>
+          <StatRow label="Concentration · top holding">
+            <Fig tone={topHeavy ? "warn" : "ink"}>{o.concentration.top_symbol ? `${o.concentration.top_pct}%` : "—"}</Fig>
+            {o.concentration.top_symbol && <Sub>{o.concentration.top_symbol}</Sub>}
+          </StatRow>
+          <StatRow label="Exposure · World · Israeli">
+            <Fig>{o.exposure.world_pct != null ? `${o.exposure.world_pct}%` : "—"}</Fig>
+            {o.exposure.israeli_pct != null && <Sub>· {o.exposure.israeli_pct}%</Sub>}
+          </StatRow>
+        </TapeColumn>
+
+        {/* 3 · DISCIPLINE — how often you were right */}
+        <TapeColumn
+          label="Discipline"
+          hero={o.win_rate.rate_pct != null ? `${o.win_rate.rate_pct.toFixed(1)}%` : "—"}
+          heroTone={winPos ? "gain" : "loss"}
+          heroSub={`win rate · ${o.win_rate.wins}W / ${o.win_rate.losses}L`}
+        >
+          <StatRow label="Profit factor"><Fig>{o.win_rate.profit_factor ?? "—"}</Fig></StatRow>
+          <StatRow label="Avg hold · winners">
+            <Fig>{o.holding_period.avg_days_winners != null ? `${Math.round(o.holding_period.avg_days_winners)}d` : "—"}</Fig>
+          </StatRow>
+          <StatRow label="Avg hold · losers">
+            <Fig>{o.holding_period.avg_days_losers != null ? `${Math.round(o.holding_period.avg_days_losers)}d` : "—"}</Fig>
+          </StatRow>
+          <StatRow label="Turnover">
+            <Fig>{o.turnover_annual_pct != null ? `${o.turnover_annual_pct.toFixed(0)}%/yr` : "—"}</Fig>
+          </StatRow>
+          <StatRow label="Best · worst stock">
+            <Fig>{o.best_stock ? o.best_stock.symbol : "—"}</Fig>
+            {o.worst_stock && <Sub>· {o.worst_stock.symbol}</Sub>}
+          </StatRow>
+        </TapeColumn>
+
+        {/* 4 · COST — what it cost you */}
+        <TapeColumn
+          label="Cost"
+          hero={fmtILS(o.costs.fees_ils + o.costs.taxes_ils)}
+          heroTone="warn"
+          heroSub={o.costs.pct_of_profit != null ? `${o.costs.pct_of_profit.toFixed(1)}% of profit` : "fees + tax"}
+        >
+          <StatRow label="Commissions"><Fig>{fmtILS(o.costs.fees_ils)}</Fig></StatRow>
+          <StatRow label="Capital-gains tax"><Fig>{fmtILS(o.costs.taxes_ils)}</Fig></StatRow>
+          <StatRow label="Bought · all-time"><Fig>{fmtILS(o.invested.total_buys_ils)}</Fig></StatRow>
+          <StatRow label="Sold · all-time"><Fig>{fmtILS(o.invested.total_sells_ils)}</Fig></StatRow>
+          <StatRow label="Days active"><Fig>{o.days_active.toLocaleString()}</Fig></StatRow>
+        </TapeColumn>
+      </div>
+    </TapeSection>
   );
 }

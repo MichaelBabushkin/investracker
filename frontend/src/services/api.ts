@@ -230,7 +230,17 @@ export const portfolioAPI = {
     const response = await api.get('/portfolio/cockpit');
     return response.data as Cockpit;
   },
+
+  getStockLogos: async () => {
+    const response = await api.get('/portfolio/stock-logos');
+    return response.data as StockLogoMap;
+  },
 };
+
+export interface StockLogoMap {
+  world: Record<string, string>;                          // TICKER -> logo url
+  israeli: Record<string, { url?: string; svg?: string }>; // SYMBOL -> logo url or svg
+}
 
 export interface CockpitMover {
   symbol: string;
@@ -245,6 +255,10 @@ export interface Cockpit {
   net_worth_ils: number;
   today_change_ils: number;
   today_change_pct: number;
+  israeli_ils: number;
+  world_ils: number;
+  world_usd: number;
+  range_30d: { high: number; low: number };
   sparkline: Array<{ date: string; value: number }>;
   top_movers: { gainers: CockpitMover[]; losers: CockpitMover[] };
   upcoming_earnings: Array<{ symbol: string; date: string; days_until: number }>;
