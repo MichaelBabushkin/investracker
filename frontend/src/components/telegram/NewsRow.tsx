@@ -124,7 +124,7 @@ export default function NewsRow({ item, held, dense = false }: { item: TelegramF
   const views = fmtCount(item.views);
   const text = plainText(item.text);
   const tickers = detectTickers(item.text, held);
-  const showThumb = !dense && item.has_media && !!item.media_proxy_url;
+  const showThumb = item.has_media && !!item.media_proxy_url;
 
   return (
     <>
