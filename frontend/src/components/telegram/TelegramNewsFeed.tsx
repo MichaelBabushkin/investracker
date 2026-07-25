@@ -138,7 +138,7 @@ export default function TelegramNewsFeed({ ticker, compact, showChannelManager }
             <>
               {feed.map(item => <NewsFeedCard key={item.id} item={item} />)}
               <div className="pt-2 text-center">
-                <Link href="/" className="text-sm text-brand-400 hover:text-teal-300 font-medium inline-flex items-center gap-1 group">
+                <Link href="/news" className="text-sm text-brand-400 hover:text-teal-300 font-medium inline-flex items-center gap-1 group">
                   See all news <span className="transition-transform group-hover:translate-x-1">→</span>
                 </Link>
               </div>

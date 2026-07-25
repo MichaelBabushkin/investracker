@@ -9,6 +9,7 @@ import { AreaChart, Area, ResponsiveContainer, YAxis } from "recharts";
 import { portfolioAPI, Cockpit, CockpitMover } from "@/services/api";
 import ReportUploader from "./ReportUploader";
 import StockLink from "@/components/StockLink";
+import HomeNews from "@/components/HomeNews";
 import { TapeSection } from "@/components/tape/Tape";
 
 /* ── Formatters ── */
@@ -172,6 +173,13 @@ export default function Dashboard() {
                 </div>
               )}
             </TapeSection>
+          </div>
+        )}
+
+        {/* ── Market news ── */}
+        {!loading && data && (
+          <div className="mt-8">
+            <HomeNews />
           </div>
         )}
       </div>
