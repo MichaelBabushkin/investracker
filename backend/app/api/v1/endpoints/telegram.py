@@ -2,6 +2,9 @@
 Telegram news feed endpoints.
 """
 
+import threading
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy import text
@@ -11,6 +14,34 @@ from app.core.deps import get_current_user, get_db
 from app.core.auth import get_admin_user
 
 router = APIRouter(prefix="/telegram", tags=["telegram"])
+
+# ── On-demand sync state ──
+# News is refreshed lazily: any authenticated user viewing /news triggers a
+# sync, but at most once per cooldown, in a background thread. No always-on
+# worker — cost scales with actual usage and the service can still sleep.
+_SYNC_COOLDOWN_SEC = 15 * 60
+_sync_lock = threading.Lock()
+_sync_running = False
+_last_sync_at: datetime | None = None
+_last_sync_new = 0
+
+
+def _run_background_sync():
+    """Sync all subscribed channels once, in a worker thread with its own session."""
+    global _sync_running, _last_sync_at, _last_sync_new
+    from app.core.database import SessionLocal
+    from app.services.telegram_service import sync_all_active_channels
+    db = SessionLocal()
+    try:
+        result = sync_all_active_channels(db)
+        _last_sync_new = int(result.get("new_messages", 0))
+    except Exception:
+        pass  # transient (FloodWait, network) — next trigger retries
+    finally:
+        db.close()
+        with _sync_lock:
+            _last_sync_at = datetime.now(timezone.utc)
+            _sync_running = False
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +136,7 @@ def get_feed(
     channel_id: Optional[int] = Query(None, description="Filter to a single channel"),
     category: Optional[str] = Query(None, description="Filter by channel category (e.g. stocks, crypto)"),
     channel_ids: Optional[str] = Query(None, description="Comma-separated channel IDs to filter"),
+    holdings_only: bool = Query(False, description="Only posts mentioning a currently-held ticker"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
@@ -122,6 +154,22 @@ def get_feed(
         "uts.user_id = :user_id",
         "tc.is_active = true",
     ]
+
+    if holdings_only:
+        # Portfolio lens: posts whose text mentions any currently-held ticker,
+        # matched on word boundaries so "MP" doesn't hit "important".
+        import re as _re
+        held = db.execute(text("""
+            SELECT ticker FROM world_stock_holdings WHERE user_id = :user_id AND quantity > 0
+            UNION
+            SELECT symbol FROM israeli_stock_holdings WHERE user_id = :user_id AND quantity > 0
+        """), {"user_id": current_user.id}).fetchall()
+        syms = sorted({str(h[0]).split()[0].upper() for h in held if h and h[0]})
+        if not syms:
+            where_parts.append("false")   # holds nothing → no matches
+        else:
+            params["holdings_pattern"] = r"\y(" + "|".join(_re.escape(s) for s in syms) + r")\y"
+            where_parts.append("tm.text ~* :holdings_pattern")
 
     if channel_ids:
         ids = [int(x.strip()) for x in channel_ids.split(",") if x.strip().isdigit()]
@@ -208,6 +256,39 @@ def get_feed(
         "total": total,
         "page": page,
         "page_size": page_size,
+    }
+
+
+@router.post("/refresh")
+def refresh_feed(
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Lazily refresh the news feed. Kicks a background sync of subscribed channels
+    if none is running and the cooldown has elapsed; otherwise a cheap no-op.
+    Returns immediately — the client polls /feed to pick up new rows.
+    """
+    global _sync_running, _last_sync_at
+    from app.services.telegram_service import is_configured
+
+    if not is_configured():
+        return {"status": "not_configured", "last_synced_at": None, "syncing": False}
+
+    now = datetime.now(timezone.utc)
+    started = False
+    with _sync_lock:
+        due = _last_sync_at is None or (now - _last_sync_at).total_seconds() >= _SYNC_COOLDOWN_SEC
+        if not _sync_running and due:
+            _sync_running = True
+            started = True
+
+    if started:
+        threading.Thread(target=_run_background_sync, daemon=True).start()
+
+    return {
+        "status": "syncing" if (started or _sync_running) else "fresh",
+        "last_synced_at": _last_sync_at.isoformat() if _last_sync_at else None,
+        "syncing": started or _sync_running,
     }
 
 

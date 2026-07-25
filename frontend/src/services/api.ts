@@ -235,6 +235,11 @@ export const portfolioAPI = {
     const response = await api.get('/portfolio/stock-logos');
     return response.data as StockLogoMap;
   },
+
+  getHoldingsSymbols: async () => {
+    const response = await api.get('/portfolio/holdings-symbols');
+    return response.data as { world: string[]; israeli: string[] };
+  },
 };
 
 export interface StockLogoMap {
@@ -1284,9 +1289,15 @@ export const telegramAPI = {
     const response = await api.delete(`/telegram/subscriptions/${channelId}`);
     return response.data;
   },
-  getFeed: async (params?: { ticker?: string; channel_id?: number; channel_ids?: string; category?: string; page?: number; page_size?: number }) => {
+  getFeed: async (params?: { ticker?: string; channel_id?: number; channel_ids?: string; category?: string; holdings_only?: boolean; page?: number; page_size?: number }) => {
     const response = await api.get('/telegram/feed', { params });
     return response.data;
+  },
+  // Trigger a rate-limited background sync of subscribed channels. Cheap no-op
+  // if synced recently; returns the current sync status.
+  refresh: async () => {
+    const response = await api.post('/telegram/refresh');
+    return response.data as { status: string; last_synced_at: string | null; syncing: boolean };
   }
 };
 

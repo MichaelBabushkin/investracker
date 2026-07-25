@@ -1730,3 +1730,29 @@ def get_stock_logos(
     _logo_cache = {"world": world, "israeli": israeli}
     _logo_cache_at = now
     return _logo_cache
+
+
+@router.get("/holdings-symbols")
+def get_holdings_symbols(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    The user's currently-held tickers per market. Used by the news feed to tag
+    posts that mention a holding and to power the "my portfolio only" lens.
+    World display symbols like "NKE US" are normalised to the bare ticker.
+    """
+    uid = str(current_user.id)
+    world = sorted({
+        str(r[0]).split()[0].upper()
+        for r in db.execute(text(
+            "SELECT ticker FROM world_stock_holdings WHERE user_id = :uid AND quantity > 0"
+        ), {"uid": uid}).fetchall() if r[0]
+    })
+    israeli = sorted({
+        str(r[0]).strip().upper()
+        for r in db.execute(text(
+            "SELECT symbol FROM israeli_stock_holdings WHERE user_id = :uid AND quantity > 0"
+        ), {"uid": uid}).fetchall() if r[0]
+    })
+    return {"world": world, "israeli": israeli}
