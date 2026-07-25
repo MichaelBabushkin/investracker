@@ -1582,8 +1582,16 @@ def get_cockpit(
     today_change = round(net_worth - prev_val, 2)
     today_change_pct = round((today_change / prev_val * 100), 2) if prev_val else 0.0
     sparkline = [{"date": p["date"], "value": p["total_ils"]} for p in pts[-30:]]
+    spark_vals = [p["value"] for p in sparkline] or [net_worth]
+    range_30d = {"high": round(max(spark_vals), 2), "low": round(min(spark_vals), 2)}
 
     fx = _get_exchange_rate(today, db)
+
+    # ── Net worth split by market (live prices) ───────────────────────────────
+    split = _portfolio_value_at(uid, today, db, "all", use_current=True) or {}
+    israeli_ils = round(split.get("israeli_ils", 0.0), 2)
+    world_ils = round(split.get("world_ils", 0.0), 2)
+    world_usd = round(world_ils / fx, 2) if fx else 0.0
 
     # ── Today's movers (per-holding day change from stock_prices) ─────────────
     movers = []
@@ -1646,6 +1654,10 @@ def get_cockpit(
         "net_worth_ils": round(net_worth, 2),
         "today_change_ils": today_change,
         "today_change_pct": today_change_pct,
+        "israeli_ils": israeli_ils,
+        "world_ils": world_ils,
+        "world_usd": world_usd,
+        "range_30d": range_30d,
         "sparkline": sparkline,
         "top_movers": top_movers,
         "upcoming_earnings": earnings,
