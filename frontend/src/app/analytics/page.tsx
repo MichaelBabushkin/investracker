@@ -7,10 +7,9 @@ import { AnalyticsTransaction } from "@/services/api";
 import PortfolioHistoryChart from "@/components/PortfolioHistoryChart";
 import MonthlyReturnsStrip from "@/components/MonthlyReturnsStrip";
 import DividendIncomeChart from "@/components/DividendIncomeChart";
-import StockDrilldownModal from "@/components/StockDrilldownModal";
 import AllTimeOverview from "@/components/AllTimeOverview";
+import StockLink from "@/components/StockLink";
 import { TapeSection, StatRow, Fig, Sub } from "@/components/tape/Tape";
-import VersionSwitch from "@/components/analytics/VersionSwitch";
 import { useAnalyticsData, PRESETS, MARKETS, fmtILS, signedILS, fmtPct, fmtDate } from "@/components/analytics/shared";
 
 // ── Transactions table ──────────────────────────────────────────────────────────
@@ -25,10 +24,8 @@ const PAGE_SIZE = 20;
 
 function TxTable({
   transactions,
-  onStockClick,
 }: {
   transactions: AnalyticsTransaction[];
-  onStockClick?: (symbol: string, market: "israeli" | "world") => void;
 }) {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [marketFilter, setMarketFilter] = useState<string>("all");
@@ -99,12 +96,7 @@ function TxTable({
               <tr key={i} className="border-b border-rule-row hover:bg-white/[0.02] transition-colors h-7">
                 <td className="pr-4 text-[13px] text-label whitespace-nowrap tabular-nums">{fmtDate(tx.date)}</td>
                 <td className="pr-4 whitespace-nowrap">
-                  <button onClick={() => onStockClick?.(tx.symbol, tx.market)} className="text-left group" title="View stock details">
-                    <span className="text-[13px] font-medium text-figure group-hover:text-brand-400 transition-colors">{tx.symbol}</span>
-                    {tx.company_name && tx.company_name !== tx.symbol && (
-                      <span className="text-[11px] text-label ms-2 truncate max-w-[160px] inline-block align-bottom" dir="auto">{tx.company_name}</span>
-                    )}
-                  </button>
+                  <StockLink symbol={tx.symbol} market={tx.market} name={tx.company_name} showName />
                 </td>
                 <td className={`pr-4 text-[13px] font-semibold ${TYPE_TONE[tx.type] ?? "text-label"}`}>{tx.type}</td>
                 <td className="pr-4 text-right text-[13px] text-figure tabular-nums">{tx.quantity ? tx.quantity.toLocaleString() : "—"}</td>
@@ -175,8 +167,6 @@ export default function AnalyticsPage() {
     activeDates, periodLabel,
   } = useAnalyticsData();
 
-  const [drilldown, setDrilldown] = useState<{ symbol: string; market: "israeli" | "world" } | null>(null);
-
   const pv = data?.portfolio_values;
   const returnPositive = pv?.change_ils != null ? pv.change_ils >= 0 : undefined;
   const tradingDays = historyPoints?.length;
@@ -192,7 +182,6 @@ export default function AnalyticsPage() {
             <div className="flex items-center gap-4">
               <h1 className="text-[22px] font-heading font-bold text-figure leading-none">Analytics</h1>
               {periodLabel && <span className="text-[13px] text-label tabular-nums">{periodLabel}</span>}
-              <VersionSwitch />
             </div>
             <div className="flex items-center gap-2 text-[11px] text-label">
               <span className="relative flex h-1.5 w-1.5">
@@ -376,12 +365,12 @@ export default function AnalyticsPage() {
                   ) : data.top_trades.filter((t) => t.realized_pl > 0).map((t, i) => (
                     <StatRow key={i} label={
                       <span className="flex items-baseline gap-2">
-                        <span className="text-figure font-medium">{t.symbol}</span>
+                        <StockLink symbol={t.symbol} market={t.market} />
                         <span className="text-[11px] text-label">
                           {t.purchase_date && t.purchase_date !== t.date ? `${fmtDate(t.purchase_date)} → ${fmtDate(t.date)}` : fmtDate(t.date)} · {t.quantity.toLocaleString()} sh
                         </span>
                       </span>
-                    } onClick={() => setDrilldown({ symbol: t.symbol, market: t.market })}>
+                    }>
                       <Fig tone="gain">{signedILS(t.realized_pl)}</Fig>
                     </StatRow>
                   ))}
@@ -393,12 +382,12 @@ export default function AnalyticsPage() {
                   ) : data.worst_trades.map((t, i) => (
                     <StatRow key={i} label={
                       <span className="flex items-baseline gap-2">
-                        <span className="text-figure font-medium">{t.symbol}</span>
+                        <StockLink symbol={t.symbol} market={t.market} />
                         <span className="text-[11px] text-label">
                           {t.purchase_date && t.purchase_date !== t.date ? `${fmtDate(t.purchase_date)} → ${fmtDate(t.date)}` : fmtDate(t.date)} · {t.quantity.toLocaleString()} sh
                         </span>
                       </span>
-                    } onClick={() => setDrilldown({ symbol: t.symbol, market: t.market })}>
+                    }>
                       <Fig tone="loss">{signedILS(t.realized_pl)}</Fig>
                     </StatRow>
                   ))}
@@ -414,21 +403,10 @@ export default function AnalyticsPage() {
                 {[...Array(6)].map((_, i) => <div key={i} className="animate-pulse bg-white/[0.03] rounded h-7 my-0.5" />)}
               </div>
             ) : data ? (
-              <TxTable transactions={data.transactions} onStockClick={(symbol, mk) => setDrilldown({ symbol, market: mk })} />
+              <TxTable transactions={data.transactions} />
             ) : null}
           </TapeSection>
         </div>
-
-        {/* ── Stock drill-down modal ── */}
-        {drilldown && (
-          <StockDrilldownModal
-            symbol={drilldown.symbol}
-            market={drilldown.market}
-            start={activeDates.start}
-            end={activeDates.end}
-            onClose={() => setDrilldown(null)}
-          />
-        )}
       </div>
     </ProtectedRoute>
   );

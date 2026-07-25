@@ -230,7 +230,17 @@ export const portfolioAPI = {
     const response = await api.get('/portfolio/cockpit');
     return response.data as Cockpit;
   },
+
+  getStockLogos: async () => {
+    const response = await api.get('/portfolio/stock-logos');
+    return response.data as StockLogoMap;
+  },
 };
+
+export interface StockLogoMap {
+  world: Record<string, string>;                          // TICKER -> logo url
+  israeli: Record<string, { url?: string; svg?: string }>; // SYMBOL -> logo url or svg
+}
 
 export interface CockpitMover {
   symbol: string;

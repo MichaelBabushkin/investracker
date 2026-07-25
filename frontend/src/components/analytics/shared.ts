@@ -5,7 +5,7 @@
 // compared fairly on the same numbers.
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { portfolioAPI, PortfolioAnalytics, HistoryPoint, AnalyticsMarket, PortfolioOverview } from "@/services/api";
+import { portfolioAPI, PortfolioAnalytics, HistoryPoint, AnalyticsMarket } from "@/services/api";
 
 // ── Dates ──
 export function toISODate(d: Date): string {
@@ -62,107 +62,6 @@ export function fmtPct(v: number | null | undefined, decimals = 2): string {
 export function fmtDate(s: string): string {
   return new Date(s + "T00:00:00").toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" });
 }
-export function fmtMonth(m: string | undefined): string {
-  if (!m) return "—";
-  const [y, mo] = m.split("-");
-  const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${names[parseInt(mo, 10) - 1]} ${y}`;
-}
-export function fmtShortDate(s: string | null): string {
-  if (!s) return "";
-  return new Date(s + "T00:00:00").toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "2-digit" });
-}
-
-// ── All-time overview (17 measures) — shared by Panes + Broadsheet variants ──
-export function useOverview(refreshKey?: string | null) {
-  const [overview, setOverview] = useState<PortfolioOverview | null>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    portfolioAPI.getOverview()
-      .then((r) => !cancelled && setOverview(r))
-      .catch(() => !cancelled && setFailed(true));
-    return () => { cancelled = true; };
-  }, [refreshKey]);
-  return { overview, failed };
-}
-
-export type Tone = "ink" | "gain" | "loss" | "warn";
-export interface Measure { label: string; value: string; sub?: string; tone?: Tone; }
-export interface Argument { key: string; title: string; hero: string; heroTone: Tone; heroSub: string; sentence: string; rows: Measure[]; }
-
-function ils0(v: number | null | undefined) { return fmtILS(v, true); }
-
-/** Groups the 17 all-time measures into four arguments, with an editorial sentence each. */
-export function buildArguments(o: PortfolioOverview): Argument[] {
-  const plPos = o.total_pl.ils >= 0;
-  const winPos = (o.win_rate.rate_pct ?? 0) >= 50;
-  const topHeavy = (o.concentration.top_pct ?? 0) > 15;
-  const irr = o.annualized_irr_pct;
-  return [
-    {
-      key: "growth",
-      title: "Growth",
-      hero: o.total_pl.pct != null ? `${plPos ? "+" : ""}${o.total_pl.pct.toFixed(2)}%` : "—",
-      heroTone: plPos ? "gain" : "loss",
-      heroSub: `${plPos ? "+" : ""}${ils0(o.total_pl.ils)} incl. dividends`,
-      sentence: `Up ${ils0(o.total_pl.ils)} including dividends${irr != null ? ` — an annualised ${irr.toFixed(2)}% on the money you actually had at work` : ""}.`,
-      rows: [
-        { label: "Net invested", value: fmtILS(o.invested.net_invested_ils, true) },
-        { label: "Current value", value: fmtILS(o.invested.current_value_ils, true) },
-        { label: "IRR · money-weighted", value: irr != null ? `${irr >= 0 ? "+" : ""}${irr.toFixed(2)}%/yr` : "—" },
-        { label: "Best month", value: o.best_month ? `+${o.best_month.return_pct.toFixed(1)}%` : "—", sub: fmtMonth(o.best_month?.month) },
-        { label: "Dividends all-time", value: fmtILS(o.dividends.all_time_ils, true), sub: o.dividends.ttm_yield_pct != null ? `${o.dividends.ttm_yield_pct}% yield` : undefined },
-      ],
-    },
-    {
-      key: "risk",
-      title: "Risk",
-      hero: `${o.max_drawdown.pct.toFixed(1)}%`,
-      heroTone: "loss",
-      heroSub: "max drawdown",
-      sentence: `Your worst peak-to-trough fall was ${o.max_drawdown.pct.toFixed(1)}%${o.volatility_annual_pct != null ? `; volatility runs about ${o.volatility_annual_pct.toFixed(1)}% a year` : ""}.`,
-      rows: [
-        { label: "Worst month", value: o.worst_month ? `${o.worst_month.return_pct.toFixed(1)}%` : "—", sub: fmtMonth(o.worst_month?.month) },
-        { label: "Volatility", value: o.volatility_annual_pct != null ? `${o.volatility_annual_pct.toFixed(1)}%/yr` : "—" },
-        { label: "Beta · S&P · TA-125", value: o.beta.sp500 != null ? o.beta.sp500.toFixed(2) : "—", sub: o.beta.ta125 != null ? `${o.beta.ta125.toFixed(2)} vs TA-125` : undefined },
-        { label: "Concentration · top", value: o.concentration.top_symbol ? `${o.concentration.top_pct}%` : "—", sub: o.concentration.top_symbol ?? undefined, tone: topHeavy ? "warn" : "ink" },
-        { label: "Exposure · World · IL", value: o.exposure.world_pct != null ? `${o.exposure.world_pct}%` : "—", sub: o.exposure.israeli_pct != null ? `${o.exposure.israeli_pct}% Israeli` : undefined },
-      ],
-    },
-    {
-      key: "discipline",
-      title: "Discipline",
-      hero: o.win_rate.rate_pct != null ? `${o.win_rate.rate_pct.toFixed(1)}%` : "—",
-      heroTone: winPos ? "gain" : "loss",
-      heroSub: `${o.win_rate.wins}W / ${o.win_rate.losses}L`,
-      sentence: `${o.win_rate.wins} winning closes against ${o.win_rate.losses} losing ones${o.holding_period.avg_days_winners != null && o.holding_period.avg_days_losers != null ? `, holding winners ${Math.round(o.holding_period.avg_days_losers - o.holding_period.avg_days_winners)} days less than losers` : ""}.`,
-      rows: [
-        { label: "Profit factor", value: `${o.win_rate.profit_factor ?? "—"}` },
-        { label: "Avg hold · winners", value: o.holding_period.avg_days_winners != null ? `${Math.round(o.holding_period.avg_days_winners)}d` : "—" },
-        { label: "Avg hold · losers", value: o.holding_period.avg_days_losers != null ? `${Math.round(o.holding_period.avg_days_losers)}d` : "—" },
-        { label: "Turnover", value: o.turnover_annual_pct != null ? `${o.turnover_annual_pct.toFixed(0)}%/yr` : "—" },
-        { label: "Best · worst stock", value: o.best_stock ? o.best_stock.symbol : "—", sub: o.worst_stock ? o.worst_stock.symbol : undefined },
-      ],
-    },
-    {
-      key: "cost",
-      title: "Cost",
-      hero: fmtILS(o.costs.fees_ils + o.costs.taxes_ils, true),
-      heroTone: "warn",
-      heroSub: o.costs.pct_of_profit != null ? `${o.costs.pct_of_profit.toFixed(1)}% of profit` : "fees + tax",
-      sentence: `Fees and tax have taken ${o.costs.pct_of_profit != null ? `${o.costs.pct_of_profit.toFixed(1)}% of your profit` : `${fmtILS(o.costs.fees_ils + o.costs.taxes_ils, true)}`}.`,
-      rows: [
-        { label: "Commissions", value: fmtILS(o.costs.fees_ils, true) },
-        { label: "Capital-gains tax", value: fmtILS(o.costs.taxes_ils, true) },
-        { label: "Bought · all-time", value: fmtILS(o.invested.total_buys_ils, true) },
-        { label: "Sold · all-time", value: fmtILS(o.invested.total_sells_ils, true) },
-        { label: "Days active", value: o.days_active.toLocaleString() },
-      ],
-    },
-  ];
-}
-
 // ── Data hook — all state, fetching, live polling, derived values ──
 export function useAnalyticsData() {
   const [preset, setPreset] = useState<Preset>("1m");

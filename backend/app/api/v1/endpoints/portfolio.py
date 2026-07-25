@@ -1652,3 +1652,58 @@ def get_cockpit(
         "pending": {"israeli": int(il_pending), "world": int(w_pending), "total": int(il_pending + w_pending)},
         "currency": "ILS",
     }
+
+
+# Simple in-process cache: the logo map changes rarely (only when the catalog
+# gains logos), so we hold it for a few minutes rather than hitting the DB on
+# every page that renders stock references.
+_logo_cache: dict | None = None
+_logo_cache_at: datetime | None = None
+_LOGO_TTL_SEC = 300
+
+
+@router.get("/stock-logos")
+def get_stock_logos(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Compact symbol → logo map for both markets, so any UI that shows a stock
+    reference can render its logo + link to the detail page without threading
+    logo_url through every payload.
+
+    Shape: { "world": {TICKER: url}, "israeli": {SYMBOL: {"url": ..., "svg": ...}} }
+    Israeli small-caps often have only an SVG (no url); world stocks only a url.
+    """
+    global _logo_cache, _logo_cache_at
+    now = datetime.now(timezone.utc)
+    if _logo_cache is not None and _logo_cache_at is not None \
+            and (now - _logo_cache_at).total_seconds() < _LOGO_TTL_SEC:
+        return _logo_cache
+
+    world: dict[str, str] = {}
+    for row in db.execute(text(
+        'SELECT ticker, logo_url FROM world_stocks WHERE logo_url IS NOT NULL AND logo_url <> \'\''
+    )).fetchall():
+        if row[0]:
+            world[str(row[0]).upper()] = row[1]
+
+    israeli: dict[str, dict] = {}
+    for row in db.execute(text(
+        "SELECT symbol, logo_url, logo_svg FROM israeli_stocks "
+        "WHERE logo_url IS NOT NULL OR logo_svg IS NOT NULL"
+    )).fetchall():
+        sym = str(row[0]).upper() if row[0] else None
+        if not sym:
+            continue
+        entry: dict = {}
+        if row[1]:
+            entry["url"] = row[1]
+        elif row[2]:                      # only ship SVG when there is no URL (keeps payload small)
+            entry["svg"] = row[2]
+        if entry:
+            israeli[sym] = entry
+
+    _logo_cache = {"world": world, "israeli": israeli}
+    _logo_cache_at = now
+    return _logo_cache
