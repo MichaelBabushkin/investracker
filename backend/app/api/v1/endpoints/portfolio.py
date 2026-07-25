@@ -1572,26 +1572,37 @@ def get_cockpit(
     uid = str(current_user.id)
     today = date.today()
 
-    # ── Net worth + today's change + sparkline (reuse cached daily series) ────
+    # ── Daily series (30-day sparkline + yesterday's close) ───────────────────
     hist = get_portfolio_history(
         str(today - timedelta(days=45)), str(today), "all", "", db, current_user
     )
     pts = hist["points"]
-    net_worth = pts[-1]["total_ils"] if pts else 0.0
-    prev_val = pts[-2]["total_ils"] if len(pts) >= 2 else net_worth
-    today_change = round(net_worth - prev_val, 2)
-    today_change_pct = round((today_change / prev_val * 100), 2) if prev_val else 0.0
-    sparkline = [{"date": p["date"], "value": p["total_ils"]} for p in pts[-30:]]
-    spark_vals = [p["value"] for p in sparkline] or [net_worth]
-    range_30d = {"high": round(max(spark_vals), 2), "low": round(min(spark_vals), 2)}
+    cached_net = pts[-1]["total_ils"] if pts else 0.0
+    prev_val = pts[-2]["total_ils"] if len(pts) >= 2 else cached_net
 
     fx = _get_exchange_rate(today, db)
 
     # ── Net worth split by market (live prices) ───────────────────────────────
+    # Net worth = the live Israeli + World split, so the hero always reconciles
+    # with the two figures shown beneath it. Fall back to the cached daily close
+    # only when live prices are unavailable.
     split = _portfolio_value_at(uid, today, db, "all", use_current=True) or {}
     israeli_ils = round(split.get("israeli_ils", 0.0), 2)
     world_ils = round(split.get("world_ils", 0.0), 2)
     world_usd = round(world_ils / fx, 2) if fx else 0.0
+    live_total = split.get("total_ils")
+    net_worth = round(live_total, 2) if live_total else round(cached_net, 2)
+
+    today_change = round(net_worth - prev_val, 2)
+    today_change_pct = round((today_change / prev_val * 100), 2) if prev_val else 0.0
+
+    # Sparkline ends exactly at the hero value (its last cached point is replaced
+    # by the live net worth) so the line has no kink against the headline figure.
+    sparkline = [{"date": p["date"], "value": p["total_ils"]} for p in pts[-30:]]
+    if sparkline:
+        sparkline[-1] = {**sparkline[-1], "value": net_worth}
+    spark_vals = [p["value"] for p in sparkline] or [net_worth]
+    range_30d = {"high": round(max(spark_vals), 2), "low": round(min(spark_vals), 2)}
 
     # ── Today's movers (per-holding day change from stock_prices) ─────────────
     movers = []
