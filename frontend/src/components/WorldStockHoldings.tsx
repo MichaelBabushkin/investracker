@@ -146,6 +146,15 @@ export default function WorldStockHoldings({
   const totalRealizedPL = summaryData?.total_realized_pl || 0;
   const totalCash = summaryData?.total_cash || 0;
 
+  // Crypto is a slice of the world account, but cash is not part of it: proceeds
+  // from selling crypto land in the shared world cash pool, which is shown on the
+  // International and Cash tabs. So the crypto view excludes cash entirely.
+  const isCryptoView = assetClass === "crypto";
+  const heading = isCryptoView ? "Crypto Holdings" : "World Stock Holdings";
+  const cashShown = isCryptoView ? 0 : totalCash;
+  const heroTotal = totalValue + cashShown;
+  const positionsCount = visibleHoldings.length;
+
   // Prepare pie chart data
   const pieChartData = Array.isArray(visibleHoldings)
     ? visibleHoldings
@@ -180,7 +189,7 @@ export default function WorldStockHoldings({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-100">
-            World Stock Holdings
+            {heading}
           </h2>
         </div>
         <div className="animate-pulse space-y-4">
@@ -208,7 +217,7 @@ export default function WorldStockHoldings({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-100">
-            World Stock Holdings
+            {heading}
           </h2>
         </div>
         <div className="bg-loss/10 border border-loss/20 rounded-xl p-6 text-center">
@@ -233,7 +242,7 @@ export default function WorldStockHoldings({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-100">
-            World Stock Holdings
+            {heading}
           </h2>
         </div>
         <div className="bg-surface-dark border border-white/10 rounded-xl p-12 text-center">
@@ -285,7 +294,7 @@ export default function WorldStockHoldings({
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-100">
-          World Stock Holdings
+          {heading}
         </h2>
         <div className="flex items-center space-x-3">
           {/* View Mode Toggle */}
@@ -325,11 +334,11 @@ export default function WorldStockHoldings({
             {/* Hero: Total Portfolio */}
             <div>
               <p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-2">
-                Total Portfolio · World Stocks
+                {isCryptoView ? "Total · Crypto" : "Total Portfolio · World Stocks"}
               </p>
               <div className="flex items-baseline gap-3 mb-2">
                 <span className="font-heading font-bold text-4xl tracking-tight tabular-nums text-gray-50 leading-none">
-                  {formatCurrency(totalValue + totalCash)}
+                  {formatCurrency(heroTotal)}
                 </span>
                 <span
                   className={`font-heading text-xs font-semibold tabular-nums px-2 py-1 rounded-md ${
@@ -345,7 +354,9 @@ export default function WorldStockHoldings({
                 </span>
               </div>
               <p className="text-[11px] text-gray-500">
-                Holdings {formatCurrency(totalValue)} · Cash {formatCurrency(totalCash)}
+                {isCryptoView
+                  ? `${positionsCount} position${positionsCount === 1 ? "" : "s"} · market value`
+                  : <>Holdings {formatCurrency(totalValue)} · Cash {formatCurrency(totalCash)}</>}
               </p>
             </div>
 
@@ -375,15 +386,20 @@ export default function WorldStockHoldings({
 
           {/* Bottom strip */}
           <div className="border-t border-white/[0.05] bg-white/[0.015] px-4 py-3">
-            <div className={`grid gap-4 ${(summaryData?.total_tax_withheld_ils ?? 0) > 0 ? "grid-cols-4" : "grid-cols-3"}`}>
-              {[
-                { label: "Holdings", value: String(holdings.length), sub: "Positions", tone: null },
-                { label: "Cash", value: formatCurrency(totalCash), sub: "Available", tone: null },
+            {(() => {
+              const tiles: Array<{ label: string; value: string; sub: string; tone: "warn" | null }> = [
+                { label: "Holdings", value: String(positionsCount), sub: "Positions", tone: null },
+                // Cash is account-level, not part of the crypto slice.
+                ...(!isCryptoView ? [{ label: "Cash", value: formatCurrency(totalCash), sub: "Available", tone: null as null }] : []),
                 ...(((summaryData?.total_tax_withheld_ils ?? 0) > 0)
                   ? [{ label: "Tax Withheld", value: `₪${(summaryData?.total_tax_withheld_ils || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub: "Capital gains", tone: "warn" as const }]
                   : []),
-                { label: "Total Holdings", value: formatCurrency(totalValue), sub: "Market value", tone: null },
-              ].map(({ label, value, sub, tone }, i) => (
+                { label: isCryptoView ? "Total Crypto" : "Total Holdings", value: formatCurrency(totalValue), sub: "Market value", tone: null },
+              ];
+              const colCls = ({ 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4" } as Record<number, string>)[tiles.length] ?? "grid-cols-3";
+              return (
+            <div className={`grid gap-4 ${colCls}`}>
+              {tiles.map(({ label, value, sub, tone }, i) => (
                 <div key={label} className={i > 0 ? "pl-4 border-l border-white/[0.04]" : ""}>
                   <p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">{label}</p>
                   <p className={`font-heading font-bold text-lg tabular-nums tracking-tight leading-none ${tone === "warn" ? "text-warn" : "text-gray-100"}`}>
@@ -393,6 +409,8 @@ export default function WorldStockHoldings({
                 </div>
               ))}
             </div>
+              );
+            })()}
           </div>
         </div>
       )}
