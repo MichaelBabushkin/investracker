@@ -964,11 +964,13 @@ export const worldStocksAPI = {
   getTransactions: async (
     accountId?: number,
     symbol?: string,
-    limit?: number
+    limit?: number,
+    assetClass?: "crypto" | "equity"
   ) => {
     const params = new URLSearchParams();
     if (accountId) params.append("account_id", accountId.toString());
     if (symbol) params.append("symbol", symbol);
+    if (assetClass) params.append("asset_class", assetClass);
     if (limit) params.append("limit", limit.toString());
 
     const paramString = params.toString();

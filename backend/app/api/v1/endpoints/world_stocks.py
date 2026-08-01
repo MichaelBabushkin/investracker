@@ -30,6 +30,16 @@ from app.schemas.world_stock_schemas import (
 
 router = APIRouter()
 
+# ── Asset-class classification (mirrors frontend utils/assetClass.ts) ─────────
+# A world position is crypto when its ticker is a known crypto ETF/ETP or its
+# name mentions bitcoin/ethereum/crypto/digital assets. Used to slice the
+# Crypto vs International tabs server-side.
+_CRYPTO_TICKERS = [
+    "IBIT", "FBTC", "GBTC", "ARKB", "BITB", "HODL", "BTCO", "EZBC", "BRRR", "BTCW",
+    "ETHA", "ETHE", "ETHW", "FETH", "EZET", "CETH", "QETH",
+]
+_CRYPTO_NAME_RE = r"\y(bitcoin|ethereum|cryptocurrenc(y|ies)|crypto|digital assets?|blockchain etf)\y"
+
 # ── yfinance company-name cache (persists for server session) ────────────────
 _yf_name_cache: dict[str, dict | None] = {}
 
@@ -364,6 +374,7 @@ async def get_world_stock_holdings(
 async def get_world_stock_transactions(
     user_id: Optional[str] = None,
     symbol: Optional[str] = None,
+    asset_class: Optional[str] = None,
     limit: Optional[int] = 100,
     current_user: User = Depends(get_current_user)
 ):
@@ -371,9 +382,9 @@ async def get_world_stock_transactions(
     try:
         from sqlalchemy import text
         from app.core.database import engine
-        
+
         target_user_id = user_id or current_user.id
-        
+
         with engine.connect() as conn:
             filters = ["t.user_id = :user_id"]
             params = {"user_id": target_user_id, "limit": limit}
@@ -381,6 +392,15 @@ async def get_world_stock_transactions(
             if symbol:
                 filters.append("t.symbol = :symbol")
                 params["symbol"] = symbol
+
+            # Asset-class filter server-side, so slicing crypto/equity doesn't
+            # happen client-side on a limited window (which dropped older crypto
+            # buys and the loss-making sell). Mirrors frontend utils/assetClass.
+            if asset_class in ("crypto", "equity"):
+                crypto_cond = "(UPPER(t.ticker) = ANY(:crypto_tickers) OR t.company_name ~* :crypto_name)"
+                filters.append(crypto_cond if asset_class == "crypto" else f"NOT {crypto_cond}")
+                params["crypto_tickers"] = _CRYPTO_TICKERS
+                params["crypto_name"] = _CRYPTO_NAME_RE
 
             where_clause = " AND ".join(filters)
 

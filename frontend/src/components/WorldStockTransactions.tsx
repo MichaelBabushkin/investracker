@@ -51,7 +51,10 @@ export default function WorldStockTransactions({
     try {
       setLoading(true);
       setError(null);
-      const data = await worldStocksAPI.getTransactions(accountId, symbol);
+      // Filter by asset class server-side (and lift the row cap) so the whole
+      // crypto/equity history is fetched, not just whatever fell in the latest
+      // 100 rows. Client-side filter kept as a harmless fallback.
+      const data = await worldStocksAPI.getTransactions(accountId, symbol, 2000, assetClass);
       setTransactions(
         !assetClass
           ? data
