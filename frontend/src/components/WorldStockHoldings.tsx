@@ -363,11 +363,14 @@ export default function WorldStockHoldings({
             {/* Vertical divider */}
             <div className="hidden md:block bg-white/[0.05]" />
 
-            {/* Right ledger */}
+            {/* Right ledger — Realized P/L is an account-level figure, so it is
+                omitted from the crypto slice where it can't be attributed. */}
             <div className="flex flex-col gap-3 justify-center">
               {[
                 ["Unrealized P/L", formatCurrency(totalUnrealizedPL), totalUnrealizedPL > 0 ? "up" : totalUnrealizedPL < 0 ? "down" : null],
-                ["Realized P/L", formatCurrency(totalRealizedPL), totalRealizedPL > 0 ? "up" : totalRealizedPL < 0 ? "down" : null],
+                ...(!isCryptoView
+                  ? [["Realized P/L", formatCurrency(totalRealizedPL), totalRealizedPL > 0 ? "up" : totalRealizedPL < 0 ? "down" : null]]
+                  : []),
                 ["Return %", `${totalUnrealizedPLPercent >= 0 ? "+" : ""}${totalUnrealizedPLPercent.toFixed(2)}%`, totalUnrealizedPLPercent > 0 ? "up" : totalUnrealizedPLPercent < 0 ? "down" : null],
               ].map(([label, value, tone]) => (
                 <div key={label as string} className="flex justify-between items-baseline">
@@ -391,7 +394,8 @@ export default function WorldStockHoldings({
                 { label: "Holdings", value: String(positionsCount), sub: "Positions", tone: null },
                 // Cash is account-level, not part of the crypto slice.
                 ...(!isCryptoView ? [{ label: "Cash", value: formatCurrency(totalCash), sub: "Available", tone: null as null }] : []),
-                ...(((summaryData?.total_tax_withheld_ils ?? 0) > 0)
+                // Tax withheld is account-level capital-gains tax, not attributable to crypto.
+                ...((!isCryptoView && (summaryData?.total_tax_withheld_ils ?? 0) > 0)
                   ? [{ label: "Tax Withheld", value: `₪${(summaryData?.total_tax_withheld_ils || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub: "Capital gains", tone: "warn" as const }]
                   : []),
                 { label: isCryptoView ? "Total Crypto" : "Total Holdings", value: formatCurrency(totalValue), sub: "Market value", tone: null },
